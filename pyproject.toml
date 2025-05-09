@@ -1,0 +1,56 @@
+[project]
+name = "llmop_wakeup"
+version = "0.0.0"
+description = "…"
+readme = "README.md"
+authors = [{name = "Scott Hyndman", email = "scotty.hyndman@gmail.com"}]
+requires-python = ">=3.12"
+dependencies = [
+    "httpx>=0.28.1",
+    "loguru>=0.7.3",
+    "openapi-python-client>=0.24.3",
+    "pydantic>=2.11.4",
+    "rich>=14.0.0",
+]
+license = {text = "MIT"}
+
+[project.urls]
+repository = "https://github.com/shyndman/llmop_wakeup"
+"Bug Tracker" = "https://github.com/shyndman/llmop_wakeup/issues"
+
+[project.scripts]
+wakeup = "llmop_wakeup.app:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = ["pytest>=8.3.5"]
+
+[tool.pyright]
+include = ["src", "tests"]
+ignore = ["**/.venv"]
+defineConstant = {DEBUG = true}
+reportMissingImports = "error"
+deprecateTypingAliases = true
+reportDeprecated = "information"
+pythonPlatform = "Linux"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+indent-width = 2
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+ignore = []
+dummy-variable-rgx = "^_$"
+
+[tool.ruff.lint.isort]
+known-first-party = ["llmop_wakeup"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"
