@@ -9,6 +9,7 @@ dependencies = [
     "attrs>=22.2.0",
     "click>=8.1.8",
     "httpx>=0.28.1",
+    "icalevents>=0.2.1",
     "loguru>=0.7.3",
     "openapi-python-client>=0.24.3",
     "pydantic>=2.11.4",
