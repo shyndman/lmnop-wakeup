@@ -8,10 +8,9 @@ import click
 import rich
 from loguru import logger
 
-from llmop_wakeup.weather import get_hourly_weather
-
 from .calendars import get_todays_calendar_events
 from .common import ApiKey
+from .weather import get_hourly_weather
 
 logger.remove()
 logger.add(
