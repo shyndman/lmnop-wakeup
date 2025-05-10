@@ -56,7 +56,7 @@ async def start(
   help="Overrides today's date for testing",
 )
 def main(latlon: tuple[float, float], today_override: date | None):
-  logger.info("llmop:wakeup is starting up")
+  logger.info("lmnop:wakeup is starting up")
 
   if EnvName.HASS_API_TOKEN not in os.environ:
     raise EnvironmentError(f"Missing {EnvName.HASS_API_TOKEN}")

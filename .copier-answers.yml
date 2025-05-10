@@ -2,9 +2,9 @@
 _commit: v0.0.4
 _src_path: gh:shyndman/python-package-template
 github_user: shyndman
-module_name: llmop_wakeup
-package_name: llmop-wakeup
-project_name: llmop:wakeup
+module_name: lmnop_wakeup
+package_name: lmnop-wakeup
+project_name: lmnop:wakeup
 python_version: '3.12'
 user_email: scotty.hyndman@gmail.com
 user_name: Scott Hyndman

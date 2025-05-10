@@ -1,7 +1,7 @@
 [project]
-name = "llmop_wakeup"
+name = "lmnop_wakeup"
 version = "0.0.0"
-description = "…"
+description = "Rise and Shine!"
 readme = "README.md"
 authors = [{name = "Scott Hyndman", email = "scotty.hyndman@gmail.com"}]
 requires-python = ">=3.12,<4.0"
@@ -18,11 +18,11 @@ dependencies = [
 license = {text = "MIT"}
 
 [project.urls]
-repository = "https://github.com/shyndman/llmop_wakeup"
-"Bug Tracker" = "https://github.com/shyndman/llmop_wakeup/issues"
+repository = "https://github.com/shyndman/lmnop_wakeup"
+"Bug Tracker" = "https://github.com/shyndman/lmnop_wakeup/issues"
 
 [project.scripts]
-wakeup = "llmop_wakeup.app:main"
+wakeup = "lmnop_wakeup.app:main"
 
 [build-system]
 requires = ["hatchling"]
@@ -51,7 +51,7 @@ ignore = []
 dummy-variable-rgx = "^_$"
 
 [tool.ruff.lint.isort]
-known-first-party = ["llmop_wakeup"]
+known-first-party = ["lmnop_wakeup"]
 
 [tool.ruff.format]
 quote-style = "double"

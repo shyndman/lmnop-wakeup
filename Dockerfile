@@ -24,4 +24,4 @@ FROM python:3.12-slim
 COPY --from=builder --chown=app:app /app/.venv /app/.venv
 
 # Run the application
-CMD ["/app/.venv/bin/llmop_wakeup"]
+CMD ["/app/.venv/bin/lmnop_wakeup"]
