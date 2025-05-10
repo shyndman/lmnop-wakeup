@@ -4,12 +4,15 @@ version = "0.0.0"
 description = "…"
 readme = "README.md"
 authors = [{name = "Scott Hyndman", email = "scotty.hyndman@gmail.com"}]
-requires-python = ">=3.12"
+requires-python = ">=3.12,<4.0"
 dependencies = [
+    "attrs>=22.2.0",
+    "click>=8.1.8",
     "httpx>=0.28.1",
     "loguru>=0.7.3",
     "openapi-python-client>=0.24.3",
     "pydantic>=2.11.4",
+    "python-dateutil>=2.8.0",
     "rich>=14.0.0",
 ]
 license = {text = "MIT"}

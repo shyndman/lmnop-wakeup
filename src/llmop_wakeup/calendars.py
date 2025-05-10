@@ -1,6 +1,6 @@
 # Alias the date types because we run into field name conflicts otherwise
+from datetime import date, time, timedelta
 from datetime import datetime as DateTime
-from datetime import timedelta
 
 import httpx
 from loguru import logger
@@ -42,12 +42,15 @@ class RestEndpoints:
     )
 
 
-async def get_todays_calendar_events(hass_api_token: ApiKey):
+async def get_todays_calendar_events(
+  today_override: date | None,
+  hass_api_token: ApiKey,
+):
   request_headers = {
     "Authorization": f"Bearer {hass_api_token}",
     "Content-Type": "application/json",
   }
-  async with httpx.AsyncClient(event_hooks={"request": []}) as client:
+  async with httpx.AsyncClient() as client:
     cals_res = await client.get(
       RestEndpoints.calendars_endpoint(),
       headers=request_headers,
@@ -58,14 +61,19 @@ async def get_todays_calendar_events(hass_api_token: ApiKey):
 
     logger.info("requesting events")
 
-    local_now = DateTime.now().astimezone()
-    logger.debug("  now {ts}", ts=local_now.strftime("%H:%M:%S"))
+    today = None
+    if today_override is not None:
+      today = DateTime.combine(today_override, time(hour=9, minute=0, second=0))
+    else:
+      today = today_override or DateTime.now().astimezone()
 
-    start_of_day = local_now.replace(hour=0, minute=0, second=0)
+    logger.debug("  now {ts}", ts=today.strftime("%H:%M:%S"))
+
+    start_of_day = today.replace(hour=0, minute=0, second=0)
     logger.debug("start {ts}", ts=start_of_day.strftime("%H:%M:%S"))
 
     # We dip into the next day, because some events are nice to know about the day before
-    end_of_day = local_now.replace(hour=8, minute=0, second=0) + timedelta(days=1)
+    end_of_day = today.replace(hour=8, minute=0, second=0) + timedelta(days=1)
     logger.debug("  end {ts}", ts=end_of_day.strftime("%H:%M:%S"))
 
     for cal in calendars:
