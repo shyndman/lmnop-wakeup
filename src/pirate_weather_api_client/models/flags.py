@@ -1,21 +1,16 @@
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any, TypeVar, cast
+from typing import Any, TypeVar, cast
 
-from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 from pydantic import BaseModel
 
+from ..models.flags_source_idx import FlagsSourceIDX
+from ..models.flags_source_times import FlagsSourceTimes
 from ..types import UNSET, Unset
-
-if TYPE_CHECKING:
-  from ..models.flags_source_idx import FlagsSourceIDX
-  from ..models.flags_source_times import FlagsSourceTimes
-
 
 T = TypeVar("T", bound="Flags")
 
 
-@_attrs_define
 class Flags(BaseModel):
   """A block containing miscellaneous data for the API request.
 

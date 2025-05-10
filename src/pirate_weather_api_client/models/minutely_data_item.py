@@ -1,16 +1,15 @@
 from collections.abc import Mapping
 from typing import Any, TypeVar
 
-from attrs import define as _attrs_define
 from attrs import field as _attrs_field
+from pydantic import BaseModel
 
 from ..types import UNSET, Unset
 
 T = TypeVar("T", bound="MinutelyDataItem")
 
 
-@_attrs_define
-class MinutelyDataItem:
+class MinutelyDataItem(BaseModel):
   """
   Attributes:
       time (Unset | int): The time of the data point in UNIX format. Example: 1746033120.

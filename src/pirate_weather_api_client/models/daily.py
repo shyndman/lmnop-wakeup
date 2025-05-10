@@ -1,20 +1,15 @@
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import Any, TypeVar
 
-from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 from pydantic import BaseModel
 
+from ..models.daily_data_item import DailyDataItem
 from ..types import UNSET, Unset
-
-if TYPE_CHECKING:
-  from ..models.daily_data_item import DailyDataItem
-
 
 T = TypeVar("T", bound="Daily")
 
 
-@_attrs_define
 class Daily(BaseModel):
   """A block containing day-by-day forecasted conditions for the next 7 days.
 

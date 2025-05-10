@@ -1,16 +1,15 @@
 from collections.abc import Mapping
 from typing import Any, TypeVar
 
-from attrs import define as _attrs_define
 from attrs import field as _attrs_field
+from pydantic import BaseModel
 
 from ..types import UNSET, Unset
 
 T = TypeVar("T", bound="FlagsSourceIDXGfs")
 
 
-@_attrs_define
-class FlagsSourceIDXGfs:
+class FlagsSourceIDXGfs(BaseModel):
   """
   Attributes:
       x (Unset | int): The X coordinate for the GFS model. Example: 1082.

@@ -1,20 +1,15 @@
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import Any, TypeVar
 
-from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 from pydantic import BaseModel
 
+from ..models.minutely_data_item import MinutelyDataItem
 from ..types import UNSET, Unset
-
-if TYPE_CHECKING:
-  from ..models.minutely_data_item import MinutelyDataItem
-
 
 T = TypeVar("T", bound="Minutely")
 
 
-@_attrs_define
 class Minutely(BaseModel):
   """A block containing minute-by-minute precipitation intensity for the next 60 minutes.
 

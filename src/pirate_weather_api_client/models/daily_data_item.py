@@ -1,16 +1,15 @@
 from collections.abc import Mapping
 from typing import Any, TypeVar
 
-from attrs import define as _attrs_define
 from attrs import field as _attrs_field
+from pydantic import BaseModel
 
 from ..types import UNSET, Unset
 
 T = TypeVar("T", bound="DailyDataItem")
 
 
-@_attrs_define
-class DailyDataItem:
+class DailyDataItem(BaseModel):
   """
   Attributes:
       time (Unset | int): The time of the data point in UNIX format. Example: 1745989200.
@@ -115,7 +114,7 @@ class DailyDataItem:
   wind_speed: Unset | float = UNSET
   wind_gust: Unset | float = UNSET
   wind_gust_time: Unset | int = UNSET
-  wind_bearing: Unset | int = UNSET
+  wind_bearing: Unset | float = UNSET
   cloud_cover: Unset | float = UNSET
   uv_index: Unset | float = UNSET
   uv_index_time: Unset | int = UNSET

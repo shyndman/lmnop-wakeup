@@ -37,8 +37,8 @@ async def start(
     get_hourly_weather(latlon, pirate_weather_api_key),
     get_todays_calendar_events(today_override, hass_api_token),
   )
-  rich.print(weather)
   rich.print(all_cals)
+  rich.print(weather)
 
 
 @click.command()
@@ -46,7 +46,7 @@ async def start(
   "--latlon",
   nargs=2,
   type=(float, float),
-  default="43.69086460515023 -79.30780076686716",
+  default=[43.69086460515023, -79.30780076686716],
   help="Location for weather report",
 )
 @click.option(

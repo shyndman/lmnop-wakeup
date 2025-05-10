@@ -1,23 +1,19 @@
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import Any, TypeVar
 
-from attrs import define as _attrs_define
 from attrs import field as _attrs_field
+from pydantic import BaseModel
 
+from ..models.flags_source_idx_etopo import FlagsSourceIDXEtopo
+from ..models.flags_source_idx_gfs import FlagsSourceIDXGfs
+from ..models.flags_source_idx_hrrr import FlagsSourceIDXHrrr
+from ..models.flags_source_idx_nbm import FlagsSourceIDXNbm
 from ..types import UNSET, Unset
-
-if TYPE_CHECKING:
-  from ..models.flags_source_idx_etopo import FlagsSourceIDXEtopo
-  from ..models.flags_source_idx_gfs import FlagsSourceIDXGfs
-  from ..models.flags_source_idx_hrrr import FlagsSourceIDXHrrr
-  from ..models.flags_source_idx_nbm import FlagsSourceIDXNbm
-
 
 T = TypeVar("T", bound="FlagsSourceIDX")
 
 
-@_attrs_define
-class FlagsSourceIDX:
+class FlagsSourceIDX(BaseModel):
   """The X, Y coordinate and the lat/long coordinate for each model used to generate the forecast.
   Only returned when version>2.
 

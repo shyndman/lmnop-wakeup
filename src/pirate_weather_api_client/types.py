@@ -5,9 +5,10 @@ from http import HTTPStatus
 from typing import BinaryIO, Generic, Literal, TypeVar
 
 from attrs import define
+from pydantic import BaseModel
 
 
-class Unset:
+class Unset(BaseModel):
   def __bool__(self) -> Literal[False]:
     return False
 

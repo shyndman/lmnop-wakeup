@@ -1,20 +1,15 @@
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import Any, TypeVar
 
-from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 from pydantic import BaseModel
 
+from ..models.hourly_data_item import HourlyDataItem
 from ..types import UNSET, Unset
-
-if TYPE_CHECKING:
-  from ..models.hourly_data_item import HourlyDataItem
-
 
 T = TypeVar("T", bound="Hourly")
 
 
-@_attrs_define
 class Hourly(BaseModel):
   """A block containing hour-by-hour forecasted conditions for the next 48 hours. If
   `extend=hourly` is used, the hourly block gives hour-by-hour forecasted conditions for the

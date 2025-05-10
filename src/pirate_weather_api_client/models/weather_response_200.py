@@ -1,19 +1,16 @@
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import Any, TypeVar
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
+from ..models.alerts_item import AlertsItem
+from ..models.currently import Currently
+from ..models.daily import Daily
+from ..models.flags import Flags
+from ..models.hourly import Hourly
+from ..models.minutely import Minutely
 from ..types import UNSET, Unset
-
-if TYPE_CHECKING:
-  from ..models.alerts_item import AlertsItem
-  from ..models.currently import Currently
-  from ..models.daily import Daily
-  from ..models.flags import Flags
-  from ..models.hourly import Hourly
-  from ..models.minutely import Minutely
-
 
 T = TypeVar("T", bound="WeatherResponse200")
 
