@@ -1,17 +1,21 @@
 import inspect
 import logging
 import sys
+from typing import override
 
 from loguru import logger
 
-logger.remove()
-logger.add(
-  sys.stderr,
-  format="<green>{time:HH:mm:ss}</green> <dim>[{module}]</dim> <level>{level} {message}</level>",
-)
+
+def initialize_logging():
+  logger.remove()
+  logger.add(
+    sys.stderr,
+    format="<green>{time:HH:mm:ss}</green> <dim>[{module}]</dim> <level>{level} {message}</level>",
+  )
 
 
 class InterceptHandler(logging.Handler):
+  @override
   def emit(self, record: logging.LogRecord) -> None:
     # Get corresponding Loguru level if it exists.
     try:

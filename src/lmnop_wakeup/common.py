@@ -1,11 +1,8 @@
 import os
 from datetime import date as Date
 from datetime import datetime
-from datetime import datetime as DateTime
 from enum import StrEnum
 from typing import NewType
-
-from pydantic import BaseModel
 
 from lmnop_wakeup.typing import assert_not_none
 
@@ -52,15 +49,3 @@ def assert_env():
   for name in list(EnvName):
     if name not in os.environ:
       raise EnvironmentError(f"Required environment variable {name} not provided")
-
-
-class TimeInfo(BaseModel):
-  date: Date | None = None
-  dateTime: DateTime | None = None
-
-  # Validate that one and only one is provided
-  def model_post_init(self, __context):
-    if (self.date is None and self.dateTime is None) or (
-      self.date is not None and self.dateTime is not None
-    ):
-      raise ValueError("Either 'date' or 'dateTime' must be provided, but not both")

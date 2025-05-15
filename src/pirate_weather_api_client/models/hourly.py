@@ -22,9 +22,9 @@ class Hourly(BaseModel):
       data (Unset | list['HourlyDataItem']):
   """
 
-  summary: Unset | str = UNSET
-  icon: Unset | str = UNSET
-  data: Unset | list[HourlyDataItem] = UNSET
+  summary: str | Unset = UNSET
+  icon: str | Unset = UNSET
+  data: list[HourlyDataItem] | Unset = UNSET
   additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
   def to_dict(self) -> dict[str, Any]:

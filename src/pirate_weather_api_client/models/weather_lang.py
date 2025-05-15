@@ -1,4 +1,5 @@
 from enum import Enum
+from typing import override
 
 
 class WeatherLang(str, Enum):
@@ -60,5 +61,6 @@ class WeatherLang(str, Enum):
   ZH = "zh"
   ZH_TW = "zh-tw"
 
+  @override
   def __str__(self) -> str:
     return str(self.value)

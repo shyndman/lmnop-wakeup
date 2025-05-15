@@ -1,3 +1,4 @@
+from datetime import date, datetime, time, timezone
 from typing import cast
 
 from loguru import logger
@@ -6,15 +7,27 @@ from pydantic import BaseModel
 from pirate_weather_api_client import Client
 from pirate_weather_api_client.api.weather import weather
 from pirate_weather_api_client.errors import UnexpectedStatus
-from pirate_weather_api_client.models import AlertsItem, Currently, Hourly, WeatherResponse200
+from pirate_weather_api_client.models import (
+  AlertsItem,
+  Currently,
+  Hourly,
+  HourlyDataItem,
+  WeatherResponse200,
+)
 from pirate_weather_api_client.types import UNSET
 
 from ..common import ApiKey
+from ..locations import CoordinateLocation
 from ..typing import nu
 
 
 class WeatherNotAvailable(BaseModel):
   pass
+
+
+def is_timestamp_on_date(ts: int, midnight_on_date: datetime) -> bool:
+  date_to_check = datetime.fromtimestamp(ts, tz=midnight_on_date.tzinfo)
+  return date_to_check.date() == midnight_on_date.date()
 
 
 class WeatherReport(BaseModel):
@@ -23,20 +36,32 @@ class WeatherReport(BaseModel):
   daily: BaseModel
   alerts: list[AlertsItem]
 
+  def get_hourlies_for_day(self, date: date) -> list[HourlyDataItem]:
+    midnight_on_date = datetime.combine(date, time(0, 0, 0), tzinfo=timezone.utc) # Assume UTC for midnight comparison unless timezone is available
+    hourly_data = nu(self.hourly.data) if self.hourly and nu(self.hourly.data) is not UNSET else []
+
+    return list(
+      filter(
+        lambda h: is_timestamp_on_date(nu(h.time), midnight_on_date),
+        hourly_data,
+      )
+    )
+
 
 type WeatherResult = WeatherReport | WeatherNotAvailable
 
+_API_BASE_URL = "https://api.pirateweather.net"
 
-async def get_hourly_weather(
-  latlon: tuple[float, float], pirate_weather_api_key: ApiKey
+
+async def get_weather_report(
+  location: CoordinateLocation,
+  pirate_weather_api_key: ApiKey,
 ) -> WeatherResult:
-  BASE_URL = "https://api.pirateweather.net"
-
-  async with Client(base_url=BASE_URL) as async_client:
+  async with Client(base_url=_API_BASE_URL) as async_client:
     try:
       res = await weather.asyncio(
         api_key=pirate_weather_api_key,
-        lat_and_long_or_time=f"{latlon[0]},{latlon[1]}",
+        lat_and_long_or_time=f"{location.latlng[0]},{location.latlng[1]}",
         client=async_client,
         units="si",
       )

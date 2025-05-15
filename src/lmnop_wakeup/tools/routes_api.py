@@ -16,8 +16,8 @@ from google.protobuf.timestamp_pb2 import Timestamp
 from pydantic import BaseModel, computed_field
 
 from ..asyncio import gather_map
+from ..common import ApiKey
 from ..locations import Location
-from .calendars import ApiKey
 
 
 class RouteDetails(BaseModel):
@@ -50,7 +50,7 @@ class RouteDetailsByMode(BaseModel):
   destination: Location
 
   bike: CyclingRouteDetails | None
-  drive: RouteDetails
+  drive: DrivingRouteDetails
   """We will always have a driving route, and if we don't, the tool will fail"""
   transit: RouteDetails | None
   walk: RouteDetails | None
@@ -84,13 +84,13 @@ class DepartAtConstraint(BaseModel):
 
 
 async def compute_route_durations(
-  google_routes_api_key: ApiKey,
   origin: Location,
   destination: Location,
   time_constraint: TimeConstraint,
   include_cycling: bool,
   include_transit: bool,
   include_walking: bool,
+  google_routes_api_key: ApiKey,
 ) -> RouteDetailsByMode:
   # Create a client
   client = routing_v2.RoutesAsyncClient(

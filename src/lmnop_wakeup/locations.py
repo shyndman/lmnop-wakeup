@@ -56,7 +56,7 @@ class LocationName(StrEnum):
   the_farm = "the_farm"
 
 
-NAMED_LOCATIONS = {
+_NAMED_LOCATIONS = {
   LocationName.home: NamedLocation(
     name="Home",
     slug=LocationSlug("home"),
@@ -103,4 +103,4 @@ NAMED_LOCATIONS = {
 
 
 def location_named(name: LocationName) -> NamedLocation:
-  return NAMED_LOCATIONS[name]
+  return _NAMED_LOCATIONS[name]

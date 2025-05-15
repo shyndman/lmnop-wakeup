@@ -1,15 +1,29 @@
 # Alias the date types because we run into field name conflicts otherwise
 from datetime import date, time, timedelta
+from datetime import date as Date
 from datetime import datetime as DateTime
+from typing import override
 
 import httpx
 from loguru import logger
 from pydantic import BaseModel, Field
 
-from ..common import TimeInfo
-from ..entity import ApiKey, EntityId
+from .hass_api import ApiKey, HassEntityId
 
 API_BASE = "http://home.don/api"
+
+
+class TimeInfo(BaseModel):
+  date: Date | None = None
+  dateTime: DateTime | None = None
+
+  # Validate that one and only one is provided
+  @override
+  def model_post_init(self, __context):
+    if (self.date is None and self.dateTime is None) or (
+      self.date is not None and self.dateTime is not None
+    ):
+      raise ValueError("Either 'date' or 'dateTime' must be provided, but not both")
 
 
 class CalendarEvent(BaseModel):
@@ -24,7 +38,7 @@ class CalendarEvent(BaseModel):
 
 
 class Calendar(BaseModel):
-  entity_id: EntityId
+  entity_id: HassEntityId
   name: str
   todays_events: list[CalendarEvent] = []
 
@@ -35,7 +49,7 @@ class RestEndpoints:
     return httpx.URL(f"{API_BASE}/calendars")
 
   @staticmethod
-  def events_endpoint(calendar_id: EntityId, start: DateTime, end: DateTime) -> httpx.URL:
+  def events_endpoint(calendar_id: HassEntityId, start: DateTime, end: DateTime) -> httpx.URL:
     return httpx.URL(
       f"{API_BASE}/calendars/{calendar_id}"
       f"?start={start.isoformat(timespec='seconds')}&end={end.isoformat(timespec='seconds')}"
