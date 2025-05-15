@@ -3,6 +3,8 @@ import logging
 import sys
 from typing import override
 
+# from typing import override
+import logfire
 from loguru import logger
 
 
@@ -12,6 +14,18 @@ def initialize_logging():
     sys.stderr,
     format="<green>{time:HH:mm:ss}</green> <dim>[{module}]</dim> <level>{level} {message}</level>",
   )
+
+  # Configure Logfire for use with Langfuse
+  logfire.configure(
+    service_name="lmnop:wakeup",
+    send_to_logfire=False,
+    scrubbing=False,
+  ).with_settings(
+    console_log=False,
+  )
+  logfire.instrument_pydantic_ai(event_mode="logs")
+  logfire.instrument_pydantic(record="all")
+  logfire.instrument_httpx()
 
 
 class InterceptHandler(logging.Handler):
@@ -54,11 +68,11 @@ LOGGING_CONFIG = {
   "loggers": {
     "httpx": {
       "handlers": ["default"],
-      "level": "DEBUG",
+      "level": "TRACE",
     },
     "httpcore": {
       "handlers": ["default"],
-      "level": "DEBUG",
+      "level": "TRACE",
     },
   },
 }

@@ -1,14 +1,14 @@
-from calendar import Calendar
 from datetime import date, datetime
 from enum import StrEnum
+from typing import TypedDict
 
 from langfuse import Langfuse
+from loguru import logger
 from pydantic import BaseModel, Field
-from pydantic.dataclasses import dataclass
 from pydantic_ai import Agent
 
 from lmnop_wakeup.common import get_google_routes_api_key
-from lmnop_wakeup.locations import _NAMED_LOCATIONS, Location, LocationName
+from lmnop_wakeup.locations import AddressLocation, CoordinateLocation, Location
 from lmnop_wakeup.tools import routes_api
 from lmnop_wakeup.tools.routes_api import (
   CyclingRouteDetails,
@@ -18,10 +18,11 @@ from lmnop_wakeup.tools.routes_api import (
 )
 from pirate_weather_api_client.models import HourlyDataItem
 
-from .llm import GEMINI_25_PRO, get_langfuse_prompt_bundle
-from .tools.calendar_api import CalendarEvent
+from .llm import GEMINI_25_FLASH, get_langfuse_prompt_bundle
+from .tools.hass_api import HassCalendar, HassCalendarEvent
 
 # 1. HOUSEHOLD INFORMATION:
+logger.info("Initializing scheduler")
 #    - Home address
 #    - Household members (Scott and Hilary)
 #    - Preparation times and wake-up constraints
@@ -66,13 +67,12 @@ WEEK_DAY_MAPPING = {
 }
 
 
-@dataclass
-class SchedulingInputs:
-  calendars: list[Calendar]
+class SchedulingInputs(TypedDict):
+  calendars: list[HassCalendar]
   todays_date: date
-  is_today_work: bool
+  is_today_workday: bool
   hourly_weather: list[HourlyDataItem]
-  home_location: Location = _NAMED_LOCATIONS[LocationName.home]
+  home_location: Location
 
 
 class ModeRejectionResult(BaseModel):
@@ -96,9 +96,9 @@ class EventRouteOptions(BaseModel):
   reasons why a mode might be unsuitable.
   """
 
-  origin: Location
+  origin: AddressLocation | CoordinateLocation
   """The starting location for the route."""
-  destination: Location
+  destination: AddressLocation | CoordinateLocation
   """The ending location for the route."""
   related_event_id: list[str] = Field(min_length=1, max_length=2)
   """The identifier(s) of the calendar event(s) the user is travelling to or from, or both"""
@@ -122,35 +122,49 @@ class SchedulingDetails(BaseModel):
 
   wakeup_time: datetime
   """The calculated time the user should wake up."""
-  triggering_event_details: CalendarEvent | None
+  triggering_event_details: HassCalendarEvent | None
   """The calendar event that was used to determine the wakeup_time. This will be `null` if the
   wake-up time was based on the latest possible time rather than a specific event."""
-  routes: EventRouteOptions
+  routes: list[EventRouteOptions]
   """Details about the computed routes for travel related to the scheduled event(s)."""
 
 
 type TimekeeperAgent = Agent[SchedulingInputs, SchedulingDetails]
 
 
-async def create_timekeeper(model: str = GEMINI_25_PRO) -> TimekeeperAgent:
+async def create_timekeeper(model: str = GEMINI_25_FLASH) -> tuple[TimekeeperAgent, str, str]:
+  logger.debug("Creating Timekeeper agent with model: {model}", model=model)
   bundle = await get_langfuse_prompt_bundle("timekeeper")
-
   timekeeper = Agent(
+    model=model,
     instructions=bundle.instructions,
     deps_type=SchedulingInputs,
     output_type=SchedulingDetails,
     model_settings=bundle.model_settings,
+    instrument=True,
   )
 
   @timekeeper.tool_plain()
   async def compute_routes(
-    from_location: Location,
-    to_location: Location,
+    from_location: AddressLocation | CoordinateLocation,
+    to_location: AddressLocation | CoordinateLocation,
     time_constraint: TimeConstraint,
     include_cycling: bool,
     include_transit: bool,
     include_walking: bool,
   ) -> RouteDetailsByMode:
+    logger.debug(
+      "Timekeeper tool called: compute_routes with from_location={from_location}, "
+      "to_location={to_location}, "
+      "time_constraint={time_constraint}, include_cycling={include_cycling}, "
+      "include_transit={include_transit}, include_walking={include_walking}",
+      from_location=from_location,
+      to_location=to_location,
+      time_constraint=time_constraint,
+      include_cycling=include_cycling,
+      include_transit=include_transit,
+      include_walking=include_walking,
+    )
     """
     Computes route details between two locations for various travel modes.
 
@@ -181,18 +195,21 @@ async def create_timekeeper(model: str = GEMINI_25_PRO) -> TimekeeperAgent:
       include_walking=include_walking,
     )
 
-  return timekeeper
+  return timekeeper, bundle.instructions, bundle.task_prompt_templates
 
 
 async def determine_day_schedule(
   timekeeper: TimekeeperAgent, deps: SchedulingInputs
 ) -> SchedulingDetails:
+  logger.debug("Determining day schedule with Timekeeper agent")
   res = await timekeeper.run("", deps=deps)
+  logger.debug("Timekeeper agent run completed. Returning output.")
   return res.output
 
 
 # Initialize Langfuse client
 langfuse = Langfuse()
+logger.debug("Langfuse client initialized")
 
 
 prompt = langfuse.get_prompt("timekeeper", label="latest")

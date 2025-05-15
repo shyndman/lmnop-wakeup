@@ -21,7 +21,7 @@ from ..locations import CoordinateLocation
 from ..typing import nu
 
 
-class WeatherNotAvailable(BaseModel):
+class WeatherNotAvailable(Exception):
   pass
 
 
@@ -37,7 +37,9 @@ class WeatherReport(BaseModel):
   alerts: list[AlertsItem]
 
   def get_hourlies_for_day(self, date: date) -> list[HourlyDataItem]:
-    midnight_on_date = datetime.combine(date, time(0, 0, 0), tzinfo=timezone.utc) # Assume UTC for midnight comparison unless timezone is available
+    midnight_on_date = datetime.combine(
+      date, time(0, 0, 0), tzinfo=timezone.utc
+    )  # Assume UTC for midnight comparison unless timezone is available
     hourly_data = nu(self.hourly.data) if self.hourly and nu(self.hourly.data) is not UNSET else []
 
     return list(
@@ -56,7 +58,7 @@ _API_BASE_URL = "https://api.pirateweather.net"
 async def get_weather_report(
   location: CoordinateLocation,
   pirate_weather_api_key: ApiKey,
-) -> WeatherResult:
+) -> WeatherReport:
   async with Client(base_url=_API_BASE_URL) as async_client:
     try:
       res = await weather.asyncio(
@@ -70,7 +72,7 @@ async def get_weather_report(
         logger.error(
           "Failed to retrieve weather data or 'currently' block missing, error={error}", error=res
         )
-        return WeatherNotAvailable()
+        raise WeatherNotAvailable()
 
       res = cast(WeatherResponse200, res)
       logger.info("Async Current Temperature: {temp}", temp=nu(res.currently).temperature)
@@ -83,7 +85,7 @@ async def get_weather_report(
       )
     except UnexpectedStatus:
       logger.exception("Async API returned an unexpected status")
-      return WeatherNotAvailable()
+      raise WeatherNotAvailable()
     except Exception:
       logger.exception("An async error occurred")
-      return WeatherNotAvailable()
+      raise WeatherNotAvailable()

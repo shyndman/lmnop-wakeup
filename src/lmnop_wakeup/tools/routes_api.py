@@ -13,11 +13,12 @@ from google.maps.routing import (
   RoutingPreference,
 )
 from google.protobuf.timestamp_pb2 import Timestamp
+from loguru import logger
 from pydantic import BaseModel, computed_field
 
 from ..asyncio import gather_map
 from ..common import ApiKey
-from ..locations import Location
+from ..locations import AddressLocation, CoordinateLocation
 
 
 class RouteDetails(BaseModel):
@@ -46,8 +47,8 @@ class DrivingRouteDetails(RouteDetails):
 
 
 class RouteDetailsByMode(BaseModel):
-  origin: Location
-  destination: Location
+  origin: AddressLocation | CoordinateLocation
+  destination: AddressLocation | CoordinateLocation
 
   bike: CyclingRouteDetails | None
   drive: DrivingRouteDetails
@@ -84,14 +85,25 @@ class DepartAtConstraint(BaseModel):
 
 
 async def compute_route_durations(
-  origin: Location,
-  destination: Location,
+  origin: AddressLocation | CoordinateLocation,
+  destination: AddressLocation | CoordinateLocation,
   time_constraint: TimeConstraint,
   include_cycling: bool,
   include_transit: bool,
   include_walking: bool,
   google_routes_api_key: ApiKey,
 ) -> RouteDetailsByMode:
+  logger.debug(
+    "Computing route durations for origin={origin}, destination={destination}, "
+    "time_constraint={time_constraint}, include_cycling={include_cycling}, "
+    "include_transit={include_transit}, include_walking={include_walking}",
+    origin=origin,
+    destination=destination,
+    time_constraint=time_constraint,
+    include_cycling=include_cycling,
+    include_transit=include_transit,
+    include_walking=include_walking,
+  )
   # Create a client
   client = routing_v2.RoutesAsyncClient(
     credentials=Credentials(
@@ -121,9 +133,11 @@ async def compute_route_durations(
     )
     for mode in travel_modes
   }
+  logger.debug("Sending route requests for modes: {travel_modes}", travel_modes=travel_modes)
 
   # Construct the response model
   modes_to_responses = await gather_map(mode_to_in_flight_requests)
+  logger.debug("Received responses for route requests")
 
   # Drive
   res = modes_to_responses[RouteTravelMode.DRIVE]
@@ -171,7 +185,7 @@ async def compute_route_durations(
       distance_meters=route.distance_meters,
     )
 
-  return RouteDetailsByMode(
+  route_details_by_mode = RouteDetailsByMode(
     origin=origin,
     destination=destination,
     bike=bike_details,
@@ -179,6 +193,11 @@ async def compute_route_durations(
     transit=transit_details,
     walk=walking_details,
   )
+  logger.debug(
+    "Returning RouteDetailsByMode: {route_details_by_mode}",
+    route_details_by_mode=route_details_by_mode,
+  )
+  return route_details_by_mode
 
 
 FIELD_MASK_HEADER = (
@@ -191,22 +210,39 @@ FIELD_MASK_HEADER = (
 
 def create_route_request(
   mode: RouteTravelMode,
-  origin: Location,
-  destination: Location,
+  origin: AddressLocation | CoordinateLocation,
+  destination: AddressLocation | CoordinateLocation,
   departure_time: datetime,
 ) -> ComputeRoutesRequest:
+  logger.debug(
+    "Creating route request for mode={mode}, origin={origin}, destination={destination}, "
+    "departure_time={departure_time}",
+    mode=mode,
+    origin=origin,
+    destination=destination,
+    departure_time=departure_time,
+  )
   posix = departure_time.timestamp()
   seconds = int(posix)
   nanos = int((posix % 1) * 1e6)
   departure_timestamp = Timestamp(seconds=seconds, nanos=nanos)
 
-  return ComputeRoutesRequest(
+  route_request = ComputeRoutesRequest(
     origin=origin.as_waypoint(),
     destination=destination.as_waypoint(),
     departure_time=departure_timestamp,
     travel_mode=mode,
     routing_preference=RoutingPreference.TRAFFIC_AWARE if mode == RouteTravelMode.DRIVE else None,
   )
+  route_request = ComputeRoutesRequest(
+    origin=origin.as_waypoint(),
+    destination=destination.as_waypoint(),
+    departure_time=departure_timestamp,
+    travel_mode=mode,
+    routing_preference=RoutingPreference.TRAFFIC_AWARE if mode == RouteTravelMode.DRIVE else None,
+  )
+  logger.debug("Returning ComputeRoutesRequest for mode {mode}", mode=route_request.travel_mode)
+  return route_request
 
 
 # @google.api_core.retry.AsyncRetry(predicate=lambda err: True)
@@ -215,4 +251,5 @@ def send_route_request(
   request: ComputeRoutesRequest,
   metadata: Sequence[tuple[str, str | bytes]],
 ) -> CoroutineType[Any, Any, ComputeRoutesResponse]:
+  logger.debug("Sending route request for mode: {travel_mode}", travel_mode=request.travel_mode)
   return client.compute_routes(request=request, metadata=metadata)

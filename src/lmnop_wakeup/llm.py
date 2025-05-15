@@ -1,28 +1,11 @@
+import re
+from dataclasses import dataclass
 from typing import cast
 
-import logfire
-import nest_asyncio
 from langfuse import Langfuse
 from langfuse.api import ChatMessage
 from langfuse.api.core import RequestOptions
-from pydantic import BaseModel
 from pydantic_ai.settings import ModelSettings
-
-# Permit the user of nested asyncio.run calls
-nest_asyncio.apply()
-
-# Configure Logfire for use with Langfuse
-logfire.configure(
-  service_name="lmnop:wakeup",
-  send_to_logfire=False,
-  scrubbing=False,
-).with_settings(
-  console_log=False,
-)
-logfire.instrument_pydantic_ai(event_mode="logs")
-logfire.instrument_pydantic(record="all")
-logfire.instrument_httpx()
-
 
 GEMINI_25_FLASH = "gemini-2.5-flash-preview-04-17"
 GEMINI_25_PRO = "gemini-2.5-pro-preview-03-25"
@@ -32,9 +15,15 @@ LATEST_PROMPT_LABEL = "latest"
 PRODUCTION_PROMPT_LABEL = "production"
 
 
-class LangfusePromptBundle(BaseModel):
+@dataclass
+class LangfusePromptBundle:
   instructions: str
+  task_prompt_templates: str
   model_settings: ModelSettings
+
+
+HORIZONTAL_RULE = "\n---------\n"
+langfuse_template_pattern = re.compile(r"{{\s*(\w+)\s*}}", re.NOFLAG)
 
 
 async def get_langfuse_prompt_bundle(prompt_name: str) -> LangfusePromptBundle:
@@ -47,11 +36,18 @@ async def get_langfuse_prompt_bundle(prompt_name: str) -> LangfusePromptBundle:
     ),
   )
 
-  instructions, *prompts = res.prompt
-  assert len(prompts) == 0
-
+  instructions, *prompts = map(
+    lambda p: p.content,
+    cast(list[ChatMessage], res.prompt),
+  )
+  prompts = HORIZONTAL_RULE.join(prompts)
   model_settings = res.config
+
+  # Replace double-braced syntax with single, so str.format will format successfully
+  prompts = langfuse_template_pattern.sub(r"{\g<1>}", prompts)
+
   return LangfusePromptBundle(
-    instructions=cast(ChatMessage, instructions).content,
+    instructions=instructions,
     model_settings=ModelSettings(model_settings),
+    task_prompt_templates=prompts,
   )
