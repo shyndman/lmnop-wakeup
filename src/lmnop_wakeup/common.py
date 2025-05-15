@@ -4,7 +4,7 @@ from datetime import datetime as DateTime
 from enum import StrEnum
 from typing import NewType, override
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, EmailStr, Field
 
 from lmnop_wakeup.typing import assert_not_none
 
@@ -39,7 +39,7 @@ class TimeInfo(BaseModel):
   """The date."""
   dateTime: DateTime | None = None
   """The datetime."""
-  timeZone: str | None
+  timeZone: str | None = None
   """The timezone."""
 
   # Validate that one and only one is provided
@@ -78,12 +78,19 @@ def date_parser(raw: str | list[str]) -> Date:
   return DateTime.strptime(raw, "%Y-%m-%d").date()
 
 
+class CalendarUser(BaseModel):
+  display_name: str = Field(alias="displayName")
+  email: EmailStr
+
+
 class CalendarEvent(BaseModel):
   summary: str
+  description: str | None
+  creator: CalendarUser | None = None
   start_ts: TimeInfo = Field(alias="start")
   end_ts: TimeInfo | None = Field(None, alias="end")
-  description: str | None = None
-  location: str | None = None
+  description: str | None
+  location: str | None
 
   def is_all_day(self) -> bool:
     return self.end_ts is None

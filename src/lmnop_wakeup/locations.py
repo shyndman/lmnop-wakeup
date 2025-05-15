@@ -9,19 +9,46 @@ from google.type.latlng_pb2 import LatLng as GLatLng
 from pydantic import BaseModel
 
 LocationSlug = NewType("LocationSlug", str)
+"""A unique identifier for a named location."""
 
 
 class Location(BaseModel, abc.ABC):
+  """
+  Represents a generic location.
+
+  This is an abstract base class for different types of locations.
+  An LLM will typically instantiate either an `AddressLocation` or a `CoordinateLocation`.
+  """
+
   @abc.abstractmethod
   def as_waypoint(self) -> Waypoint:
+    """
+    Converts the location to a Google Maps Waypoint object.
+
+    Returns:
+        Waypoint: The Google Maps Waypoint representation of the location.
+    """
     pass
 
 
 class CoordinateLocation(Location):
+  """
+  Represents a location defined by geographical coordinates (latitude and longitude).
+
+  An LLM may instantiate this class when a location is provided as a pair of coordinates.
+  """
+
   latlng: tuple[float, float]
+  """The latitude and longitude of the location."""
 
   @override
   def as_waypoint(self) -> Waypoint:
+    """
+    Converts the coordinate location to a Google Maps Waypoint object.
+
+    Returns:
+        Waypoint: The Google Maps Waypoint representation using latitude and longitude.
+    """
     return Waypoint(
       location=GLocation(
         lat_lng=GLatLng(latitude=self.latlng[0], longitude=self.latlng[1]),
@@ -30,24 +57,60 @@ class CoordinateLocation(Location):
 
 
 class AddressLocation(Location):
+  """
+  Represents a location defined by a mailing address.
+
+  An LLM may instantiate this class when a location is provided as a mailing address. It is
+  important that the address provided is fully qualified, including the city, province/state,
+  postal/zip code, and country. At most, you can only be missing a couple of these details, or the
+  tool will fail, and you will fail to accomplish your task.
+  """
+
   address: str | None = None
+  """The street address of the location."""
 
   @override
   def as_waypoint(self) -> Waypoint:
+    """
+    Converts the address location to a Google Maps Waypoint object.
+
+    Returns:
+        Waypoint: The Google Maps Waypoint representation using the address string.
+    """
     return Waypoint(address=self.address)
 
 
 class ResolvedLocation(CoordinateLocation, AddressLocation):
+  """
+  Represents a location that has been resolved to both an address and coordinates.
+
+  This class is typically used internally after a location (like an address) has been geocoded.
+  """
+
   pass
 
 
 class NamedLocation(ResolvedLocation):
+  """
+  Represents a predefined, named location with a slug, description, address, and coordinates.
+
+  An LLM will eventually be able to use a tool to retrieve instances of this class
+  based on their name or slug.
+  """
+
   name: str
+  """The human-readable name of the location."""
   slug: LocationSlug
+  """A unique slug identifier for the named location."""
   description: str
+  """A brief description of the named location."""
 
 
 class LocationName(StrEnum):
+  """
+  Enumeration of known named locations.
+  """
+
   home = "home"
   the_cottage = "the_cottage"
   village_marina = "village_marina"
@@ -100,7 +163,17 @@ _NAMED_LOCATIONS = {
     latlng=(43.62859507321176, -79.96554318542952),
   ),
 }
+"""A dictionary mapping LocationName enums to NamedLocation instances."""
 
 
 def location_named(name: LocationName) -> NamedLocation:
+  """
+  Retrieves a predefined NamedLocation by its LocationName enum.
+
+  Args:
+      name: The LocationName enum of the desired named location.
+
+  Returns:
+      NamedLocation: The corresponding NamedLocation instance.
+  """
   return _NAMED_LOCATIONS[name]

@@ -62,7 +62,7 @@ def test_get_hourlies_for_day_filters_correctly():
     alerts=[],  # Provide a valid list of AlertsItem
   )
 
-  hourlies_for_day = weather_report.get_hourlies_for_day(test_date)
+  hourlies_for_day = weather_report.get_hourlies_for_day(test_date, tz=timezone.utc)
 
   # Expecting only ts1 and ts2 to be included
   expected_timestamps = {ts1, ts2}
@@ -82,7 +82,7 @@ def test_get_hourlies_for_day_empty_data():
     alerts=[],
   )
 
-  hourlies_for_day = weather_report.get_hourlies_for_day(test_date)
+  hourlies_for_day = weather_report.get_hourlies_for_day(test_date, tz=timezone.utc)
 
   assert hourlies_for_day == []
 

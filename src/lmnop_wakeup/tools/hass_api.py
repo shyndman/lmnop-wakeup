@@ -26,9 +26,9 @@ class RestEndpoints:
     )
 
 
-async def get_calendar_events_in_range(
-  from_ts: datetime,
-  until_ts: datetime,
+async def calendar_events_in_range(
+  start_ts: datetime,
+  end_ts: datetime,
   hass_api_token: ApiKey,
 ) -> list[Calendar]:
   request_headers = {
@@ -47,7 +47,7 @@ async def get_calendar_events_in_range(
     logger.info("requesting calendar events")
     for cal in calendars:
       events_res = await client.get(
-        RestEndpoints.events_endpoint(cal.entity_id, from_ts, until_ts),
+        RestEndpoints.events_endpoint(cal.entity_id, start_ts, end_ts),
         headers=request_headers,
       )
 

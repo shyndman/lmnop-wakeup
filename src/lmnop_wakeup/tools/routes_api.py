@@ -35,6 +35,10 @@ class RouteDetails(BaseModel):
 CALORIES_CONSUMED_PER_KM = 23
 
 
+class NoRouteFound(BaseModel):
+  pass
+
+
 class CyclingRouteDetails(RouteDetails):
   @property
   def calories_consumed(self):
@@ -50,11 +54,11 @@ class RouteDetailsByMode(BaseModel):
   origin: AddressLocation | CoordinateLocation
   destination: AddressLocation | CoordinateLocation
 
-  bike: CyclingRouteDetails | None
-  drive: DrivingRouteDetails
+  bike: CyclingRouteDetails | NoRouteFound | None
+  drive: DrivingRouteDetails | NoRouteFound
   """We will always have a driving route, and if we don't, the tool will fail"""
-  transit: RouteDetails | None
-  walk: RouteDetails | None
+  transit: RouteDetails | NoRouteFound | None
+  walk: RouteDetails | NoRouteFound | None
 
 
 type TimeConstraint = ArriveByConstraint | DepartAtConstraint
@@ -153,37 +157,46 @@ async def compute_route_durations(
   bike_details = None
   if RouteTravelMode.BICYCLE in modes_to_responses:
     res = modes_to_responses[RouteTravelMode.BICYCLE]
-    route = res.routes[0]
-    depart, arrive = time_constraint.resolve(timedelta(seconds=route.duration.seconds))
-    bike_details = CyclingRouteDetails(
-      departure_time=depart,
-      arrival_time=arrive,  # type: ignore
-      distance_meters=route.distance_meters,
-    )
+    if len(res.routes) == 0:
+      bike_details = NoRouteFound()
+    else:
+      route = res.routes[0]
+      depart, arrive = time_constraint.resolve(timedelta(seconds=route.duration.seconds))
+      bike_details = CyclingRouteDetails(
+        departure_time=depart,
+        arrival_time=arrive,  # type: ignore
+        distance_meters=route.distance_meters,
+      )
 
   # Transit
   transit_details = None
   if RouteTravelMode.TRANSIT in modes_to_responses:
     res = modes_to_responses[RouteTravelMode.TRANSIT]
-    route = res.routes[0]
-    depart, arrive = time_constraint.resolve(timedelta(seconds=route.duration.seconds))
-    transit_details = RouteDetails(
-      departure_time=depart,  # type: ignore
-      arrival_time=arrive,  # type: ignore
-      distance_meters=route.distance_meters,
-    )
+    if len(res.routes) == 0:
+      transit_details = NoRouteFound()
+    else:
+      route = res.routes[0]
+      depart, arrive = time_constraint.resolve(timedelta(seconds=route.duration.seconds))
+      transit_details = RouteDetails(
+        departure_time=depart,  # type: ignore
+        arrival_time=arrive,  # type: ignore
+        distance_meters=route.distance_meters,
+      )
 
   # Walk
   walking_details = None
   if RouteTravelMode.WALK in modes_to_responses:
     res = modes_to_responses[RouteTravelMode.WALK]
-    route = res.routes[0]
-    depart, arrive = time_constraint.resolve(timedelta(seconds=route.duration.seconds))
-    walking_details = RouteDetails(
-      departure_time=depart,  # type: ignore
-      arrival_time=arrive,  # type: ignore
-      distance_meters=route.distance_meters,
-    )
+    if len(res.routes) == 0:
+      walking_details = NoRouteFound()
+    else:
+      route = res.routes[0]
+      depart, arrive = time_constraint.resolve(timedelta(seconds=route.duration.seconds))
+      walking_details = RouteDetails(
+        departure_time=depart,  # type: ignore
+        arrival_time=arrive,  # type: ignore
+        distance_meters=route.distance_meters,
+      )
 
   route_details_by_mode = RouteDetailsByMode(
     origin=origin,
@@ -227,13 +240,6 @@ def create_route_request(
   nanos = int((posix % 1) * 1e6)
   departure_timestamp = Timestamp(seconds=seconds, nanos=nanos)
 
-  route_request = ComputeRoutesRequest(
-    origin=origin.as_waypoint(),
-    destination=destination.as_waypoint(),
-    departure_time=departure_timestamp,
-    travel_mode=mode,
-    routing_preference=RoutingPreference.TRAFFIC_AWARE if mode == RouteTravelMode.DRIVE else None,
-  )
   route_request = ComputeRoutesRequest(
     origin=origin.as_waypoint(),
     destination=destination.as_waypoint(),

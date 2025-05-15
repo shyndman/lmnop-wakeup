@@ -2,13 +2,18 @@ import asyncio
 from datetime import date, datetime, time
 
 import rich
+from pydantic import BaseModel
 from rich.markdown import Markdown
 
-from .common import get_hass_api_key, get_pirate_weather_api_key
+from .common import assert_not_none, get_hass_api_key, get_pirate_weather_api_key
 from .locations import CoordinateLocation, LocationName, location_named
 from .scheduler import SchedulingInputs, create_timekeeper
-from .tools.hass_api import get_calendar_events_in_range, get_general_information
+from .tools.hass_api import calendar_events_in_range, get_general_information
 from .tools.weather_api import get_weather_report
+
+
+class SchedulingInputsSerializer(BaseModel):
+  inputs: SchedulingInputs
 
 
 async def start(
@@ -27,7 +32,7 @@ async def start(
   hass_token = get_hass_api_key()
   general_info, all_cals, weather = await asyncio.gather(
     get_general_information(todays_date=todays_date, hass_api_token=hass_token),
-    get_calendar_events_in_range(from_ts=start_ts, until_ts=end_ts, hass_api_token=hass_token),
+    calendar_events_in_range(start_ts=start_ts, end_ts=end_ts, hass_api_token=hass_token),
     get_weather_report(location, pirate_weather_api_key=get_pirate_weather_api_key()),
   )
 
@@ -37,13 +42,16 @@ async def start(
     todays_date=todays_date,
     is_today_workday=general_info.is_today_workday,
     calendars=all_cals,
-    hourly_weather=weather.get_hourlies_for_day(todays_date),
+    hourly_weather=weather.get_hourlies_for_day(todays_date, tz=assert_not_none(start_ts.tzinfo)),
   )
 
   rich.print(scheduling_inputs)
   rich.print(prompt_templates)
 
-  task_prompt = prompt_templates.format(**scheduling_inputs)
+  serializer = SchedulingInputsSerializer(inputs=scheduling_inputs)
+  model_dump = serializer.model_dump(exclude_unset=True)
+  rich.print(model_dump)
+  task_prompt = prompt_templates.format(**model_dump["inputs"])
 
   console = rich.console.Console()
   console.print(timekeeper_agent)

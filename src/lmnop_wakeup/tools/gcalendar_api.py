@@ -15,14 +15,14 @@ SCOPES = ["https://www.googleapis.com/auth/calendar.readonly"]
 SHARED_CALENDAR_ID = "family16125668672800183011@group.calendar.google.com"
 
 
-def get_calendar_events_in_range(from_ts: datetime, until_ts: datetime):
+def calendar_events_in_range(start_ts: datetime, end_ts: datetime):
   service = build("calendar", "v3", credentials=authenticate())
   res = (
     service.events()
     .list(
       calendarId=SHARED_CALENDAR_ID,
-      timeMin=from_ts,
-      timeMax=until_ts,
+      timeMin=start_ts,
+      timeMax=end_ts,
       singleEvents=True,
       orderBy="startTime",
       maxResults=2500,

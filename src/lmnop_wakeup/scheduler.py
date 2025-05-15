@@ -1,5 +1,5 @@
+import asyncio
 from datetime import date, datetime
-from enum import StrEnum
 from typing import TypedDict
 
 from langfuse import Langfuse
@@ -7,64 +7,42 @@ from loguru import logger
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent
 
-from lmnop_wakeup.common import get_google_routes_api_key
-from lmnop_wakeup.locations import AddressLocation, CoordinateLocation, Location
-from lmnop_wakeup.tools import routes_api
-from lmnop_wakeup.tools.routes_api import (
+from pirate_weather_api_client.models import HourlyDataItem
+
+from .common import Calendar, CalendarEvent, get_google_routes_api_key, get_hass_api_key
+from .llm import GEMINI_25_FLASH, get_langfuse_prompt_bundle
+from .locations import AddressLocation, CoordinateLocation
+from .tools import gcalendar_api, hass_api, routes_api
+from .tools.routes_api import (
   CyclingRouteDetails,
   RouteDetails,
   RouteDetailsByMode,
   TimeConstraint,
 )
-from pirate_weather_api_client.models import HourlyDataItem
-
-from .common import Calendar, CalendarEvent
-from .llm import GEMINI_25_FLASH, get_langfuse_prompt_bundle
-
-# 1. HOUSEHOLD INFORMATION:
-logger.info("Initializing scheduler")
-#    - Home address
-#    - Household members (Scott and Hilary)
-#    - Preparation times and wake-up constraints
-
-# 2. CALENDAR DATA:
-#    - Multiple calendars, each with a description_for_llm indicating owner and purpose
-#    - Events containing:
-#      * event_id: Unique identifier
-#      * summary: Event title/name
-#      * description: Detailed description (may contain keywords for transportation eligibility)
-#      * location: Physical address or indication of home-based event
-#      * event_start_ts: Start time in ISO8601 format
-#      * event_end_ts: End time in ISO8601 format
-#      * calendar_id: Identifier of the calendar this event belongs to
-
-# 3. TIME & DATE CONTEXT:
-#    - today_date: Current date
-#    - day_of_week: Current day (to determine weekday vs weekend for wake-up time)
-
-# 4. WEATHER INFORMATION:
-#    - Hourly weather data for today with conditions (needed for walking/biking eligibility)
 
 
-class WeekDay(StrEnum):
-  monday = "Monday"
-  tuesday = "Tuesday"
-  wednesday = "Wednesday"
-  thursday = "Thursday"
-  friday = "Friday"
-  saturday = "Saturday"
-  sunday = "Sunday"
+async def calendar_events_for_scheduling(start_ts: datetime, end_ts: datetime) -> list[Calendar]:
+  hass_calendars_task = hass_api.calendar_events_in_range(
+    start_ts=start_ts,
+    end_ts=end_ts,
+    hass_api_token=get_hass_api_key(),
+  )
 
+  loop = asyncio.get_running_loop()
+  shared_calendar_task = loop.run_in_executor(
+    None,
+    lambda: gcalendar_api.calendar_events_in_range(
+      start_ts=start_ts,
+      end_ts=end_ts,
+    ),
+  )
 
-WEEK_DAY_MAPPING = {
-  0: WeekDay.monday,
-  1: WeekDay.tuesday,
-  2: WeekDay.wednesday,
-  3: WeekDay.thursday,
-  4: WeekDay.friday,
-  5: WeekDay.saturday,
-  6: WeekDay.sunday,
-}
+  hass_calendars, shared_calendar = await asyncio.gather(
+    hass_calendars_task,
+    shared_calendar_task,
+  )
+
+  return [shared_calendar] + hass_calendars
 
 
 class SchedulingInputs(TypedDict):
@@ -72,7 +50,7 @@ class SchedulingInputs(TypedDict):
   todays_date: date
   is_today_workday: bool
   hourly_weather: list[HourlyDataItem]
-  home_location: Location
+  home_location: AddressLocation | CoordinateLocation
 
 
 class ModeRejectionResult(BaseModel):
@@ -85,7 +63,7 @@ class ModeRejectionResult(BaseModel):
   """
 
   rejection_rationale: str
-  """A sentence on why this mode was rejected"""
+  """Two sentences max, specifically describing the broken rule that lead to the rejection"""
 
 
 class EventRouteOptions(BaseModel):
@@ -146,20 +124,20 @@ async def create_timekeeper(model: str = GEMINI_25_FLASH) -> tuple[TimekeeperAge
 
   @timekeeper.tool_plain()
   async def compute_routes(
-    from_location: AddressLocation | CoordinateLocation,
-    to_location: AddressLocation | CoordinateLocation,
+    origin: AddressLocation | CoordinateLocation,
+    destination: AddressLocation | CoordinateLocation,
     time_constraint: TimeConstraint,
     include_cycling: bool,
     include_transit: bool,
     include_walking: bool,
   ) -> RouteDetailsByMode:
     logger.debug(
-      "Timekeeper tool called: compute_routes with from_location={from_location}, "
-      "to_location={to_location}, "
+      "Timekeeper tool called: compute_routes with origin={origin}, "
+      "destination={destination}, "
       "time_constraint={time_constraint}, include_cycling={include_cycling}, "
       "include_transit={include_transit}, include_walking={include_walking}",
-      from_location=from_location,
-      to_location=to_location,
+      origin=origin,
+      destination=destination,
       time_constraint=time_constraint,
       include_cycling=include_cycling,
       include_transit=include_transit,
@@ -172,9 +150,15 @@ async def create_timekeeper(model: str = GEMINI_25_FLASH) -> tuple[TimekeeperAge
     information based on the provided origin, destination, time constraints,
     and desired travel modes. It utilizes the Google Routes API internally.
 
+    Note: Because these routes are so often being calculated between home and
+    some other place, a "home" location object is provided in the prompt that
+    can be used to represent an origin or destination.
+
     Args:
-      from_location: The starting point of the route.
-      to_location: The destination point of the route.
+      origin: The starting point of the route. Can be an `AddressLocation`, a `CoordinateLocation`,
+          and less frequently, a `NamedLocation`.
+      destination: The destination point of the route. Can be an `AddressLocation`, a
+          `CoordinateLocation`, and less frequently, a `NamedLocation`.
       time_constraint: Specifies either a desired arrival time or a departure time.
       include_cycling: Whether to include cycling route details in the response.
       include_transit: Whether to include transit route details in the response.
@@ -187,8 +171,8 @@ async def create_timekeeper(model: str = GEMINI_25_FLASH) -> tuple[TimekeeperAge
     """
     return await routes_api.compute_route_durations(
       google_routes_api_key=get_google_routes_api_key(),
-      origin=from_location,
-      destination=to_location,
+      origin=origin,
+      destination=destination,
       time_constraint=time_constraint,
       include_cycling=include_cycling,
       include_transit=include_transit,

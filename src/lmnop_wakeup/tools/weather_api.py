@@ -1,4 +1,4 @@
-from datetime import date, datetime, time, timezone
+from datetime import date, datetime, time, tzinfo
 from typing import cast
 
 from loguru import logger
@@ -36,10 +36,8 @@ class WeatherReport(BaseModel):
   daily: BaseModel
   alerts: list[AlertsItem]
 
-  def get_hourlies_for_day(self, date: date) -> list[HourlyDataItem]:
-    midnight_on_date = datetime.combine(
-      date, time(0, 0, 0), tzinfo=timezone.utc
-    )  # Assume UTC for midnight comparison unless timezone is available
+  def get_hourlies_for_day(self, date: date, tz: tzinfo) -> list[HourlyDataItem]:
+    midnight_on_date = datetime.combine(date, time(0, 0, 0), tzinfo=tz)
     hourly_data = nu(self.hourly.data) if self.hourly and nu(self.hourly.data) is not UNSET else []
 
     return list(
