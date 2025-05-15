@@ -6,8 +6,8 @@ import httpx
 from loguru import logger
 from pydantic import BaseModel, Field
 
-from .common import TimeInfo
-from .entity import ApiKey, EntityId
+from ..common import TimeInfo
+from ..entity import ApiKey, EntityId
 
 API_BASE = "http://home.don/api"
 
@@ -42,7 +42,7 @@ class RestEndpoints:
     )
 
 
-async def get_todays_calendar_events(
+async def get_relevant_calendar_events(
   today_override: date | None,
   hass_api_token: ApiKey,
 ):

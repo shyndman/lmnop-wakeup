@@ -1,7 +1,14 @@
 import inspect
 import logging
+import sys
 
 from loguru import logger
+
+logger.remove()
+logger.add(
+  sys.stderr,
+  format="<green>{time:HH:mm:ss}</green> <dim>[{module}]</dim> <level>{level} {message}</level>",
+)
 
 
 class InterceptHandler(logging.Handler):

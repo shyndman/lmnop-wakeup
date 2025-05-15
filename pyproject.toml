@@ -4,14 +4,22 @@ version = "0.0.0"
 description = "Rise and Shine!"
 readme = "README.md"
 authors = [{name = "Scott Hyndman", email = "scotty.hyndman@gmail.com"}]
-requires-python = ">=3.12,<4.0"
+requires-python = ">=3.13,<4.0"
 dependencies = [
     "attrs>=22.2.0",
-    "click>=8.1.8",
+    "clypi>=1.2.22",
+    "google-api-python-client>=2.169.0",
+    "google-auth-httplib2>=0.2.0",
+    "google-auth-oauthlib>=1.2.2",
+    "google-maps-routing>=0.6.15",
     "httpx>=0.28.1",
+    "langfuse>=2.60.4",
+    "logfire>=3.15.1",
     "loguru>=0.7.3",
+    "nest-asyncio>=1.6.0",
     "openapi-python-client>=0.24.3",
     "pydantic>=2.11.4",
+    "pydantic-ai[logfire]>=0.1.11",
     "python-dateutil>=2.8.0",
     "rich>=14.0.0",
 ]
@@ -22,7 +30,8 @@ repository = "https://github.com/shyndman/lmnop_wakeup"
 "Bug Tracker" = "https://github.com/shyndman/lmnop_wakeup/issues"
 
 [project.scripts]
-wakeup = "lmnop_wakeup.app:main"
+wakeup = "lmnop_wakeup.cli:main"
+travel-times = "lmnop_wakeup.travel_times:main"
 
 [build-system]
 requires = ["hatchling"]
@@ -35,9 +44,11 @@ dev = ["pytest>=8.3.5"]
 include = ["src", "tests"]
 ignore = ["**/.venv"]
 defineConstant = {DEBUG = true}
-reportMissingImports = "error"
 deprecateTypingAliases = true
-reportDeprecated = "information"
+reportMissingImports = "error"
+reportUnusedImport = "error"
+reportDeprecated = "error"
+reportImplicitOverride = "error"
 pythonPlatform = "Linux"
 
 [tool.ruff]
@@ -48,12 +59,14 @@ indent-width = 2
 [tool.ruff.lint]
 select = ["E", "F", "I", "W"]
 ignore = []
-dummy-variable-rgx = "^_$"
 
 [tool.ruff.lint.isort]
-known-first-party = ["lmnop_wakeup"]
+known-first-party = ["lmnop_crawl"]
 
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
 line-ending = "auto"
+
+[tool.uv.sources]
+rich = {git = "ssh://git@github.com/shyndman/rich"}

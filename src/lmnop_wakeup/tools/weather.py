@@ -9,8 +9,8 @@ from pirate_weather_api_client.errors import UnexpectedStatus
 from pirate_weather_api_client.models import AlertsItem, Currently, Hourly, WeatherResponse200
 from pirate_weather_api_client.types import UNSET
 
-from .common import ApiKey
-from .typing import nu
+from ..common import ApiKey
+from ..typing import nu
 
 
 class WeatherNotAvailable(BaseModel):

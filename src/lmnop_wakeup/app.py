@@ -1,72 +1,44 @@
 import asyncio
-import os
-import sys
-from datetime import date
-from enum import StrEnum
+from datetime import date, datetime
 
-import click
 import rich
-from loguru import logger
 
-from .calendars import get_todays_calendar_events
-from .common import ApiKey
-from .weather import get_hourly_weather
-
-logger.remove()
-logger.add(
-  sys.stderr,
-  format="<green>{time:HH:mm:ss}</green> "
-  "<dim>[%d]</dim> <level>{level} {message}</level>" % os.getpid(),
-)
-
-
-class EnvName(StrEnum):
-  GEMINI_API_KEY = "GEMINI_API_KEY"
-  HASS_API_TOKEN = "HASS_API_TOKEN"
-  PIRATE_WEATHER_API_KEY = "PIRATE_WEATHER_API_KEY"
+from .common import get_google_routes_api_key, get_hass_api_key, get_pirate_weather_api_key
+from .locations import NAMED_LOCATIONS, CoordinateLocation, LocationName
+from .tools.calendars import get_relevant_calendar_events
+from .tools.routes_api import ArriveByConstraint, compute_route_durations
+from .tools.weather import get_hourly_weather
 
 
 async def start(
-  latlon: tuple[float, float],
-  today_override: date | None,
-  hass_api_token: ApiKey,
-  gemini_api_key: ApiKey,
-  pirate_weather_api_key: ApiKey,
+  location: CoordinateLocation,
+  todays_date: date,
 ):
-  weather, all_cals = await asyncio.gather(
-    get_hourly_weather(latlon, pirate_weather_api_key),
-    get_todays_calendar_events(today_override, hass_api_token),
+  now = datetime.now().astimezone()
+  arrival_time = now.replace(hour=12, minute=0, second=5)
+
+  routes, weather, all_cals = await asyncio.gather(
+    compute_route_durations(
+      get_google_routes_api_key(),
+      origin=NAMED_LOCATIONS[LocationName.home],
+      destination=NAMED_LOCATIONS[LocationName.hilarys_moms_house],
+      time_constraint=ArriveByConstraint(time=arrival_time),
+      include_cycling=True,
+      include_transit=True,
+      include_walking=True,
+    ),
+    get_hourly_weather(location.latlng, get_pirate_weather_api_key()),
+    get_relevant_calendar_events(todays_date, get_hass_api_key()),
   )
-  rich.print(all_cals)
-  rich.print(weather)
 
+  console = rich.get_console()
+  # console.print(all_cals)
+  # console.print(weather)
+  console.print(routes)
 
-@click.command()
-@click.option(
-  "--latlon",
-  nargs=2,
-  type=(float, float),
-  default=[43.69086460515023, -79.30780076686716],
-  help="Location for weather report",
-)
-@click.option(
-  "--today-override",
-  type=date,
-  default=None,
-  help="Overrides today's date for testing",
-)
-def main(latlon: tuple[float, float], today_override: date | None):
-  logger.info("lmnop:wakeup is starting up")
-
-  if EnvName.HASS_API_TOKEN not in os.environ:
-    raise EnvironmentError(f"Missing {EnvName.HASS_API_TOKEN}")
-  if EnvName.GEMINI_API_KEY not in os.environ:
-    raise EnvironmentError(f"Missing {EnvName.GEMINI_API_KEY}")
-  if EnvName.PIRATE_WEATHER_API_KEY not in os.environ:
-    raise EnvironmentError(f"Missing {EnvName.PIRATE_WEATHER_API_KEY}")
-
-  hass_api_token = ApiKey(os.environ.get(EnvName.HASS_API_TOKEN) or "")  # or is for type checker
-  gemini_api_key = ApiKey(os.environ.get(EnvName.GEMINI_API_KEY) or "")
-  pirate_weather_api_key = ApiKey(os.environ.get(EnvName.PIRATE_WEATHER_API_KEY) or "")
-
-  asyncio.run(start(latlon, today_override, hass_api_token, gemini_api_key, pirate_weather_api_key))
+  # langfuse = Langfuse()
+  # prompt_res = langfuse.get_prompt("timekeeper", label="latest")
+  # prompt_res.config["temperature"]
+  # prompt_res.config["top_p"]
+  # console = rich.console.Console(width=90)
+  # console.print(Markdown(prompt_res.prompt[0]["content"]))  # type: ignore
