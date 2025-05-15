@@ -56,6 +56,37 @@ class RestEndpoints:
     )
 
 
+async def get_calendar_events_in_range(
+  from_ts: datetime,
+  until_ts: datetime,
+  hass_api_token: ApiKey,
+) -> list[HassCalendar]:
+  request_headers = {
+    "Authorization": f"Bearer {hass_api_token}",
+    "Content-Type": "application/json",
+  }
+  async with httpx.AsyncClient() as client:
+    cals_res = await client.get(
+      RestEndpoints.calendars_endpoint(),
+      headers=request_headers,
+    )
+
+    logger.info("calendars received. populating", calendars=cals_res.text)
+    calendars = [HassCalendar.model_validate(raw_cal) for raw_cal in cals_res.json()]
+
+    logger.info("requesting calendar events")
+    for cal in calendars:
+      events_res = await client.get(
+        RestEndpoints.events_endpoint(cal.entity_id, from_ts, until_ts),
+        headers=request_headers,
+      )
+
+      cal_events = [HassCalendarEvent.model_validate(raw_event) for raw_event in events_res.json()]
+      cal.todays_events = cal_events
+
+    return calendars
+
+
 async def get_relevant_calendar_events(
   today_override: date | None,
   hass_api_token: ApiKey,
