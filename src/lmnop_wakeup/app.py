@@ -1,5 +1,5 @@
 import asyncio
-from datetime import date
+from datetime import date, datetime, time
 
 import rich
 from rich.markdown import Markdown
@@ -7,7 +7,7 @@ from rich.markdown import Markdown
 from .common import get_hass_api_key, get_pirate_weather_api_key
 from .locations import CoordinateLocation, LocationName, location_named
 from .scheduler import SchedulingInputs, create_timekeeper
-from .tools.hass_api import get_general_information, get_relevant_calendar_events
+from .tools.hass_api import get_calendar_events_in_range, get_general_information
 from .tools.weather_api import get_weather_report
 
 
@@ -15,9 +15,19 @@ async def start(
   location: CoordinateLocation,
   todays_date: date,
 ):
+  start_ts = (
+    datetime.combine(
+      todays_date,
+      time(0),
+    )
+    .astimezone()
+    .replace(hour=0, minute=0, second=0)
+  )
+  end_ts = start_ts.replace(hour=23, minute=59, second=59)
+  hass_token = get_hass_api_key()
   general_info, all_cals, weather = await asyncio.gather(
-    get_general_information(todays_date=todays_date, hass_api_token=get_hass_api_key()),
-    get_relevant_calendar_events(todays_date, hass_api_token=get_hass_api_key()),
+    get_general_information(todays_date=todays_date, hass_api_token=hass_token),
+    get_calendar_events_in_range(from_ts=start_ts, until_ts=end_ts, hass_api_token=hass_token),
     get_weather_report(location, pirate_weather_api_key=get_pirate_weather_api_key()),
   )
 

@@ -18,8 +18,8 @@ from lmnop_wakeup.tools.routes_api import (
 )
 from pirate_weather_api_client.models import HourlyDataItem
 
+from .common import Calendar, CalendarEvent
 from .llm import GEMINI_25_FLASH, get_langfuse_prompt_bundle
-from .tools.hass_api import HassCalendar, HassCalendarEvent
 
 # 1. HOUSEHOLD INFORMATION:
 logger.info("Initializing scheduler")
@@ -68,7 +68,7 @@ WEEK_DAY_MAPPING = {
 
 
 class SchedulingInputs(TypedDict):
-  calendars: list[HassCalendar]
+  calendars: list[Calendar]
   todays_date: date
   is_today_workday: bool
   hourly_weather: list[HourlyDataItem]
@@ -122,7 +122,7 @@ class SchedulingDetails(BaseModel):
 
   wakeup_time: datetime
   """The calculated time the user should wake up."""
-  triggering_event_details: HassCalendarEvent | None
+  triggering_event_details: CalendarEvent | None
   """The calendar event that was used to determine the wakeup_time. This will be `null` if the
   wake-up time was based on the latest possible time rather than a specific event."""
   routes: list[EventRouteOptions]
