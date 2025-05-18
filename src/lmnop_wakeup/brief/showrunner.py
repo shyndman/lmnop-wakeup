@@ -12,11 +12,9 @@ from pydantic_ai import Agent
 from lmnop_wakeup.llm import GEMINI_25_FLASH, get_langfuse_prompt_bundle
 from lmnop_wakeup.locations import AddressLocation, CoordinateLocation
 from lmnop_wakeup.schedule.timekeeper import EventRouteOptions
-from lmnop_wakeup.tools import routes_api
-from lmnop_wakeup.tools.routes_api import RouteDetailsByMode, TimeConstraint
 from pirate_weather_api_client.models import Currently, Daily, Hourly
 
-from ..common import Calendar, CalendarEvent, get_google_routes_api_key, get_hass_api_key
+from ..common import Calendar, CalendarEvent, get_hass_api_key
 from ..tools import gcalendar_api, hass_api
 
 
@@ -86,64 +84,6 @@ async def create_showrunner(model: str = GEMINI_25_FLASH) -> tuple[ShowrunnerAge
     model_settings=bundle.model_settings,
     instrument=True,
   )
-
-  @showrunner.tool_plain()
-  async def compute_routes(
-    origin: AddressLocation | CoordinateLocation,
-    destination: AddressLocation | CoordinateLocation,
-    time_constraint: TimeConstraint,
-    include_cycling: bool,
-    include_transit: bool,
-    include_walking: bool,
-  ) -> RouteDetailsByMode:
-    """
-    Computes route details between two locations for various travel modes.
-
-    This function calculates estimated travel times, distances, and other route
-    information based on the provided origin, destination, time constraints,
-    and desired travel modes. It utilizes the Google Routes API internally.
-
-    Note: Because these routes are so often being calculated between home and
-    some other place, a "home" location object is provided in the prompt that
-    can be used to represent an origin or destination.
-
-    Args:
-      origin: The starting point of the route. Can be an `AddressLocation`, a `CoordinateLocation`,
-          and less frequently, a `NamedLocation`.
-      destination: The destination point of the route. Can be an `AddressLocation`, a
-          `CoordinateLocation`, and less frequently, a `NamedLocation`.
-      time_constraint: Specifies either a desired arrival time or a departure time.
-      include_cycling: Whether to include cycling route details in the response.
-      include_transit: Whether to include transit route details in the response.
-      include_walking: Whether to include walking route details in the response.
-
-    Returns:
-      A RouteDetailsByMode object containing route information for the requested
-      travel modes. This object includes details for driving (always included),
-      and optionally for cycling, transit, and walking if requested.
-    """
-
-    logger.debug(
-      "Timekeeper tool called: compute_routes with origin={origin}, "
-      "destination={destination}, "
-      "time_constraint={time_constraint}, include_cycling={include_cycling}, "
-      "include_transit={include_transit}, include_walking={include_walking}",
-      origin=origin,
-      destination=destination,
-      time_constraint=time_constraint,
-      include_cycling=include_cycling,
-      include_transit=include_transit,
-      include_walking=include_walking,
-    )
-    return await routes_api.compute_route_durations(
-      google_routes_api_key=get_google_routes_api_key(),
-      origin=origin,
-      destination=destination,
-      time_constraint=time_constraint,
-      include_cycling=include_cycling,
-      include_transit=include_transit,
-      include_walking=include_walking,
-    )
 
   return showrunner, bundle.instructions, bundle.task_prompt_templates
 

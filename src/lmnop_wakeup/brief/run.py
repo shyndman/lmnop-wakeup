@@ -6,16 +6,15 @@ import rich
 from pydantic import BaseModel
 from rich.markdown import Markdown
 
-from lmnop_wakeup.brief.showrunner import (
+from ..common import get_hass_api_key, get_pirate_weather_api_key
+from ..locations import CoordinateLocation, LocationName, location_named
+from ..tools.hass_api import get_general_information
+from ..tools.weather_api import get_weather_report
+from .showrunner import (
   BriefingInputs,
   calendar_events_for_briefing,
   create_showrunner,
 )
-from lmnop_wakeup.cli import CoordinateLocation
-from lmnop_wakeup.common import get_hass_api_key, get_pirate_weather_api_key
-from lmnop_wakeup.locations import LocationName, location_named
-from lmnop_wakeup.tools.hass_api import get_general_information
-from lmnop_wakeup.tools.weather_api import get_weather_report
 
 
 class BriefingInputsSerializer(BaseModel):

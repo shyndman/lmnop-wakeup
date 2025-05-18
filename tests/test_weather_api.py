@@ -2,7 +2,7 @@ from datetime import date, datetime, time, timezone
 
 # Import the functions and classes to be tested
 from lmnop_wakeup.tools.weather_api import WeatherReport, is_timestamp_on_date
-from lmnop_wakeup.utils.typing import nu
+from lmnop_wakeup.utils.typing import nn, nu
 from pirate_weather_api_client.models import (
   Currently,
   Daily,
@@ -103,7 +103,7 @@ def test_get_hourlies_for_day_none_data():
 
       return list(
         filter(
-          lambda h: is_timestamp_on_date(nu(h.time), midnight_on_date),
+          lambda h: is_timestamp_on_date(nn(h.time), midnight_on_date),
           hourly_data if hourly_data is not None else [],  # Handle None case in filter
         )
       )

@@ -1,10 +1,16 @@
 from datetime import date
 from pathlib import Path
+from textwrap import dedent
 from typing import override
 
+import rich
 from clypi import Command, arg
 from loguru import logger
 
+from .brief.climatologist import (
+  cached_weather_report,
+  create_climatologist,
+)
 from .common import date_parser
 from .locations import CoordinateLocation, LocationName, location_named
 from .schedule.run import schedule
@@ -50,10 +56,30 @@ class Brief(Command):
     pass
 
 
+class Weather(Command):
+  """Tests out the weather system"""
+
+  @override
+  async def run(self):
+    # report = await weather_report_for_brief(location_named(LocationName.home))
+    report = cached_weather_report()
+    agent, *_ = await create_climatologist()
+    prompt = dedent(
+      f"""
+      ```json
+      {report.model_dump_json(indent=2)}
+      ```""".strip()
+    )
+
+    async with agent.run_stream(prompt, deps=report) as res:
+      async for message in res.stream_structured():
+        rich.print(res)
+
+
 class Wakeup(Command):
   """Root command for producing day schedules"""
 
-  subcommand: Schedule | Brief
+  subcommand: Schedule | Brief | Weather
 
 
 def main():
