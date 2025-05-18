@@ -4,333 +4,262 @@ from typing import Any, TypeVar
 from attrs import field as _attrs_field
 from pydantic import BaseModel
 
-from ..types import UNSET, Unset
-
 T = TypeVar("T", bound="DailyDataItem")
 
 
 class DailyDataItem(BaseModel):
-  """
-  Attributes:
-      time (Unset | int): The time of the data point in UNIX format. Example: 1745989200.
-      summary (Unset | str): A summary of the weather. Example: Possible light rain..
-      icon (Unset | str): An icon representing the weather. Example: partly-cloudy-day.
-      dawn_time (Unset | int): The time when the the sun is a specific (6 degrees) height
-          above the horizon after sunrise. Only returned when version>2. Example: 1746009343.
-      sunrise_time (Unset | int): The time of sunrise in UNIX format. Example: 1746011052.
-      sunset_time (Unset | int): The time of sunset in UNIX format. Example: 1746060412.
-      dusk_time (Unset | int): The time when the the sun is a specific (6 degrees) height above
-          the horizon before sunset. Only returned when version>2. Example: 1746062127.
-      moon_phase (Unset | float): The fractional lunation number for the given day. Example: 0.1.
-      precip_intensity (Unset | float): The intensity of precipitation. Example: 0.0953.
-      precip_intensity_max (Unset | float): The maximum intensity of precipitation. Example: 2.0322.
-      precip_intensity_max_time (Unset | int): The time when the maximum precipitation intensity
-          occurs in UNIX format. Example: 1746046800.
-      precip_probability (Unset | float): The probability of precipitation. Example: 0.23.
-      precip_accumulation (Unset | float): The total amount of precipitation. Example: 0.2286.
-      precip_type (Unset | str): The type of precipitation occurring. Example: rain.
-      temperature_high (Unset | float): The daytime high temperature. Example: 26.6.
-      temperature_high_time (Unset | int): The time when the high temperature occurs in UNIX
-          format. Example: 1746043200.
-      temperature_low (Unset | float): The overnight low temperature. Example: 18.85.
-      temperature_low_time (Unset | int): The time when the low temperature occurs in UNIX
-          format. Example: 1746097200.
-      apparent_temperature_high (Unset | float): The apparent daytime high temperature (feels
-          like). Example: 27.02.
-      apparent_temperature_high_time (Unset | int): The time when the apparent high temperature
-          occurs in UNIX format. Example: 1746043200.
-      apparent_temperature_low (Unset | float): The apparent overnight low temperature (feels
-          like). Example: 18.09.
-      apparent_temperature_low_time (Unset | int): The time when the apparent low temperature
-          occurs in UNIX format. Example: 1746097200.
-      dew_point (Unset | float): The dew point temperature. Example: 17.79.
-      humidity (Unset | float): The relative humidity. Example: 0.8.
-      pressure (Unset | float): The air pressure. Example: 1014.73.
-      wind_speed (Unset | float): The wind speed. Example: 9.08.
-      wind_gust (Unset | float): The wind gust speed. Example: 17.95.
-      wind_gust_time (Unset | int): The time when the maximum wind gust occurs in UNIX format.
-          Example: 1746046800.
-      wind_bearing (Unset | int): The direction of the wind in degrees. Example: 130.
-      cloud_cover (Unset | float): The fraction of the sky covered by clouds. Example: 0.68.
-      uv_index (Unset | float): The max UV index during that day. Example: 6.53.
-      uv_index_time (Unset | int): The time when the maximum UV index occurs in UNIX format.
-          Example: 1746043200.
-      visibility (Unset | float): The visibility in kilometers. Example: 11.61.
-      temperature_min (Unset | float): The minimum temperature. Example: 17.54.
-      temperature_min_time (Unset | int): The time when the minimum temperature occurs in
-          UNIX format. Example: 1746010800.
-      temperature_max (Unset | float): The maximum temperature. Example: 26.6.
-      temperature_max_time (Unset | int): The time when the maximum temperature occurs in UNIX
-          format. Example: 1746043200.
-      apparent_temperature_min (Unset | float): The minimum apparent temperature (feels like).
-          Example: 18.97.
-      apparent_temperature_min_time (Unset | int): The time when the minimum apparent temperature
-          occurs in UNIX format. Example: 1746014400.
-      apparent_temperature_max (Unset | float): The maximum apparent temperature (feels like).
-          Example: 27.02.
-      apparent_temperature_max_time (Unset | int): The time when the maximum apparent temperature
-          occurs in UNIX format. Example: 1746043200.
-      smoke_max (Unset | float): The maximum amount of near-surface smoke in kg/m^3. Only
-          returned when version>2. Example: 1.76.
-      smoke_max_time (Unset | int): The time when the maximum near-surface smoke occurs in
-          UNIX format. Only returned when version>2. Example: 1746061200.
-      liquid_accumulation (Unset | float): The amount of liquid precipitation expected.
-          Only returned when version>2. Example: 0.2286.
-      snow_accumulation (Unset | float): The amount of snow precipitation expected. Only returned
-          when version>2.
-      ice_accumulation (Unset | float): The amount of ice precipitation expected. Only returned
-          when version>2.
-      fire_index_max (Unset | float): The maximum Fosburg fire index. Only returned when version>2.
-        Example: 16.2.
-      fire_index_max_time (Unset | int): The time when the maximum Fosburg fire index occurs in
-          UNIX format. Only returned when version>2. Example: 1746057600.
-  """
-
-  time: Unset | int = UNSET
-  summary: Unset | str = UNSET
-  icon: Unset | str = UNSET
-  dawn_time: Unset | int = UNSET
-  sunrise_time: Unset | int = UNSET
-  sunset_time: Unset | int = UNSET
-  dusk_time: Unset | int = UNSET
-  moon_phase: Unset | float = UNSET
-  precip_intensity: Unset | float = UNSET
-  precip_intensity_max: Unset | float = UNSET
-  precip_intensity_max_time: Unset | int = UNSET
-  precip_probability: Unset | float = UNSET
-  precip_accumulation: Unset | float = UNSET
-  precip_type: Unset | str = UNSET
-  temperature_high: Unset | float = UNSET
-  temperature_high_time: Unset | int = UNSET
-  temperature_low: Unset | float = UNSET
-  temperature_low_time: Unset | int = UNSET
-  apparent_temperature_high: Unset | float = UNSET
-  apparent_temperature_high_time: Unset | int = UNSET
-  apparent_temperature_low: Unset | float = UNSET
-  apparent_temperature_low_time: Unset | int = UNSET
-  dew_point: Unset | float = UNSET
-  humidity: Unset | float = UNSET
-  pressure: Unset | float = UNSET
-  wind_speed: Unset | float = UNSET
-  wind_gust: Unset | float = UNSET
-  wind_gust_time: Unset | int = UNSET
-  wind_bearing: Unset | float = UNSET
-  cloud_cover: Unset | float = UNSET
-  uv_index: Unset | float = UNSET
-  uv_index_time: Unset | int = UNSET
-  visibility: Unset | float = UNSET
-  temperature_min: Unset | float = UNSET
-  temperature_min_time: Unset | int = UNSET
-  temperature_max: Unset | float = UNSET
-  temperature_max_time: Unset | int = UNSET
-  apparent_temperature_min: Unset | float = UNSET
-  apparent_temperature_min_time: Unset | int = UNSET
-  apparent_temperature_max: Unset | float = UNSET
-  apparent_temperature_max_time: Unset | int = UNSET
-  smoke_max: Unset | float = UNSET
-  smoke_max_time: Unset | int = UNSET
-  liquid_accumulation: Unset | float = UNSET
-  snow_accumulation: Unset | float = UNSET
-  ice_accumulation: Unset | float = UNSET
-  fire_index_max: Unset | float = UNSET
-  fire_index_max_time: Unset | int = UNSET
+  time: None | int = None
+  """The time of the data point in UNIX format. Example: 1745989200."""
+  summary: None | str = None
+  """A summary of the weather. Example: Possible light rain.."""
+  icon: None | str = None
+  """An icon representing the weather. Example: partly-cloudy-day."""
+  dawn_time: None | int = None
+  """The time when the the sun is a specific (6 degrees) height above the horizon after sunrise.
+  Only returned when version>2. Example: 1746009343."""
+  sunrise_time: None | int = None
+  """The time of sunrise in UNIX format. Example: 1746011052."""
+  sunset_time: None | int = None
+  """The time of sunset in UNIX format. Example: 1746060412."""
+  dusk_time: None | int = None
+  """The time when the the sun is a specific (6 degrees) height above the horizon before sunset.
+  Only returned when version>2. Example: 1746062127."""
+  moon_phase: None | float = None
+  """The fractional lunation number for the given day. Example: 0.1."""
+  precip_intensity: None | float = None
+  """The intensity of precipitation. Example: 0.0953."""
+  precip_intensity_max: None | float = None
+  """The maximum intensity of precipitation. Example: 2.0322."""
+  precip_intensity_max_time: None | int = None
+  """The time when the maximum precipitation intensity occurs in UNIX format.
+  Example: 1746046800."""
+  precip_probability: None | float = None
+  """The probability of precipitation. Example: 0.23."""
+  precip_accumulation: None | float = None
+  """The total amount of precipitation. Example: 0.2286."""
+  precip_type: None | str = None
+  """The type of precipitation occurring. Example: rain."""
+  temperature_high: None | float = None
+  """The daytime high temperature. Example: 26.6."""
+  temperature_high_time: None | int = None
+  """The time when the high temperature occurs in UNIX format. Example: 1746043200."""
+  temperature_low: None | float = None
+  """The overnight low temperature. Example: 18.85."""
+  temperature_low_time: None | int = None
+  """The time when the low temperature occurs in UNIX format. Example: 1746097200."""
+  apparent_temperature_high: None | float = None
+  """The apparent daytime high temperature (feels like). Example: 27.02."""
+  apparent_temperature_high_time: None | int = None
+  """The time when the apparent high temperature occurs in UNIX format. Example: 1746043200."""
+  apparent_temperature_low: None | float = None
+  """The apparent overnight low temperature (feels like). Example: 18.09."""
+  apparent_temperature_low_time: None | int = None
+  """The time when the apparent low temperature occurs in UNIX format. Example: 1746097200."""
+  dew_point: None | float = None
+  """The dew point temperature. Example: 17.79."""
+  humidity: None | float = None
+  """The relative humidity. Example: 0.8."""
+  pressure: None | float = None
+  """The air pressure. Example: 1014.73."""
+  wind_speed: None | float = None
+  """The wind speed. Example: 9.08."""
+  wind_gust: None | float = None
+  """The wind gust speed. Example: 17.95."""
+  wind_gust_time: None | int = None
+  """The time when the maximum wind gust occurs in UNIX format. Example: 1746046800."""
+  wind_bearing: None | float = None
+  """The direction of the wind in degrees. Example: 130."""
+  cloud_cover: None | float = None
+  """The fraction of the sky covered by clouds. Example: 0.68."""
+  uv_index: None | float = None
+  """The max UV index during that day. Example: 6.53."""
+  uv_index_time: None | int = None
+  """The time when the maximum UV index occurs in UNIX format. Example: 1746043200."""
+  visibility: None | float = None
+  """The visibility in kilometers. Example: 11.61."""
+  temperature_min: None | float = None
+  """The minimum temperature. Example: 17.54."""
+  temperature_min_time: None | int = None
+  """The time when the minimum temperature occurs in UNIX format. Example: 1746010800."""
+  temperature_max: None | float = None
+  """The maximum temperature. Example: 26.6."""
+  temperature_max_time: None | int = None
+  """The time when the maximum temperature occurs in UNIX format. Example: 1746043200."""
+  apparent_temperature_min: None | float = None
+  """The minimum apparent temperature (feels like). Example: 18.97."""
+  apparent_temperature_min_time: None | int = None
+  """The time when the minimum apparent temperature occurs in UNIX format. Example: 1746014400."""
+  apparent_temperature_max: None | float = None
+  """The maximum apparent temperature (feels like). Example: 27.02."""
+  apparent_temperature_max_time: None | int = None
+  """The time when the maximum apparent temperature occurs in UNIX format. Example: 1746043200."""
+  smoke_max: None | float = None
+  """The maximum amount of near-surface smoke in kg/m^3. Only returned when version>2.
+  Example: 1.76."""
+  smoke_max_time: None | int = None
+  """The time when the maximum near-surface smoke occurs in UNIX format. Only returned when
+  version>2. Example: 1746061200."""
+  liquid_accumulation: None | float = None
+  """The amount of liquid precipitation expected. Only returned when version>2. Example: 0.2286."""
+  snow_accumulation: None | float = None
+  """The amount of snow precipitation expected. Only returned when version>2."""
+  ice_accumulation: None | float = None
+  """The amount of ice precipitation expected. Only returned when version>2."""
+  fire_index_max: None | float = None
+  """The maximum Fosburg fire index. Only returned when version>2. Example: 16.2."""
+  fire_index_max_time: None | int = None
+  """The time when the maximum Fosburg fire index occurs in UNIX format. Only returned when
+  version>2. Example: 1746057600."""
   additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
   def to_dict(self) -> dict[str, Any]:
     time = self.time
-
     summary = self.summary
-
     icon = self.icon
-
     dawn_time = self.dawn_time
-
     sunrise_time = self.sunrise_time
-
     sunset_time = self.sunset_time
-
     dusk_time = self.dusk_time
-
     moon_phase = self.moon_phase
-
     precip_intensity = self.precip_intensity
-
     precip_intensity_max = self.precip_intensity_max
-
     precip_intensity_max_time = self.precip_intensity_max_time
-
     precip_probability = self.precip_probability
-
     precip_accumulation = self.precip_accumulation
-
     precip_type = self.precip_type
-
     temperature_high = self.temperature_high
-
     temperature_high_time = self.temperature_high_time
-
     temperature_low = self.temperature_low
-
     temperature_low_time = self.temperature_low_time
-
     apparent_temperature_high = self.apparent_temperature_high
-
     apparent_temperature_high_time = self.apparent_temperature_high_time
-
     apparent_temperature_low = self.apparent_temperature_low
-
     apparent_temperature_low_time = self.apparent_temperature_low_time
-
     dew_point = self.dew_point
-
     humidity = self.humidity
-
     pressure = self.pressure
-
     wind_speed = self.wind_speed
-
     wind_gust = self.wind_gust
-
     wind_gust_time = self.wind_gust_time
-
     wind_bearing = self.wind_bearing
-
     cloud_cover = self.cloud_cover
-
     uv_index = self.uv_index
-
     uv_index_time = self.uv_index_time
-
     visibility = self.visibility
-
     temperature_min = self.temperature_min
-
     temperature_min_time = self.temperature_min_time
-
     temperature_max = self.temperature_max
-
     temperature_max_time = self.temperature_max_time
-
     apparent_temperature_min = self.apparent_temperature_min
-
     apparent_temperature_min_time = self.apparent_temperature_min_time
-
     apparent_temperature_max = self.apparent_temperature_max
-
     apparent_temperature_max_time = self.apparent_temperature_max_time
-
     smoke_max = self.smoke_max
-
     smoke_max_time = self.smoke_max_time
-
     liquid_accumulation = self.liquid_accumulation
-
     snow_accumulation = self.snow_accumulation
-
     ice_accumulation = self.ice_accumulation
-
     fire_index_max = self.fire_index_max
-
     fire_index_max_time = self.fire_index_max_time
 
     field_dict: dict[str, Any] = {}
     field_dict.update(self.additional_properties)
     field_dict.update({})
-    if time is not UNSET:
+    if time is not None:
       field_dict["time"] = time
-    if summary is not UNSET:
+    if summary is not None:
       field_dict["summary"] = summary
-    if icon is not UNSET:
+    if icon is not None:
       field_dict["icon"] = icon
-    if dawn_time is not UNSET:
+    if dawn_time is not None:
       field_dict["dawnTime"] = dawn_time
-    if sunrise_time is not UNSET:
+    if sunrise_time is not None:
       field_dict["sunriseTime"] = sunrise_time
-    if sunset_time is not UNSET:
+    if sunset_time is not None:
       field_dict["sunsetTime"] = sunset_time
-    if dusk_time is not UNSET:
+    if dusk_time is not None:
       field_dict["duskTime"] = dusk_time
-    if moon_phase is not UNSET:
+    if moon_phase is not None:
       field_dict["moonPhase"] = moon_phase
-    if precip_intensity is not UNSET:
+    if precip_intensity is not None:
       field_dict["precipIntensity"] = precip_intensity
-    if precip_intensity_max is not UNSET:
+    if precip_intensity_max is not None:
       field_dict["precipIntensityMax"] = precip_intensity_max
-    if precip_intensity_max_time is not UNSET:
+    if precip_intensity_max_time is not None:
       field_dict["precipIntensityMaxTime"] = precip_intensity_max_time
-    if precip_probability is not UNSET:
+    if precip_probability is not None:
       field_dict["precipProbability"] = precip_probability
-    if precip_accumulation is not UNSET:
+    if precip_accumulation is not None:
       field_dict["precipAccumulation"] = precip_accumulation
-    if precip_type is not UNSET:
+    if precip_type is not None:
       field_dict["precipType"] = precip_type
-    if temperature_high is not UNSET:
+    if temperature_high is not None:
       field_dict["temperatureHigh"] = temperature_high
-    if temperature_high_time is not UNSET:
+    if temperature_high_time is not None:
       field_dict["temperatureHighTime"] = temperature_high_time
-    if temperature_low is not UNSET:
+    if temperature_low is not None:
       field_dict["temperatureLow"] = temperature_low
-    if temperature_low_time is not UNSET:
+    if temperature_low_time is not None:
       field_dict["temperatureLowTime"] = temperature_low_time
-    if apparent_temperature_high is not UNSET:
+    if apparent_temperature_high is not None:
       field_dict["apparentTemperatureHigh"] = apparent_temperature_high
-    if apparent_temperature_high_time is not UNSET:
+    if apparent_temperature_high_time is not None:
       field_dict["apparentTemperatureHighTime"] = apparent_temperature_high_time
-    if apparent_temperature_low is not UNSET:
+    if apparent_temperature_low is not None:
       field_dict["apparentTemperatureLow"] = apparent_temperature_low
-    if apparent_temperature_low_time is not UNSET:
+    if apparent_temperature_low_time is not None:
       field_dict["apparentTemperatureLowTime"] = apparent_temperature_low_time
-    if dew_point is not UNSET:
+    if dew_point is not None:
       field_dict["dewPoint"] = dew_point
-    if humidity is not UNSET:
+    if humidity is not None:
       field_dict["humidity"] = humidity
-    if pressure is not UNSET:
+    if pressure is not None:
       field_dict["pressure"] = pressure
-    if wind_speed is not UNSET:
+    if wind_speed is not None:
       field_dict["windSpeed"] = wind_speed
-    if wind_gust is not UNSET:
+    if wind_gust is not None:
       field_dict["windGust"] = wind_gust
-    if wind_gust_time is not UNSET:
+    if wind_gust_time is not None:
       field_dict["windGustTime"] = wind_gust_time
-    if wind_bearing is not UNSET:
+    if wind_bearing is not None:
       field_dict["windBearing"] = wind_bearing
-    if cloud_cover is not UNSET:
+    if cloud_cover is not None:
       field_dict["cloudCover"] = cloud_cover
-    if uv_index is not UNSET:
+    if uv_index is not None:
       field_dict["uvIndex"] = uv_index
-    if uv_index_time is not UNSET:
+    if uv_index_time is not None:
       field_dict["uvIndexTime"] = uv_index_time
-    if visibility is not UNSET:
+    if visibility is not None:
       field_dict["visibility"] = visibility
-    if temperature_min is not UNSET:
+    if temperature_min is not None:
       field_dict["temperatureMin"] = temperature_min
-    if temperature_min_time is not UNSET:
+    if temperature_min_time is not None:
       field_dict["temperatureMinTime"] = temperature_min_time
-    if temperature_max is not UNSET:
+    if temperature_max is not None:
       field_dict["temperatureMax"] = temperature_max
-    if temperature_max_time is not UNSET:
+    if temperature_max_time is not None:
       field_dict["temperatureMaxTime"] = temperature_max_time
-    if apparent_temperature_min is not UNSET:
+    if apparent_temperature_min is not None:
       field_dict["apparentTemperatureMin"] = apparent_temperature_min
-    if apparent_temperature_min_time is not UNSET:
+    if apparent_temperature_min_time is not None:
       field_dict["apparentTemperatureMinTime"] = apparent_temperature_min_time
-    if apparent_temperature_max is not UNSET:
+    if apparent_temperature_max is not None:
       field_dict["apparentTemperatureMax"] = apparent_temperature_max
-    if apparent_temperature_max_time is not UNSET:
+    if apparent_temperature_max_time is not None:
       field_dict["apparentTemperatureMaxTime"] = apparent_temperature_max_time
-    if smoke_max is not UNSET:
+    if smoke_max is not None:
       field_dict["smokeMax"] = smoke_max
-    if smoke_max_time is not UNSET:
+    if smoke_max_time is not None:
       field_dict["smokeMaxTime"] = smoke_max_time
-    if liquid_accumulation is not UNSET:
+    if liquid_accumulation is not None:
       field_dict["liquidAccumulation"] = liquid_accumulation
-    if snow_accumulation is not UNSET:
+    if snow_accumulation is not None:
       field_dict["snowAccumulation"] = snow_accumulation
-    if ice_accumulation is not UNSET:
+    if ice_accumulation is not None:
       field_dict["iceAccumulation"] = ice_accumulation
-    if fire_index_max is not UNSET:
+    if fire_index_max is not None:
       field_dict["fireIndexMax"] = fire_index_max
-    if fire_index_max_time is not UNSET:
+    if fire_index_max_time is not None:
       field_dict["fireIndexMaxTime"] = fire_index_max_time
 
     return field_dict
@@ -338,101 +267,54 @@ class DailyDataItem(BaseModel):
   @classmethod
   def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
     d = dict(src_dict)
-    time = d.pop("time", UNSET)
-
-    summary = d.pop("summary", UNSET)
-
-    icon = d.pop("icon", UNSET)
-
-    dawn_time = d.pop("dawnTime", UNSET)
-
-    sunrise_time = d.pop("sunriseTime", UNSET)
-
-    sunset_time = d.pop("sunsetTime", UNSET)
-
-    dusk_time = d.pop("duskTime", UNSET)
-
-    moon_phase = d.pop("moonPhase", UNSET)
-
-    precip_intensity = d.pop("precipIntensity", UNSET)
-
-    precip_intensity_max = d.pop("precipIntensityMax", UNSET)
-
-    precip_intensity_max_time = d.pop("precipIntensityMaxTime", UNSET)
-
-    precip_probability = d.pop("precipProbability", UNSET)
-
-    precip_accumulation = d.pop("precipAccumulation", UNSET)
-
-    precip_type = d.pop("precipType", UNSET)
-
-    temperature_high = d.pop("temperatureHigh", UNSET)
-
-    temperature_high_time = d.pop("temperatureHighTime", UNSET)
-
-    temperature_low = d.pop("temperatureLow", UNSET)
-
-    temperature_low_time = d.pop("temperatureLowTime", UNSET)
-
-    apparent_temperature_high = d.pop("apparentTemperatureHigh", UNSET)
-
-    apparent_temperature_high_time = d.pop("apparentTemperatureHighTime", UNSET)
-
-    apparent_temperature_low = d.pop("apparentTemperatureLow", UNSET)
-
-    apparent_temperature_low_time = d.pop("apparentTemperatureLowTime", UNSET)
-
-    dew_point = d.pop("dewPoint", UNSET)
-
-    humidity = d.pop("humidity", UNSET)
-
-    pressure = d.pop("pressure", UNSET)
-
-    wind_speed = d.pop("windSpeed", UNSET)
-
-    wind_gust = d.pop("windGust", UNSET)
-
-    wind_gust_time = d.pop("windGustTime", UNSET)
-
-    wind_bearing = d.pop("windBearing", UNSET)
-
-    cloud_cover = d.pop("cloudCover", UNSET)
-
-    uv_index = d.pop("uvIndex", UNSET)
-
-    uv_index_time = d.pop("uvIndexTime", UNSET)
-
-    visibility = d.pop("visibility", UNSET)
-
-    temperature_min = d.pop("temperatureMin", UNSET)
-
-    temperature_min_time = d.pop("temperatureMinTime", UNSET)
-
-    temperature_max = d.pop("temperatureMax", UNSET)
-
-    temperature_max_time = d.pop("temperatureMaxTime", UNSET)
-
-    apparent_temperature_min = d.pop("apparentTemperatureMin", UNSET)
-
-    apparent_temperature_min_time = d.pop("apparentTemperatureMinTime", UNSET)
-
-    apparent_temperature_max = d.pop("apparentTemperatureMax", UNSET)
-
-    apparent_temperature_max_time = d.pop("apparentTemperatureMaxTime", UNSET)
-
-    smoke_max = d.pop("smokeMax", UNSET)
-
-    smoke_max_time = d.pop("smokeMaxTime", UNSET)
-
-    liquid_accumulation = d.pop("liquidAccumulation", UNSET)
-
-    snow_accumulation = d.pop("snowAccumulation", UNSET)
-
-    ice_accumulation = d.pop("iceAccumulation", UNSET)
-
-    fire_index_max = d.pop("fireIndexMax", UNSET)
-
-    fire_index_max_time = d.pop("fireIndexMaxTime", UNSET)
+    time = d.pop("time", None)
+    summary = d.pop("summary", None)
+    icon = d.pop("icon", None)
+    dawn_time = d.pop("dawnTime", None)
+    sunrise_time = d.pop("sunriseTime", None)
+    sunset_time = d.pop("sunsetTime", None)
+    dusk_time = d.pop("duskTime", None)
+    moon_phase = d.pop("moonPhase", None)
+    precip_intensity = d.pop("precipIntensity", None)
+    precip_intensity_max = d.pop("precipIntensityMax", None)
+    precip_intensity_max_time = d.pop("precipIntensityMaxTime", None)
+    precip_probability = d.pop("precipProbability", None)
+    precip_accumulation = d.pop("precipAccumulation", None)
+    precip_type = d.pop("precipType", None)
+    temperature_high = d.pop("temperatureHigh", None)
+    temperature_high_time = d.pop("temperatureHighTime", None)
+    temperature_low = d.pop("temperatureLow", None)
+    temperature_low_time = d.pop("temperatureLowTime", None)
+    apparent_temperature_high = d.pop("apparentTemperatureHigh", None)
+    apparent_temperature_high_time = d.pop("apparentTemperatureHighTime", None)
+    apparent_temperature_low = d.pop("apparentTemperatureLow", None)
+    apparent_temperature_low_time = d.pop("apparentTemperatureLowTime", None)
+    dew_point = d.pop("dewPoint", None)
+    humidity = d.pop("humidity", None)
+    pressure = d.pop("pressure", None)
+    wind_speed = d.pop("windSpeed", None)
+    wind_gust = d.pop("windGust", None)
+    wind_gust_time = d.pop("windGustTime", None)
+    wind_bearing = d.pop("windBearing", None)
+    cloud_cover = d.pop("cloudCover", None)
+    uv_index = d.pop("uvIndex", None)
+    uv_index_time = d.pop("uvIndexTime", None)
+    visibility = d.pop("visibility", None)
+    temperature_min = d.pop("temperatureMin", None)
+    temperature_min_time = d.pop("temperatureMinTime", None)
+    temperature_max = d.pop("temperatureMax", None)
+    temperature_max_time = d.pop("temperatureMaxTime", None)
+    apparent_temperature_min = d.pop("apparentTemperatureMin", None)
+    apparent_temperature_min_time = d.pop("apparentTemperatureMinTime", None)
+    apparent_temperature_max = d.pop("apparentTemperatureMax", None)
+    apparent_temperature_max_time = d.pop("apparentTemperatureMaxTime", None)
+    smoke_max = d.pop("smokeMax", None)
+    smoke_max_time = d.pop("smokeMaxTime", None)
+    liquid_accumulation = d.pop("liquidAccumulation", None)
+    snow_accumulation = d.pop("snowAccumulation", None)
+    ice_accumulation = d.pop("iceAccumulation", None)
+    fire_index_max = d.pop("fireIndexMax", None)
+    fire_index_max_time = d.pop("fireIndexMaxTime", None)
 
     daily_data_item = cls(
       time=time,

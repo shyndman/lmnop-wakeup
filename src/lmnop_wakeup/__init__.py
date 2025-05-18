@@ -1,6 +1,6 @@
 import nest_asyncio
 
-from lmnop_wakeup.logging import initialize_logging
+from lmnop_wakeup.utils.logging import initialize_logging
 
 # Permit the user of nested asyncio.run calls
 nest_asyncio.apply()

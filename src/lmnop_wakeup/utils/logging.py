@@ -24,8 +24,8 @@ def initialize_logging():
     console_log=False,
   )
   logfire.instrument_pydantic_ai(event_mode="logs")
-  logfire.instrument_pydantic(record="all")
   logfire.instrument_httpx()
+  logfire.instrument_pydantic(record="failure")
 
 
 class InterceptHandler(logging.Handler):
@@ -68,11 +68,12 @@ LOGGING_CONFIG = {
   "loggers": {
     "httpx": {
       "handlers": ["default"],
-      "level": "TRACE",
+      "level": "INFO",
     },
     "httpcore": {
       "handlers": ["default"],
-      "level": "TRACE",
+      "level": "INFO",
     },
+    "google.maps": {"handlers": ["default"], "level": "INFO"},
   },
 }

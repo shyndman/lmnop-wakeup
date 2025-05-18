@@ -5,24 +5,20 @@ from attrs import field as _attrs_field
 from pydantic import BaseModel
 
 from ..models.daily_data_item import DailyDataItem
-from ..types import UNSET, Unset
 
 T = TypeVar("T", bound="Daily")
 
 
 class Daily(BaseModel):
-  """A block containing day-by-day forecasted conditions for the next 7 days.
+  """A block containing day-by-day forecasted conditions for the next 7 days."""
 
-  Attributes:
-      summary (Unset | str): A summary of the daily forecast. Example: Drizzle tomorrow and
-          next Wednesday, with high temperatures bottoming out at 21°C on Saturday..
-      icon (Unset | str): An icon representing the daily forecast. Example: rain.
-      data (Unset | list['DailyDataItem']):
-  """
-
-  summary: Unset | str = UNSET
-  icon: Unset | str = UNSET
-  data: Unset | list["DailyDataItem"] = UNSET
+  summary: None | str = None
+  """A summary of the daily forecast. Example: Drizzle tomorrow and next Wednesday, with high
+  temperatures bottoming out at 21°C on Saturday."""
+  icon: None | str = None
+  """An icon representing the daily forecast. Example: rain."""
+  data: None | list["DailyDataItem"] = None
+  """A list of objects, each describing the weather of a single day"""
   additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
   def to_dict(self) -> dict[str, Any]:
@@ -30,8 +26,8 @@ class Daily(BaseModel):
 
     icon = self.icon
 
-    data: Unset | list[dict[str, Any]] = UNSET
-    if not isinstance(self.data, Unset):
+    data: None | list[dict[str, Any]] = None
+    if self.data is not None:
       data = []
       for data_item_data in self.data:
         data_item = data_item_data.to_dict()
@@ -40,11 +36,12 @@ class Daily(BaseModel):
     field_dict: dict[str, Any] = {}
     field_dict.update(self.additional_properties)
     field_dict.update({})
-    if summary is not UNSET:
+
+    if summary is not None:
       field_dict["summary"] = summary
-    if icon is not UNSET:
+    if icon is not None:
       field_dict["icon"] = icon
-    if data is not UNSET:
+    if data is not None:
       field_dict["data"] = data
 
     return field_dict
@@ -54,12 +51,11 @@ class Daily(BaseModel):
     from ..models.daily_data_item import DailyDataItem
 
     d = dict(src_dict)
-    summary = d.pop("summary", UNSET)
-
-    icon = d.pop("icon", UNSET)
+    summary = d.pop("summary", None)
+    icon = d.pop("icon", None)
 
     data = []
-    _data = d.pop("data", UNSET)
+    _data = d.pop("data", None)
     for data_item_data in _data or []:
       data_item = DailyDataItem.from_dict(data_item_data)
 

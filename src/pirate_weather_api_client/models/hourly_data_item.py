@@ -2,9 +2,7 @@ from collections.abc import Mapping
 from typing import Any, TypeVar
 
 from attrs import field as _attrs_field
-from pydantic import BaseModel
-
-from ..types import UNSET, Unset
+from pydantic import BaseModel, ConfigDict
 
 T = TypeVar("T", bound="HourlyDataItem")
 
@@ -12,67 +10,69 @@ T = TypeVar("T", bound="HourlyDataItem")
 class HourlyDataItem(BaseModel):
   """Represents the forecast for a single hour."""
 
-  time: Unset | int = _attrs_field(default=UNSET, init=True)
+  model_config = ConfigDict()
+
+  time: None | int = _attrs_field(default=None, init=True)
   """The time of the data point in UNIX format. Example: 1746032400."""
-  summary: Unset | str = UNSET
+  summary: None | str = None
   """A summary of the weather. Example: Mostly Cloudy."""
-  icon: Unset | str = UNSET
+  icon: None | str = None
   """An icon representing the weather. Example: partly-cloudy-day."""
-  precip_intensity: Unset | float = UNSET
+  precip_intensity: None | float = None
   """The intensity of precipitation."""
-  precip_probability: Unset | float = UNSET
+  precip_probability: None | float = None
   """The probability of precipitation. Example: 0.14."""
-  precip_intensity_error: Unset | float = UNSET
+  precip_intensity_error: None | float = None
   """The standard deviation of the precipitation
   intensity. Example: 0.4091."""
-  precip_accumulation: Unset | float = UNSET
+  precip_accumulation: None | float = None
   """The total amount of precipitation."""
-  precip_type: Unset | str = UNSET
+  precip_type: None | str = None
   """The type of precipitation occurring. Example: rain."""
-  temperature: Unset | float = UNSET
+  temperature: None | float = None
   """The air temperature. Example: 23.73."""
-  apparent_temperature: Unset | float = UNSET
+  apparent_temperature: None | float = None
   """The apparent temperature (feels like). Example: 24.73."""
-  dew_point: Unset | float = UNSET
+  dew_point: None | float = None
   """The dew point temperature. Example: 19.1."""
-  humidity: Unset | float = UNSET
+  humidity: None | float = None
   """The relative humidity. Example: 0.75."""
-  pressure: Unset | float = UNSET
+  pressure: None | float = None
   """The air pressure. Example: 1016.32."""
-  wind_speed: Unset | float = UNSET
+  wind_speed: None | float = None
   """The wind speed. Example: 11.52."""
-  wind_gust: Unset | float = UNSET
+  wind_gust: None | float = None
   """The wind gust speed. Example: 21.6."""
-  wind_bearing: Unset | float = UNSET
+  wind_bearing: None | float = None
   """The direction of the wind in degrees. Example: 160."""
-  cloud_cover: Unset | float = UNSET
+  cloud_cover: None | float = None
   """The fraction of the sky covered by clouds. Example: 0.74."""
-  uv_index: Unset | float = UNSET
+  uv_index: None | float = None
   """The UV index. Example: 4.11."""
-  visibility: Unset | float = UNSET
+  visibility: None | float = None
   """The visibility in kilometers. Example: 14.48."""
-  ozone: Unset | float = UNSET
+  ozone: None | float = None
   """The ozone concentration in Dobson units. Example: 304.38."""
-  smoke: Unset | float = UNSET
+  smoke: None | float = None
   """The amount of near-surface smoke in ug/m3. Only returned when
   version>2. Example: 0.32."""
-  liquid_accumulation: Unset | float = UNSET
+  liquid_accumulation: None | float = None
   """The amount of liquid precipitation expected. Only
   returned when version>2."""
-  snow_accumulation: Unset | float = UNSET
+  snow_accumulation: None | float = None
   """The amount of snow precipitation expected. Only
   returned when version>2."""
-  ice_accumulation: Unset | float = UNSET
+  ice_accumulation: None | float = None
   """The amount of ice precipitation expected. Only
   returned when version>2."""
-  nearest_storm_distance: Unset | float = UNSET
+  nearest_storm_distance: None | float = None
   """The distance to the nearest storm. Example: 35.59."""
-  nearest_storm_bearing: Unset | float = UNSET
+  nearest_storm_bearing: None | float = None
   """The direction to the nearest storm. Example: 45."""
-  fire_index: Unset | float = UNSET
+  fire_index: None | float = None
   """The Fosburg fire index. Only returned when version>2.
   Example: 9.39."""
-  feels_like: Unset | float = UNSET
+  feels_like: None | float = None
   """The apparent temperature reported by NBM and gfs. Only
   returned when version>2. Example: 23.79."""
   additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
@@ -110,61 +110,61 @@ class HourlyDataItem(BaseModel):
     field_dict.update(self.additional_properties)
     field_dict.update({})
 
-    if time is not UNSET:
+    if time is not None:
       field_dict["time"] = time
-    if summary is not UNSET:
+    if summary is not None:
       field_dict["summary"] = summary
-    if icon is not UNSET:
+    if icon is not None:
       field_dict["icon"] = icon
-    if precip_intensity is not UNSET:
+    if precip_intensity is not None:
       field_dict["precipIntensity"] = precip_intensity
-    if precip_probability is not UNSET:
+    if precip_probability is not None:
       field_dict["precipProbability"] = precip_probability
-    if precip_intensity_error is not UNSET:
+    if precip_intensity_error is not None:
       field_dict["precipIntensityError"] = precip_intensity_error
-    if precip_accumulation is not UNSET:
+    if precip_accumulation is not None:
       field_dict["precipAccumulation"] = precip_accumulation
-    if precip_type is not UNSET:
+    if precip_type is not None:
       field_dict["precipType"] = precip_type
-    if temperature is not UNSET:
+    if temperature is not None:
       field_dict["temperature"] = temperature
-    if apparent_temperature is not UNSET:
+    if apparent_temperature is not None:
       field_dict["apparentTemperature"] = apparent_temperature
-    if dew_point is not UNSET:
+    if dew_point is not None:
       field_dict["dewPoint"] = dew_point
-    if humidity is not UNSET:
+    if humidity is not None:
       field_dict["humidity"] = humidity
-    if pressure is not UNSET:
+    if pressure is not None:
       field_dict["pressure"] = pressure
-    if wind_speed is not UNSET:
+    if wind_speed is not None:
       field_dict["windSpeed"] = wind_speed
-    if wind_gust is not UNSET:
+    if wind_gust is not None:
       field_dict["windGust"] = wind_gust
-    if wind_bearing is not UNSET:
+    if wind_bearing is not None:
       field_dict["windBearing"] = wind_bearing
-    if cloud_cover is not UNSET:
+    if cloud_cover is not None:
       field_dict["cloudCover"] = cloud_cover
-    if uv_index is not UNSET:
+    if uv_index is not None:
       field_dict["uvIndex"] = uv_index
-    if visibility is not UNSET:
+    if visibility is not None:
       field_dict["visibility"] = visibility
-    if ozone is not UNSET:
+    if ozone is not None:
       field_dict["ozone"] = ozone
-    if smoke is not UNSET:
+    if smoke is not None:
       field_dict["smoke"] = smoke
-    if liquid_accumulation is not UNSET:
+    if liquid_accumulation is not None:
       field_dict["liquidAccumulation"] = liquid_accumulation
-    if snow_accumulation is not UNSET:
+    if snow_accumulation is not None:
       field_dict["snowAccumulation"] = snow_accumulation
-    if ice_accumulation is not UNSET:
+    if ice_accumulation is not None:
       field_dict["iceAccumulation"] = ice_accumulation
-    if nearest_storm_distance is not UNSET:
+    if nearest_storm_distance is not None:
       field_dict["nearestStormDistance"] = nearest_storm_distance
-    if nearest_storm_bearing is not UNSET:
+    if nearest_storm_bearing is not None:
       field_dict["nearestStormBearing"] = nearest_storm_bearing
-    if fire_index is not UNSET:
+    if fire_index is not None:
       field_dict["fireIndex"] = fire_index
-    if feels_like is not UNSET:
+    if feels_like is not None:
       field_dict["feelsLike"] = feels_like
 
     return field_dict
@@ -172,34 +172,34 @@ class HourlyDataItem(BaseModel):
   @classmethod
   def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
     d = dict(src_dict)
-    time = d.pop("time", UNSET)
-    summary = d.pop("summary", UNSET)
-    icon = d.pop("icon", UNSET)
-    precip_intensity = d.pop("precipIntensity", UNSET)
-    precip_probability = d.pop("precipProbability", UNSET)
-    precip_intensity_error = d.pop("precipIntensityError", UNSET)
-    precip_accumulation = d.pop("precipAccumulation", UNSET)
-    precip_type = d.pop("precipType", UNSET)
-    temperature = d.pop("temperature", UNSET)
-    apparent_temperature = d.pop("apparentTemperature", UNSET)
-    dew_point = d.pop("dewPoint", UNSET)
-    humidity = d.pop("humidity", UNSET)
-    pressure = d.pop("pressure", UNSET)
-    wind_speed = d.pop("windSpeed", UNSET)
-    wind_gust = d.pop("windGust", UNSET)
-    wind_bearing = d.pop("windBearing", UNSET)
-    cloud_cover = d.pop("cloudCover", UNSET)
-    uv_index = d.pop("uvIndex", UNSET)
-    visibility = d.pop("visibility", UNSET)
-    ozone = d.pop("ozone", UNSET)
-    smoke = d.pop("smoke", UNSET)
-    liquid_accumulation = d.pop("liquidAccumulation", UNSET)
-    snow_accumulation = d.pop("snowAccumulation", UNSET)
-    ice_accumulation = d.pop("iceAccumulation", UNSET)
-    nearest_storm_distance = d.pop("nearestStormDistance", UNSET)
-    nearest_storm_bearing = d.pop("nearestStormBearing", UNSET)
-    fire_index = d.pop("fireIndex", UNSET)
-    feels_like = d.pop("feelsLike", UNSET)
+    time = d.pop("time", None)
+    summary = d.pop("summary", None)
+    icon = d.pop("icon", None)
+    precip_intensity = d.pop("precipIntensity", None)
+    precip_probability = d.pop("precipProbability", None)
+    precip_intensity_error = d.pop("precipIntensityError", None)
+    precip_accumulation = d.pop("precipAccumulation", None)
+    precip_type = d.pop("precipType", None)
+    temperature = d.pop("temperature", None)
+    apparent_temperature = d.pop("apparentTemperature", None)
+    dew_point = d.pop("dewPoint", None)
+    humidity = d.pop("humidity", None)
+    pressure = d.pop("pressure", None)
+    wind_speed = d.pop("windSpeed", None)
+    wind_gust = d.pop("windGust", None)
+    wind_bearing = d.pop("windBearing", None)
+    cloud_cover = d.pop("cloudCover", None)
+    uv_index = d.pop("uvIndex", None)
+    visibility = d.pop("visibility", None)
+    ozone = d.pop("ozone", None)
+    smoke = d.pop("smoke", None)
+    liquid_accumulation = d.pop("liquidAccumulation", None)
+    snow_accumulation = d.pop("snowAccumulation", None)
+    ice_accumulation = d.pop("iceAccumulation", None)
+    nearest_storm_distance = d.pop("nearestStormDistance", None)
+    nearest_storm_bearing = d.pop("nearestStormBearing", None)
+    fire_index = d.pop("fireIndex", None)
+    feels_like = d.pop("feelsLike", None)
 
     hourly_data_item = cls(
       time=time,

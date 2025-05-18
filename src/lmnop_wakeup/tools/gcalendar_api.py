@@ -17,34 +17,34 @@ SHARED_CALENDAR_ID = "family16125668672800183011@group.calendar.google.com"
 
 def calendar_events_in_range(start_ts: datetime, end_ts: datetime):
   service = build("calendar", "v3", credentials=authenticate())
-  res = (
-    service.events()
-    .list(
-      calendarId=SHARED_CALENDAR_ID,
-      timeMin=start_ts,
-      timeMax=end_ts,
-      singleEvents=True,
-      orderBy="startTime",
-      maxResults=2500,
+  res = service.calendarsList().list().execute()
+  gcals = res.get("items", [])
+  calendars = [Calendar(entity_id=gcal.get("id"), name=gcal.get("summary")) for gcal in gcals]
+
+  for calendar in calendars:
+    res = (
+      service.events()
+      .list(
+        calendarId=calendar.entity_id,
+        timeMin=start_ts,
+        timeMax=end_ts,
+        singleEvents=True,
+        orderBy="startTime",
+        maxResults=2500,
+      )
+      .execute()
     )
-    .execute()
-  )
 
-  calendar = Calendar(
-    entity_id=SHARED_CALENDAR_ID,
-    name=res.get("description"),
-    events=[],
-  )
+    events = res.get("items", [])
+    if not events:
+      print("No upcoming events found.")
+      continue
 
-  events = res.get("items", [])
-  if not events:
-    print("No upcoming events found.")
-    return calendar
+    calendar.events.append(
+      *map(lambda e: CalendarEvent.model_validate(e), events),
+    )
 
-  calendar.events.append(
-    *map(lambda e: CalendarEvent.model_validate(e), events),
-  )
-  return calendar
+  return calendars
 
 
 def authenticate():

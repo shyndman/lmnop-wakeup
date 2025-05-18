@@ -2,7 +2,7 @@ from datetime import date, datetime, time, timezone
 
 # Import the functions and classes to be tested
 from lmnop_wakeup.tools.weather_api import WeatherReport, is_timestamp_on_date
-from lmnop_wakeup.typing import nu
+from lmnop_wakeup.utils.typing import nu
 from pirate_weather_api_client.models import (
   Currently,
   Daily,

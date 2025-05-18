@@ -2,18 +2,17 @@ import asyncio
 from datetime import date, datetime
 from typing import TypedDict
 
-from langfuse import Langfuse
 from loguru import logger
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent
 
 from pirate_weather_api_client.models import HourlyDataItem
 
-from .common import Calendar, CalendarEvent, get_google_routes_api_key, get_hass_api_key
-from .llm import GEMINI_25_FLASH, get_langfuse_prompt_bundle
-from .locations import AddressLocation, CoordinateLocation
-from .tools import gcalendar_api, hass_api, routes_api
-from .tools.routes_api import (
+from ..common import Calendar, CalendarEvent, get_google_routes_api_key, get_hass_api_key
+from ..llm import GEMINI_25_FLASH, get_langfuse_prompt_bundle
+from ..locations import AddressLocation, CoordinateLocation
+from ..tools import gcalendar_api, hass_api, routes_api
+from ..tools.routes_api import (
   CyclingRouteDetails,
   RouteDetails,
   RouteDetailsByMode,
@@ -37,12 +36,12 @@ async def calendar_events_for_scheduling(start_ts: datetime, end_ts: datetime) -
     ),
   )
 
-  hass_calendars, shared_calendar = await asyncio.gather(
+  hass_calendars, google_calendars = await asyncio.gather(
     hass_calendars_task,
     shared_calendar_task,
   )
 
-  return [shared_calendar] + hass_calendars
+  return [] + google_calendars + hass_calendars
 
 
 class SchedulingInputs(TypedDict):
@@ -131,18 +130,6 @@ async def create_timekeeper(model: str = GEMINI_25_FLASH) -> tuple[TimekeeperAge
     include_transit: bool,
     include_walking: bool,
   ) -> RouteDetailsByMode:
-    logger.debug(
-      "Timekeeper tool called: compute_routes with origin={origin}, "
-      "destination={destination}, "
-      "time_constraint={time_constraint}, include_cycling={include_cycling}, "
-      "include_transit={include_transit}, include_walking={include_walking}",
-      origin=origin,
-      destination=destination,
-      time_constraint=time_constraint,
-      include_cycling=include_cycling,
-      include_transit=include_transit,
-      include_walking=include_walking,
-    )
     """
     Computes route details between two locations for various travel modes.
 
@@ -169,6 +156,19 @@ async def create_timekeeper(model: str = GEMINI_25_FLASH) -> tuple[TimekeeperAge
       travel modes. This object includes details for driving (always included),
       and optionally for cycling, transit, and walking if requested.
     """
+
+    logger.debug(
+      "Timekeeper tool called: compute_routes with origin={origin}, "
+      "destination={destination}, "
+      "time_constraint={time_constraint}, include_cycling={include_cycling}, "
+      "include_transit={include_transit}, include_walking={include_walking}",
+      origin=origin,
+      destination=destination,
+      time_constraint=time_constraint,
+      include_cycling=include_cycling,
+      include_transit=include_transit,
+      include_walking=include_walking,
+    )
     return await routes_api.compute_route_durations(
       google_routes_api_key=get_google_routes_api_key(),
       origin=origin,
@@ -189,11 +189,3 @@ async def determine_day_schedule(
   res = await timekeeper.run("", deps=deps)
   logger.debug("Timekeeper agent run completed. Returning output.")
   return res.output
-
-
-# Initialize Langfuse client
-langfuse = Langfuse()
-logger.debug("Langfuse client initialized")
-
-
-prompt = langfuse.get_prompt("timekeeper", label="latest")

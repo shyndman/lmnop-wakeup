@@ -10,15 +10,15 @@ from pirate_weather_api_client.errors import UnexpectedStatus
 from pirate_weather_api_client.models import (
   AlertsItem,
   Currently,
+  Daily,
   Hourly,
   HourlyDataItem,
   WeatherResponse200,
 )
-from pirate_weather_api_client.types import UNSET
 
 from ..common import ApiKey
 from ..locations import CoordinateLocation
-from ..typing import nu
+from ..utils.typing import nu
 
 
 class WeatherNotAvailable(Exception):
@@ -33,16 +33,16 @@ def is_timestamp_on_date(ts: int, midnight_on_date: datetime) -> bool:
 class WeatherReport(BaseModel):
   currently: Currently
   hourly: Hourly
-  daily: BaseModel
+  daily: Daily
   alerts: list[AlertsItem]
 
   def get_hourlies_for_day(self, date: date, tz: tzinfo) -> list[HourlyDataItem]:
     midnight_on_date = datetime.combine(date, time(0, 0, 0), tzinfo=tz)
-    hourly_data = nu(self.hourly.data) if self.hourly and nu(self.hourly.data) is not UNSET else []
+    hourly_data = nu(self.hourly.data) if self.hourly and self.hourly.data is not None else []
 
     return list(
       filter(
-        lambda h: is_timestamp_on_date(nu(h.time), midnight_on_date),
+        lambda hour: hour.time and is_timestamp_on_date(hour.time, midnight_on_date),
         hourly_data,
       )
     )
@@ -64,9 +64,11 @@ async def get_weather_report(
         lat_and_long_or_time=f"{location.latlng[0]},{location.latlng[1]}",
         client=async_client,
         units="si",
+        version=2,
+        extend="hourly",
       )
 
-      if not isinstance(res, WeatherResponse200) or res.currently == UNSET:
+      if not isinstance(res, WeatherResponse200) or res.currently is None:
         logger.error(
           "Failed to retrieve weather data or 'currently' block missing, error={error}", error=res
         )

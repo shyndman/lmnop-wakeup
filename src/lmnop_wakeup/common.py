@@ -6,7 +6,7 @@ from typing import NewType, override
 
 from pydantic import BaseModel, EmailStr, Field
 
-from lmnop_wakeup.typing import assert_not_none
+from lmnop_wakeup.utils.typing import assert_not_none
 
 ApiKey = NewType("ApiKey", str)
 """Represents an API key."""
@@ -87,6 +87,7 @@ class CalendarEvent(BaseModel):
   summary: str
   description: str | None
   creator: CalendarUser | None = None
+  attendees: list[CalendarUser] | None = None
   start_ts: TimeInfo = Field(alias="start")
   end_ts: TimeInfo | None = Field(None, alias="end")
   description: str | None
