@@ -1,8 +1,8 @@
 from collections.abc import Mapping
+from datetime import datetime
 from typing import Any, TypeVar
 
-from attrs import field as _attrs_field
-from pydantic import BaseModel
+from pydantic import AwareDatetime, BaseModel, computed_field
 
 T = TypeVar("T", bound="DailyDataItem")
 
@@ -110,7 +110,16 @@ class DailyDataItem(BaseModel):
   fire_index_max_time: None | int = None
   """The time when the maximum Fosburg fire index occurs in UNIX format. Only returned when
   version>2. Example: 1746057600."""
-  additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
+
+  @computed_field
+  @property
+  def local_time(self) -> AwareDatetime | None:
+    if self.time is None:
+      return None
+    else:
+      return datetime.fromtimestamp(
+        self.time,
+      ).astimezone()
 
   def to_dict(self) -> dict[str, Any]:
     time = self.time
@@ -163,7 +172,6 @@ class DailyDataItem(BaseModel):
     fire_index_max_time = self.fire_index_max_time
 
     field_dict: dict[str, Any] = {}
-    field_dict.update(self.additional_properties)
     field_dict.update({})
     if time is not None:
       field_dict["time"] = time
@@ -367,21 +375,4 @@ class DailyDataItem(BaseModel):
       fire_index_max_time=fire_index_max_time,
     )
 
-    daily_data_item.additional_properties = d
     return daily_data_item
-
-  @property
-  def additional_keys(self) -> list[str]:
-    return list(self.additional_properties.keys())
-
-  def __getitem__(self, key: str) -> Any:
-    return self.additional_properties[key]
-
-  def __setitem__(self, key: str, value: Any) -> None:
-    self.additional_properties[key] = value
-
-  def __delitem__(self, key: str) -> None:
-    del self.additional_properties[key]
-
-  def __contains__(self, key: str) -> bool:
-    return key in self.additional_properties

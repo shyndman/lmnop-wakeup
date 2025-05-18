@@ -1,8 +1,8 @@
 from collections.abc import Mapping
+from datetime import datetime
 from typing import Any, TypeVar
 
-from attrs import field as _attrs_field
-from pydantic import BaseModel, ConfigDict
+from pydantic import AwareDatetime, BaseModel, ConfigDict, computed_field
 
 T = TypeVar("T", bound="HourlyDataItem")
 
@@ -12,7 +12,7 @@ class HourlyDataItem(BaseModel):
 
   model_config = ConfigDict()
 
-  time: None | int = _attrs_field(default=None, init=True)
+  time: None | int = None
   """The time of the data point in UNIX format. Example: 1746032400."""
   summary: None | str = None
   """A summary of the weather. Example: Mostly Cloudy."""
@@ -75,7 +75,16 @@ class HourlyDataItem(BaseModel):
   feels_like: None | float = None
   """The apparent temperature reported by NBM and gfs. Only
   returned when version>2. Example: 23.79."""
-  additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
+
+  @computed_field
+  @property
+  def local_time(self) -> AwareDatetime | None:
+    if self.time is None:
+      return None
+    else:
+      return datetime.fromtimestamp(
+        self.time,
+      ).astimezone()
 
   def to_dict(self) -> dict[str, Any]:
     time = self.time
@@ -107,7 +116,6 @@ class HourlyDataItem(BaseModel):
     fire_index = self.fire_index
     feels_like = self.feels_like
     field_dict: dict[str, Any] = {}
-    field_dict.update(self.additional_properties)
     field_dict.update({})
 
     if time is not None:
@@ -232,21 +240,4 @@ class HourlyDataItem(BaseModel):
       feels_like=feels_like,
     )
 
-    hourly_data_item.additional_properties = d
     return hourly_data_item
-
-  @property
-  def additional_keys(self) -> list[str]:
-    return list(self.additional_properties.keys())
-
-  def __getitem__(self, key: str) -> Any:
-    return self.additional_properties[key]
-
-  def __setitem__(self, key: str, value: Any) -> None:
-    self.additional_properties[key] = value
-
-  def __delitem__(self, key: str) -> None:
-    del self.additional_properties[key]
-
-  def __contains__(self, key: str) -> bool:
-    return key in self.additional_properties
