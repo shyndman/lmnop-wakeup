@@ -63,9 +63,10 @@ async def run(
     serializer = BriefingInputsSerializer(inputs=briefing_inputs)
     model_dump = serializer.model_dump(exclude_unset=True, exclude_none=True)
     console.print(model_dump)
+
     task_prompt = prompt_templates.format(**model_dump["inputs"])
+    console.print(Markdown(task_prompt))
 
     with logfire.span("unleash showrunner"):
-      console.print(Markdown(task_prompt))
       schedule = await timekeeper_agent.run(task_prompt, deps=briefing_inputs)
       return schedule
