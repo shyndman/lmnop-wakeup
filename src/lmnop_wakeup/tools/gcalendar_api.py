@@ -12,7 +12,9 @@ from lmnop_wakeup.common import Calendar, CalendarEvent
 SCOPES = ["https://www.googleapis.com/auth/calendar.readonly"]
 
 
+PERSONAL_CALENDAR_ID = "scotty.hyndman@gmail.com"
 SHARED_CALENDAR_ID = "family16125668672800183011@group.calendar.google.com"
+BIRTHDAY_CALENDAR_ID = "md3ntu1lbq9vqc59fs75svbusg@group.calendar.google.com"
 
 
 def calendar_events_in_range(start_ts: datetime, end_ts: datetime):
