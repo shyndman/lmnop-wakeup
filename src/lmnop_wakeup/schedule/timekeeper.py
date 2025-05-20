@@ -11,7 +11,11 @@ from pirate_weather_api_client.models import HourlyDataItem
 from ..common import Calendar, CalendarEvent, get_google_routes_api_key, get_hass_api_key
 from ..llm import GEMINI_25_FLASH, get_langfuse_prompt_bundle
 from ..locations import AddressLocation, CoordinateLocation
-from ..tools import gcalendar_api, hass_api, routes_api
+from ..tools import (
+  enrich_and_filter_calendars,
+  get_merged_calendars,
+  routes_api,
+)
 from ..tools.routes_api import (
   CyclingRouteDetails,
   RouteDetails,
@@ -19,29 +23,28 @@ from ..tools.routes_api import (
   TimeConstraint,
 )
 
+# TODO: User should populate this map with their actual calendar entity_ids and desired descriptions.
+CALENDAR_DESCRIPTIONS_MAP: dict[str, str] = {
+    # "example_calendar_entity_id_1": "Description for calendar 1",
+    # "another_calendar_id@group.calendar.google.com": "Work Meetings",
+}
+
 
 async def calendar_events_for_scheduling(start_ts: datetime, end_ts: datetime) -> list[Calendar]:
-  hass_calendars_task = hass_api.calendar_events_in_range(
-    start_ts=start_ts,
-    end_ts=end_ts,
-    hass_api_token=get_hass_api_key(),
-  )
-
-  loop = asyncio.get_running_loop()
-  shared_calendar_task = loop.run_in_executor(
-    None,
-    lambda: gcalendar_api.calendar_events_in_range(
-      start_ts=start_ts,
-      end_ts=end_ts,
-    ),
-  )
-
-  hass_calendars, google_calendars = await asyncio.gather(
-    hass_calendars_task,
-    shared_calendar_task,
-  )
-
-  return [] + google_calendars + hass_calendars
+    hass_api_key = get_hass_api_key() 
+    
+    merged_calendars = await get_merged_calendars(
+        start_ts=start_ts,
+        end_ts=end_ts,
+        hass_api_token=hass_api_key,
+    )
+    
+    final_calendars = enrich_and_filter_calendars(
+        calendars=merged_calendars,
+        descriptions_map=CALENDAR_DESCRIPTIONS_MAP
+    )
+    
+    return final_calendars
 
 
 class SchedulingInputs(TypedDict):

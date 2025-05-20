@@ -42,9 +42,7 @@ def calendar_events_in_range(start_ts: datetime, end_ts: datetime):
       print("No upcoming events found.")
       continue
 
-    calendar.events.append(
-      *map(lambda e: CalendarEvent.model_validate(e), events),
-    )
+    calendar.events = [CalendarEvent.model_validate(e) for e in events]
 
   return calendars
 
