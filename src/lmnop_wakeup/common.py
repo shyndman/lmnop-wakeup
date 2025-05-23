@@ -5,8 +5,9 @@ from enum import StrEnum
 from typing import NewType, override
 
 from pydantic import BaseModel, EmailStr, Field
+from pydantic_extra_types.timezone_name import TimeZoneName
 
-from lmnop_wakeup.utils.typing import assert_not_none
+from .utils.typing import assert_not_none
 
 ApiKey = NewType("ApiKey", str)
 """Represents an API key."""
@@ -41,6 +42,24 @@ class TimeInfo(BaseModel):
   """The datetime."""
   timeZone: str | None = None
   """The timezone."""
+
+
+def format_time_info(time_info: TimeInfo, date_format: str, time_format: str) -> str:
+  """
+  Formats the date or datetime into a string.
+
+  Args:
+    date_format: The format for the date.
+    time_format: The format for the time.
+
+  Returns:
+    A formatted string representation of the date or datetime.
+  """
+  if time_info.dateTime is not None:
+    return time_info.dateTime.strftime(f"{date_format} {time_format}")
+  if time_info.date is not None:
+    return time_info.date.strftime(date_format)
+  raise ValueError("Neither 'date' nor 'dateTime' is set")
 
   # Validate that one and only one is provided
   @override
@@ -78,20 +97,23 @@ def date_parser(raw: str | list[str]) -> Date:
   return DateTime.strptime(raw, "%Y-%m-%d").date()
 
 
-class CalendarUser(BaseModel):
+class CalendarEmailUser(BaseModel):
+  email: EmailStr
+
+
+class CalendarUser(CalendarEmailUser):
   display_name: str = Field(alias="displayName")
   email: EmailStr
 
 
 class CalendarEvent(BaseModel):
   summary: str
-  description: str | None
-  creator: CalendarUser | None = None
+  creator: CalendarEmailUser | None = None
   attendees: list[CalendarUser] | None = None
   start_ts: TimeInfo = Field(alias="start")
   end_ts: TimeInfo | None = Field(None, alias="end")
-  description: str | None
-  location: str | None
+  description: str | None = None
+  location: str | None = None
 
   def is_all_day(self) -> bool:
     return self.end_ts is None
@@ -101,12 +123,15 @@ class Calendar(BaseModel):
   entity_id: str
   name: str
   events: list[CalendarEvent] = []
+  time_zone: TimeZoneName | None = None
   notes_for_processing: str | None = None
 
 
 class EnvName(StrEnum):
   """Represents the names of required environment variables."""
 
+  LITELLM_API_KEY = "LITELLM_API_KEY"
+  """The environment variable name for the LiteLLM API token."""
   GEMINI_API_KEY = "GEMINI_API_KEY"
   """The environment variable name for the Gemini API key."""
   HASS_API_TOKEN = "HASS_API_TOKEN"
@@ -121,6 +146,19 @@ class EnvName(StrEnum):
   """The environment variable name for the Langfuse secret key."""
   LANGFUSE_HOST = "LANGFUSE_HOST"
   """The environment variable name for the Langfuse host."""
+
+
+def get_litellm_api_key() -> ApiKey:
+  """
+  Retrieves the Home Assistant API key from environment variables.
+
+  Returns:
+    The Home Assistant API key.
+
+  Raises:
+    EnvironmentError: If the HASS_API_TOKEN environment variable is not set.
+  """
+  return ApiKey(assert_not_none(os.getenv(EnvName.LITELLM_API_KEY)))
 
 
 def get_hass_api_key() -> ApiKey:
