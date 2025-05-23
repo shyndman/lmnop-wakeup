@@ -15,6 +15,7 @@ dependencies = [
     "google-maps-routing>=0.6.15",
     "httpx>=0.28.1",
     "langfuse>=2.60.4",
+    "langgraph>=0.4.5",
     "logfire>=3.15.1",
     "loguru>=0.7.3",
     "nest-asyncio>=1.6.0",
@@ -43,7 +44,11 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [dependency-groups]
-dev = ["pytest>=8.3.5"]
+dev = [
+    "jupyterlab>=4.4.2",
+    "notebook>=7.4.2",
+    "pytest>=8.3.5",
+]
 
 [tool.pyright]
 include = ["src", "tests"]
