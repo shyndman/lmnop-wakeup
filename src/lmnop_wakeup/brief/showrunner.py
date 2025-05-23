@@ -9,12 +9,12 @@ from loguru import logger
 from pydantic import BaseModel
 from pydantic_ai import Agent
 
-from lmnop_wakeup.llm import GEMINI_25_FLASH, get_langfuse_prompt_bundle
-from lmnop_wakeup.locations import AddressLocation, CoordinateLocation
-from lmnop_wakeup.schedule.timekeeper import EventRouteOptions
 from pirate_weather_api_client.models import Currently, Daily, Hourly
 
 from ..common import Calendar, CalendarEvent, get_hass_api_key
+from ..llm import GEMINI_25_FLASH, create_litellm_model, get_langfuse_prompt_bundle
+from ..locations import AddressLocation, CoordinateLocation
+from ..schedule.timekeeper import EventRouteOptions
 from ..tools import gcalendar_api, hass_api
 
 

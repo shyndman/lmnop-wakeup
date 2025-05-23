@@ -1,11 +1,21 @@
 import inspect
 import logging
 import sys
+from io import StringIO
 from typing import override
 
-# from typing import override
 import logfire
+import rich
 from loguru import logger
+
+
+def rich_sprint(*args, **kwargs) -> str:
+  """
+  rich.print() to a string, and returns it
+  """
+  sb = StringIO()
+  rich.print(*args, **kwargs, file=sb)
+  return sb.getvalue()
 
 
 def initialize_logging():

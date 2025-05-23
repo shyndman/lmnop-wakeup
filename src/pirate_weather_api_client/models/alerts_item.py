@@ -1,10 +1,7 @@
 from collections.abc import Mapping
 from typing import Any, TypeVar, cast
 
-from attrs import field as _attrs_field
 from pydantic import BaseModel
-
-from ..types import UNSET, Unset
 
 T = TypeVar("T", bound="AlertsItem")
 
@@ -12,13 +9,13 @@ T = TypeVar("T", bound="AlertsItem")
 class AlertsItem(BaseModel):
   """
   Attributes:
-      title (Unset | str): A brief description of the alert. Example: Flood Warning.
-      regions (Unset | list[str]): An array of strings containing all regions included in the
+      title (None | str): A brief description of the alert. Example: Flood Warning.
+      regions (None | list[str]): An array of strings containing all regions included in the
             weather alert.
-      severity (Unset | str): The severity of the weather alert. Example: Severe.
-      time (Unset | int]): The time the alert was issued in UNIX format. Example: 1715357220.
-      expires (Unset | int]): The time the alert expires in UNIX format. Example: 1715451300.
-      description (Unset | str): A detailed description of the alert. Example:
+      severity (None | str): The severity of the weather alert. Example: Severe.
+      time (None | int]): The time the alert was issued in UNIX format. Example: 1715357220.
+      expires (None | int]): The time the alert expires in UNIX format. Example: 1715451300.
+      description (None | str): A detailed description of the alert. Example:
 
             ...The Flood Warning is extended for the following river in Illinois...Missouri
             ...Kentucky... Mississippi River at Cape Girardeau, Thebes, and Hickman. With
@@ -34,25 +31,23 @@ class AlertsItem(BaseModel):
 
     - Forecast...The river is expected to rise to a crest of 36.0 feet Monday morning. It will
         then fall below flood stage late Thursday evening. - Flood stage is 32.0 feet.. uri
-        (Unset | str): A HTTP(S) URL for more information about the alert. Example:
+        (None | str): A HTTP(S) URL for more information about the alert. Example:
         https://alerts.weather.gov/search?id=urn:oid:2.49.0.1.840.0.f24c2a5f205f53c0f443861ac62244cc6aecfc9c.002.1.
   """
 
-  title: Unset | str = UNSET
-  regions: Unset | list[str] = UNSET
-  severity: Unset | str = UNSET
-  time: Unset | int = UNSET
-  expires: Unset | int = UNSET
-  description: Unset | str = UNSET
-  uri: Unset | str = UNSET
-  additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
+  title: None | str = None
+  regions: None | list[str] = None
+  severity: None | str = None
+  time: None | int = None
+  expires: None | int = None
+  description: None | str = None
+  uri: None | str = None
 
   def to_dict(self) -> dict[str, Any]:
     title = self.title
 
-    regions: Unset | list[str] = UNSET
-    if not isinstance(self.regions, Unset):
-      regions = self.regions
+    regions: None | list[str] = None
+    regions = self.regions
 
     severity = self.severity
 
@@ -65,21 +60,20 @@ class AlertsItem(BaseModel):
     uri = self.uri
 
     field_dict: dict[str, Any] = {}
-    field_dict.update(self.additional_properties)
     field_dict.update({})
-    if title is not UNSET:
+    if title is not None:
       field_dict["title"] = title
-    if regions is not UNSET:
+    if regions is not None:
       field_dict["regions"] = regions
-    if severity is not UNSET:
+    if severity is not None:
       field_dict["severity"] = severity
-    if time is not UNSET:
+    if time is not None:
       field_dict["time"] = time
-    if expires is not UNSET:
+    if expires is not None:
       field_dict["expires"] = expires
-    if description is not UNSET:
+    if description is not None:
       field_dict["description"] = description
-    if uri is not UNSET:
+    if uri is not None:
       field_dict["uri"] = uri
 
     return field_dict
@@ -87,19 +81,19 @@ class AlertsItem(BaseModel):
   @classmethod
   def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
     d = dict(src_dict)
-    title = d.pop("title", UNSET)
+    title = d.pop("title", None)
 
-    regions = cast(list[str], d.pop("regions", UNSET))
+    regions = cast(list[str], d.pop("regions", None))
 
-    severity = d.pop("severity", UNSET)
+    severity = d.pop("severity", None)
 
-    time = d.pop("time", UNSET)
+    time = d.pop("time", None)
 
-    expires = d.pop("expires", UNSET)
+    expires = d.pop("expires", None)
 
-    description = d.pop("description", UNSET)
+    description = d.pop("description", None)
 
-    uri = d.pop("uri", UNSET)
+    uri = d.pop("uri", None)
 
     alerts_item = cls(
       title=title,
@@ -111,21 +105,4 @@ class AlertsItem(BaseModel):
       uri=uri,
     )
 
-    alerts_item.additional_properties = d
     return alerts_item
-
-  @property
-  def additional_keys(self) -> list[str]:
-    return list(self.additional_properties.keys())
-
-  def __getitem__(self, key: str) -> Any:
-    return self.additional_properties[key]
-
-  def __setitem__(self, key: str, value: Any) -> None:
-    self.additional_properties[key] = value
-
-  def __delitem__(self, key: str) -> None:
-    del self.additional_properties[key]
-
-  def __contains__(self, key: str) -> bool:
-    return key in self.additional_properties

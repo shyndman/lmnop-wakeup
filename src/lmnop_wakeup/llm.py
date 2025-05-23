@@ -1,3 +1,4 @@
+import functools
 import re
 from dataclasses import dataclass
 from typing import cast

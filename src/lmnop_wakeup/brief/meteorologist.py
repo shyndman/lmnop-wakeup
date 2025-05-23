@@ -1,19 +1,20 @@
 import json
-from datetime import date, datetime
+from datetime import datetime
 from importlib import resources
 
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent
 
-from pirate_weather_api_client.models import Currently, Daily, Hourly
+from pirate_weather_api_client.models import AlertsItem, Currently, Daily, Hourly
 
-from ..brief.run import get_weather_report
 from ..common import get_pirate_weather_api_key
-from ..llm import GEMINI_25_FLASH, get_langfuse_prompt_bundle
+from ..llm import GEMINI_25_FLASH, create_litellm_model, get_langfuse_prompt_bundle
 from ..locations import NamedLocation
+from .run import get_weather_report
 
 
 class RawWeatherData(BaseModel):
+  alerts: list[AlertsItem]
   currently: Currently
   hourly: Hourly
   daily: Daily
@@ -37,7 +38,7 @@ class WeatherPattern(BaseModel):
     - "Humid with Afternoon Showers"
     """
 
-  days: list[date] = Field(
+  days: list[datetime] = Field(
     ...,
     description="The dates that share this weather pattern",
   )
@@ -68,34 +69,6 @@ class WeatherPattern(BaseModel):
     Daily UV index peaks around 6-7, indicating moderate sun exposure risk."
     """
 
-  suitable_activities: list[str] = Field(
-    ...,
-    description="Activities well-suited for this weather pattern",
-  )
-  """
-    List of specific activities that would be well-suited for this weather pattern.
-
-    Consider:
-    - Outdoor recreation possibilities
-    - Travel impacts
-    - Home/cottage activities
-    - Time-of-day specific recommendations
-
-    Be specific rather than generic. For example, "morning hiking" or "afternoon photography"
-    is better than just "hiking" or "photography".
-
-    Examples:
-    - "morning hiking"
-    - "afternoon photography"
-    - "evening campfires"
-    - "patio dining from 5-8pm"
-    - "lake swimming during afternoon peaks"
-    - "fishing at dawn or dusk"
-    - "indoor projects during midday heat"
-
-    Include 5-10 relevant activities per pattern.
-    """
-
 
 class WeatherReportForBrief(BaseModel):
   """Weather analysis with pattern groupings and weatherperson script"""
@@ -103,10 +76,10 @@ class WeatherReportForBrief(BaseModel):
   expert_analysis: str = Field(
     ...,
     max_length=1200,
-    description="Expert climatological analysis of patterns and trends as descriptive text",
+    description="Expert meteorologist analysis of patterns and trends as descriptive text",
   )
   """
-    Expert climatological analysis written as flowing text. Analyze the forecast holistically,
+    Expert meteorological analysis written as flowing text. Analyze the forecast holistically,
     discussing notable meteorological features, confidence levels, and interesting patterns.
 
     Include: - Dominant weather systems affecting the period - Notable transitions or frontal
@@ -162,13 +135,14 @@ class WeatherReportForBrief(BaseModel):
     commute. If you've got outdoor plans for Wednesday, your best bet is the morning hours before
     those rain chances ramp up..."
 
-    Write a complete script that covers the entire forecast period in a flowing, natural way.
+    Write a complete script that covers the entire forecast period in a flowing, natural way. You
+    should aim for about a minute of speaking time, or 150-200 words.
     """
 
-  key_recommendations: list[str] | None = Field(
-    [],
-    description="Optional list of key takeaways or recommendations for planning",
-  )
+  # key_recommendations: list[str] | None = Field(
+  #   [],
+  #   description="Optional list of key takeaways or recommendations for planning",
+  # )
   """
     A concise list of the most important planning recommendations based on the forecast.
 
@@ -185,14 +159,14 @@ class WeatherReportForBrief(BaseModel):
     """
 
 
-type ClimatologistAgent = Agent[RawWeatherData, WeatherReportForBrief]
+type MeteorologistAgent = Agent[RawWeatherData, WeatherReportForBrief]
 
 
-async def create_climatologist(model: str = GEMINI_25_FLASH) -> tuple[ClimatologistAgent, str, str]:
-  bundle = await get_langfuse_prompt_bundle("climatologist")
+async def create_meteorologist(model: str = GEMINI_25_FLASH) -> tuple[MeteorologistAgent, str, str]:
+  bundle = await get_langfuse_prompt_bundle("meteorologist")
 
-  climatologist = Agent(
-    model=model,
+  meteorologist = Agent(
+    model=create_litellm_model(model),
     instructions=bundle.instructions,
     deps_type=RawWeatherData,
     output_type=WeatherReportForBrief,
@@ -201,16 +175,16 @@ async def create_climatologist(model: str = GEMINI_25_FLASH) -> tuple[Climatolog
     instrument=True,
   )
 
-  @climatologist.tool_plain()
+  @meteorologist.tool_plain()
   def posix_to_local_time(posix: int) -> datetime:
     return datetime.fromtimestamp(posix).astimezone()
 
-  return climatologist, bundle.instructions, bundle.task_prompt_templates
+  return meteorologist, bundle.instructions, bundle.task_prompt_templates
 
 
 async def weather_report_for_brief(location: NamedLocation):
   r = await get_weather_report(location, pirate_weather_api_key=get_pirate_weather_api_key())
-  return RawWeatherData(currently=r.currently, hourly=r.hourly, daily=r.daily)
+  return RawWeatherData(alerts=r.alerts, currently=r.currently, hourly=r.hourly, daily=r.daily)
 
 
 def cached_weather_report() -> RawWeatherData:

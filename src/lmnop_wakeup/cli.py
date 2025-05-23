@@ -3,13 +3,13 @@ from pathlib import Path
 from textwrap import dedent
 from typing import override
 
-import rich
 from clypi import Command, arg
 from loguru import logger
+from rich.console import Console
 
-from .brief.climatologist import (
-  cached_weather_report,
-  create_climatologist,
+from .brief.meteorologist import (
+  create_meteorologist,
+  weather_report_for_brief,
 )
 from .common import date_parser
 from .locations import CoordinateLocation, LocationName, location_named
@@ -61,9 +61,13 @@ class Weather(Command):
 
   @override
   async def run(self):
-    # report = await weather_report_for_brief(location_named(LocationName.home))
-    report = cached_weather_report()
-    agent, *_ = await create_climatologist()
+    report = await weather_report_for_brief(location_named(LocationName.home))
+    with open("weather.json", "w") as f:
+      f.write(report.model_dump_json(indent=2))
+
+    # report = cached_weather_report()
+
+    agent, *_ = await create_meteorologist()
     prompt = dedent(
       f"""
       ```json
@@ -93,5 +97,7 @@ def main():
   try:
     app = Wakeup.parse()
     app.start()
+  except KeyboardInterrupt:
+    logger.info("lmnop:wakeup was interrupted by the user")
   except Exception:
     logger.exception("Fatal exception")
