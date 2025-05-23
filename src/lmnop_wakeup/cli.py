@@ -13,7 +13,7 @@ from .brief.climatologist import (
 )
 from .common import date_parser
 from .locations import CoordinateLocation, LocationName, location_named
-from .schedule.run import schedule
+from .schedule.run import langfuse_span, schedule
 
 HOME = Path("~/").expanduser()
 
@@ -71,9 +71,16 @@ class Weather(Command):
       ```""".strip()
     )
 
-    async with agent.run_stream(prompt, deps=report) as res:
-      async for message in res.stream_structured():
-        rich.print(res)
+    console = Console(width=90)
+    console.print(prompt)
+
+    with langfuse_span("Analyzing weather data…") as span:
+      res = await agent.run(prompt, deps=report)
+      console.print(res)
+
+    # async with agent.run_stream(prompt, deps=report) as res:
+    #   async for message in res.stream_structured():
+    #     rich.print(res)
 
 
 class Wakeup(Command):

@@ -1,10 +1,11 @@
 import asyncio
 from datetime import date, datetime, time
 
-import logfire
 import rich
 from pydantic import BaseModel
 from rich.markdown import Markdown
+
+from lmnop_wakeup.tracing import langfuse_span  # Add the new import
 
 from ..common import assert_not_none, get_hass_api_key, get_pirate_weather_api_key
 from ..locations import CoordinateLocation, LocationName, location_named
@@ -23,7 +24,7 @@ async def schedule(
 ) -> SchedulingDetails:
   console = rich.console.Console()
 
-  with logfire.span("schedule"):
+  with langfuse_span(name="schedule"):  # Replace with langfuse_span
     start_ts = (
       datetime.combine(todays_date, time(0))
       .astimezone()
@@ -36,7 +37,7 @@ async def schedule(
     end_ts = start_ts.replace(hour=23, minute=59, second=59)
     hass_token = get_hass_api_key()
     general_info = all_cals = weather = None
-    with logfire.span("loading context"):
+    with langfuse_span(name="loading context"):  # Replace with langfuse_span
       general_info, all_cals, weather = await asyncio.gather(
         get_general_information(todays_date=todays_date, hass_api_token=hass_token),
         calendar_events_in_range(start_ts=start_ts, end_ts=end_ts, hass_api_token=hass_token),
@@ -58,7 +59,7 @@ async def schedule(
     console.print(model_dump)
     task_prompt = prompt_templates.format(**model_dump["inputs"])
 
-    with logfire.span("unleash timekeeper"):
+    with langfuse_span(name="unleash timekeeper"):  # Replace with langfuse_span
       console.print(Markdown(task_prompt))
       schedule = await timekeeper_agent.run(task_prompt, deps=scheduling_inputs)
       return schedule.output

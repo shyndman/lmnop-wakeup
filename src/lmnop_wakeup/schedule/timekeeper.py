@@ -9,7 +9,7 @@ from pydantic_ai import Agent
 from pirate_weather_api_client.models import HourlyDataItem
 
 from ..common import Calendar, CalendarEvent, get_google_routes_api_key, get_hass_api_key
-from ..llm import GEMINI_25_FLASH, get_langfuse_prompt_bundle
+from ..llm import GEMINI_25_FLASH, create_litellm_model, get_langfuse_prompt_bundle
 from ..locations import AddressLocation, CoordinateLocation
 from ..tools import gcalendar_api, hass_api, routes_api
 from ..tools.routes_api import (
@@ -113,7 +113,7 @@ async def create_timekeeper(model: str = GEMINI_25_FLASH) -> tuple[TimekeeperAge
   logger.debug("Creating Timekeeper agent with model: {model}", model=model)
   bundle = await get_langfuse_prompt_bundle("timekeeper")
   timekeeper = Agent(
-    model=model,
+    model=create_litellm_model(model),
     instructions=bundle.instructions,
     deps_type=SchedulingInputs,
     output_type=SchedulingDetails,

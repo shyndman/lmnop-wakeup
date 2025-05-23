@@ -1,10 +1,11 @@
 import asyncio
 from datetime import date, datetime, time, timedelta
 
-import logfire
 import rich
 from pydantic import BaseModel
 from rich.markdown import Markdown
+
+from lmnop_wakeup.tracing import langfuse_span  # Add the new import
 
 from ..common import get_hass_api_key, get_pirate_weather_api_key
 from ..locations import CoordinateLocation, LocationName, location_named
@@ -27,7 +28,7 @@ async def run(
 ):
   console = rich.console.Console()
 
-  with logfire.span("brief"):
+  with langfuse_span(name="brief"):  # Replace with langfuse_span
     start_ts = (
       datetime.combine(todays_date, time(0))
       .astimezone()
@@ -40,7 +41,7 @@ async def run(
     end_ts = start_ts.replace(hour=23, minute=59, second=59) + timedelta(days=30)
     hass_token = get_hass_api_key()
     general_info = all_cals = weather = None
-    with logfire.span("loading context"):
+    with langfuse_span(name="loading context"):  # Replace with langfuse_span
       general_info, all_cals, weather = await asyncio.gather(
         get_general_information(todays_date=todays_date, hass_api_token=hass_token),
         calendar_events_for_briefing(start_ts=start_ts, end_ts=end_ts),
@@ -66,6 +67,6 @@ async def run(
     task_prompt = prompt_templates.format(**model_dump["inputs"])
     console.print(Markdown(task_prompt))
 
-    with logfire.span("unleash showrunner"):
+    with langfuse_span(name="unleash showrunner"):  # Replace with langfuse_span
       schedule = await timekeeper_agent.run(task_prompt, deps=briefing_inputs)
       return schedule
