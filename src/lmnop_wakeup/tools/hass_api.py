@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from datetime import datetime as DateTime
+from datetime import datetime as Datetime
 from typing import NewType, TypedDict
 
 import httpx
@@ -20,7 +20,7 @@ class RestEndpoints:
     return httpx.URL(f"{_HASS_API_BASE}/calendars")
 
   @staticmethod
-  def events_endpoint(calendar_id: str, start: DateTime, end: DateTime) -> httpx.URL:
+  def events_endpoint(calendar_id: str, start: Datetime, end: Datetime) -> httpx.URL:
     return httpx.URL(
       f"{_HASS_API_BASE}/calendars/{calendar_id}"
       f"?start={start.isoformat(timespec='seconds')}&end={end.isoformat(timespec='seconds')}"

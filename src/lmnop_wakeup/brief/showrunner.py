@@ -11,11 +11,13 @@ from pydantic_ai import Agent
 
 from pirate_weather_api_client.models import Currently, Daily, Hourly
 
-from ..common import Calendar, CalendarEvent, get_hass_api_key
+from ..common import get_hass_api_key
 from ..llm import GEMINI_25_FLASH, create_litellm_model, get_langfuse_prompt_bundle
 from ..locations import AddressLocation, CoordinateLocation
 from ..schedule.timekeeper import EventRouteOptions
-from ..tools import gcalendar_api, hass_api
+from ..tools import hass_api
+from ..tools.calendar import gcalendar_api
+from ..tools.calendar.model import Calendar, CalendarEvent
 
 
 async def calendar_events_for_briefing(start_ts: datetime, end_ts: datetime) -> list[Calendar]:

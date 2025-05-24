@@ -8,10 +8,12 @@ from pydantic_ai import Agent
 
 from pirate_weather_api_client.models import HourlyDataItem
 
-from ..common import Calendar, CalendarEvent, get_google_routes_api_key, get_hass_api_key
+from ..common import get_google_routes_api_key, get_hass_api_key
 from ..llm import GEMINI_25_FLASH, create_litellm_model, get_langfuse_prompt_bundle
 from ..locations import AddressLocation, CoordinateLocation
-from ..tools import gcalendar_api, hass_api, routes_api
+from ..tools import hass_api, routes_api
+from ..tools.calendar import gcalendar_api
+from ..tools.calendar.model import Calendar, CalendarEvent
 from ..tools.routes_api import (
   CyclingRouteDetails,
   RouteDetails,
