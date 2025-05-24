@@ -45,7 +45,11 @@ async def run(
       general_info, all_cals, weather = await asyncio.gather(
         get_general_information(todays_date=todays_date, hass_api_token=hass_token),
         calendar_events_for_briefing(start_ts=start_ts, end_ts=end_ts),
-        get_weather_report(location, pirate_weather_api_key=get_pirate_weather_api_key()),
+        get_weather_report(
+          location=location,
+          report_start_time=start_ts,
+          pirate_weather_api_key=get_pirate_weather_api_key(),
+        ),
       )
 
     timekeeper_agent, instructions, prompt_templates = await create_showrunner()

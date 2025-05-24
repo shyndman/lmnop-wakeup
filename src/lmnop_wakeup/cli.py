@@ -7,13 +7,14 @@ from clypi import Command, arg
 from loguru import logger
 from rich.console import Console
 
+from .brief import workflow
 from .brief.meteorologist import (
   create_meteorologist,
   weather_report_for_brief,
 )
 from .common import date_parser
 from .locations import CoordinateLocation, LocationName, location_named
-from .schedule.run import langfuse_span, schedule
+from .schedule.run import SchedulingDetails, langfuse_span, schedule
 
 HOME = Path("~/").expanduser()
 
@@ -53,7 +54,11 @@ class Brief(Command):
 
   @override
   async def run(self):
-    pass
+    if not self.schedule_path.is_file():
+      raise ValueError("Schedule file does not exist")
+
+    scheduling_details = SchedulingDetails.model_validate_json(self.schedule_path.open("r").read())
+    await workflow.run(scheduling_details)
 
 
 class Weather(Command):
@@ -78,7 +83,7 @@ class Weather(Command):
     console = Console(width=90)
     console.print(prompt)
 
-    with langfuse_span("Analyzing weather data…") as span:
+    with langfuse_span("Analyzing weather data…"):
       res = await agent.run(prompt, deps=report)
       console.print(res)
 
