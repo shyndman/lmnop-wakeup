@@ -31,6 +31,8 @@ def api_key_parser(raw: str | list[str]) -> ApiKey:
 class EnvName(StrEnum):
   """Represents the names of required environment variables."""
 
+  LITELLM_API_URL = "LITELLM_API_URL"
+  """The base url used for communicating through LiteLLM"""
   LITELLM_API_KEY = "LITELLM_API_KEY"
   """The environment variable name for the LiteLLM API token."""
   GEMINI_API_KEY = "GEMINI_API_KEY"

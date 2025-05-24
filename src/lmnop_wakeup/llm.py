@@ -1,36 +1,53 @@
 import functools
+import os
 import re
 from dataclasses import dataclass
-from typing import cast
+from typing import cast, override
 
 from langfuse import Langfuse
 from langfuse.api import ChatMessage
 from langfuse.api.core import RequestOptions
-from openai import AsyncOpenAI
 from pydantic_ai import Agent
-from pydantic_ai.models.openai import OpenAIModel
-from pydantic_ai.providers.openai import OpenAIProvider
+from pydantic_ai.models.gemini import GeminiModel
+from pydantic_ai.providers.google_gla import GoogleGLAProvider
 from pydantic_ai.settings import ModelSettings
 
-from .common import get_litellm_api_key
+from .common import ApiKey, EnvName, get_litellm_api_key
 
-GEMINI_25_FLASH = "gemini/gemini-2.5-flash-preview-05-20"
-GEMINI_25_PRO = "gemini/gemini-2.5-pro-preview-03-25"
+GEMINI_25_FLASH = "gemini-2.5-flash-preview-05-20"
+GEMINI_25_PRO = "gemini-2.5-pro-preview-03-25"
 
 
 LATEST_PROMPT_LABEL = "latest"
 PRODUCTION_PROMPT_LABEL = "production"
 
 
-def create_litellm_model(gemini_model_name: str) -> OpenAIModel:
+class LiteLlmGooglePassthroughProvider(GoogleGLAProvider):
+  def __init__(
+    self,
+    *args,
+    litellm_api_url: str | None = None,
+    litellm_virtual_key: ApiKey | None = None,
+    **kwargs,
+  ):
+    self.litellm_api_url = litellm_api_url or os.environ[EnvName.LITELLM_API_URL]
+    if not self.litellm_api_url:
+      raise ValueError("litellm_api_url is a required argument")
+    api_key = litellm_virtual_key or os.environ[EnvName.LITELLM_API_KEY]
+    super().__init__(*args, **kwargs, api_key=api_key)
+
+  @property
+  @override
+  def base_url(self) -> str:
+    return self.litellm_api_url
+
+
+def create_litellm_model(gemini_model_name: str) -> GeminiModel:
   litellm_key = get_litellm_api_key()
-  provider = OpenAIProvider(
-    openai_client=AsyncOpenAI(
-      api_key=litellm_key,
-      base_url="http://litellm.don/",
-    ),
+  provider = LiteLlmGooglePassthroughProvider(
+    litellm_virtual_key=litellm_key,
   )
-  return OpenAIModel(gemini_model_name, provider=provider)
+  return GeminiModel(gemini_model_name, provider=provider)
 
 
 @dataclass
