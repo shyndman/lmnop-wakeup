@@ -12,9 +12,9 @@ from .brief.meteorologist import (
   create_meteorologist,
   weather_report_for_brief,
 )
-from .common import date_parser
 from .locations import CoordinateLocation, LocationName, location_named
 from .schedule.run import SchedulingDetails, langfuse_span, schedule
+from .utils.date import parse_date
 
 HOME = Path("~/").expanduser()
 
@@ -28,7 +28,7 @@ class Schedule(Command):
   )
   todays_date: date = arg(
     default=date.today(),
-    parser=date_parser,
+    parser=parse_date,
     help="the date considered 'today' when generating the briefing",
   )
   output: Path = arg(short="o", help="path where the schedule will be written")

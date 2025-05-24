@@ -1,11 +1,6 @@
 import os
-from datetime import date as Date
-from datetime import datetime as DateTime
 from enum import StrEnum
-from typing import NewType, override
-
-from pydantic import BaseModel, EmailStr, Field
-from pydantic_extra_types.timezone_name import TimeZoneName
+from typing import NewType
 
 from .utils.typing import assert_not_none
 
@@ -31,100 +26,6 @@ def api_key_parser(raw: str | list[str]) -> ApiKey:
   if len(raw.strip()) == 0:
     raise ValueError("API key may not be empty")
   return ApiKey(raw)
-
-
-class TimeInfo(BaseModel):
-  """Represents time information, either a date or a datetime."""
-
-  date: Date | None = None
-  """The date."""
-  dateTime: DateTime | None = None
-  """The datetime."""
-  timeZone: str | None = None
-  """The timezone."""
-
-
-def format_time_info(time_info: TimeInfo, date_format: str, time_format: str) -> str:
-  """
-  Formats the date or datetime into a string.
-
-  Args:
-    date_format: The format for the date.
-    time_format: The format for the time.
-
-  Returns:
-    A formatted string representation of the date or datetime.
-  """
-  if time_info.dateTime is not None:
-    return time_info.dateTime.strftime(f"{date_format} {time_format}")
-  if time_info.date is not None:
-    return time_info.date.strftime(date_format)
-  raise ValueError("Neither 'date' nor 'dateTime' is set")
-
-  # Validate that one and only one is provided
-  @override
-  def model_post_init(self, __context):
-    """
-    Validates that either 'date' or 'dateTime' is provided, but not both.
-
-    Args:
-      __context: The validation context.
-
-    Raises:
-      ValueError: If the validation fails.
-    """
-    if (self.date is None and self.dateTime is None) or (
-      self.date is not None and self.dateTime is not None
-    ):
-      raise ValueError("Either 'date' or 'dateTime' must be provided, but not both")
-
-
-def date_parser(raw: str | list[str]) -> Date:
-  """
-  Parses a raw string into a Date.
-
-  Args:
-    raw: The raw input string in 'YYYY-MM-DD' format.
-
-  Returns:
-    A Date instance.
-
-  Raises:
-    ValueError: If the input is a list.
-  """
-  if isinstance(raw, list):
-    raise ValueError("List input not supported")
-  return DateTime.strptime(raw, "%Y-%m-%d").date()
-
-
-class CalendarEmailUser(BaseModel):
-  email: EmailStr
-
-
-class CalendarUser(CalendarEmailUser):
-  display_name: str = Field(alias="displayName")
-  email: EmailStr
-
-
-class CalendarEvent(BaseModel):
-  summary: str
-  creator: CalendarEmailUser | None = None
-  attendees: list[CalendarUser] | None = None
-  start_ts: TimeInfo = Field(alias="start")
-  end_ts: TimeInfo | None = Field(None, alias="end")
-  description: str | None = None
-  location: str | None = None
-
-  def is_all_day(self) -> bool:
-    return self.end_ts is None
-
-
-class Calendar(BaseModel):
-  entity_id: str
-  name: str
-  events: list[CalendarEvent] = []
-  time_zone: TimeZoneName | None = None
-  notes_for_processing: str | None = None
 
 
 class EnvName(StrEnum):

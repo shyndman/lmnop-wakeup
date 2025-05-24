@@ -2,7 +2,7 @@ from datetime import date, datetime, time, tzinfo
 from typing import cast
 
 from loguru import logger
-from pydantic import BaseModel
+from pydantic import AwareDatetime, BaseModel
 
 from pirate_weather_api_client import Client
 from pirate_weather_api_client.api.weather import weather
@@ -55,17 +55,22 @@ _API_BASE_URL = "https://api.pirateweather.net"
 
 async def get_weather_report(
   location: CoordinateLocation,
+  report_start_time: AwareDatetime,
   pirate_weather_api_key: ApiKey,
 ) -> WeatherReport:
   async with Client(base_url=_API_BASE_URL) as async_client:
     try:
+      posix_time = int(report_start_time.timestamp())
+      spacetime = f"{location.latlng[0]},{location.latlng[1]},{posix_time}"
+
       res = await weather.asyncio(
         api_key=pirate_weather_api_key,
-        lat_and_long_or_time=f"{location.latlng[0]},{location.latlng[1]}",
+        lat_and_long_or_time=spacetime,
         client=async_client,
-        units="si",
+        units="ca",
         version=2,
         extend="hourly",
+        exclude="minutely",
       )
 
       if not isinstance(res, WeatherResponse200) or res.currently is None:

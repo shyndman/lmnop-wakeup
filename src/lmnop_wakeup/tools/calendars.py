@@ -2,9 +2,10 @@ from datetime import datetime
 
 from loguru import logger
 
-from lmnop_wakeup.common import ApiKey, Calendar
-
-from . import gcalendar_api, hass_api
+from ..common import ApiKey
+from . import hass_api
+from .calendar import gcalendar_api
+from .calendar.model import Calendar
 
 # Define a constant dictionary mapping calendar entity IDs to instruction strings.
 # TODO: Replace placeholder IDs and instructions with actual values.
@@ -35,7 +36,8 @@ CALENDAR_INSTRUCTIONS = {
   # Waste collection schedule
   "calendar.toronto_on": "This is Toronto's waste collection schedule. It is important that "
   "we're told the day before so we can have the bins out when the trucks come around, in the "
-  "early morning.",
+  "early morning. These are high-ish priority. We should at least get a sentence reminder. "
+  "Legend: GreenBin=Organics YardWaste=Leaves, yard clippings, etc. BlueBin=Recycling",
 }
 
 
