@@ -1,4 +1,4 @@
-from datetime import datetime as DateTime
+from datetime import datetime as Datetime
 from typing import NewType
 
 import httpx
@@ -18,7 +18,7 @@ class RestEndpoints:
     return httpx.URL(f"{_HASS_API_BASE}/calendars")
 
   @staticmethod
-  def events_endpoint(calendar_id: str, start: DateTime, end: DateTime) -> httpx.URL:
+  def events_endpoint(calendar_id: str, start: Datetime, end: Datetime) -> httpx.URL:
     return httpx.URL(
       f"{_HASS_API_BASE}/calendars/{calendar_id}"
       f"?start={start.isoformat(timespec='seconds')}&end={end.isoformat(timespec='seconds')}"
@@ -26,8 +26,8 @@ class RestEndpoints:
 
 
 async def calendar_events_in_range(
-  start_ts: DateTime,
-  end_ts: DateTime,
+  start_ts: Datetime,
+  end_ts: Datetime,
   hass_api_token: ApiKey,
 ) -> list[Calendar]:
   request_headers = {

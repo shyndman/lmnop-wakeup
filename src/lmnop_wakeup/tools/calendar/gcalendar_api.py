@@ -54,9 +54,7 @@ def calendar_events_in_range(start_ts: datetime, end_ts: datetime) -> list[Calen
       logger.debug("No upcoming events found.")
       continue
 
-    calendar.events.extend(
-      map(lambda e: CalendarEvent.model_validate(e), events),
-    )
+    calendar.events.extend(list(map(lambda e: CalendarEvent.model_validate(e), events)))
 
   return calendars
 
