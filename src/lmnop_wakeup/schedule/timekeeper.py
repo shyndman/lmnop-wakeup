@@ -97,6 +97,8 @@ class SchedulingDetails(BaseModel):
   time, the event that influenced it, and the computed travel routes for the day.
   """
 
+  date: date
+  """The day described by this schedule."""
   wakeup_time: datetime
   """The calculated time the user should wake up."""
   triggering_event_details: CalendarEvent | None

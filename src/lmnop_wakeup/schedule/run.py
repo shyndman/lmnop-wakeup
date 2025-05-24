@@ -5,12 +5,11 @@ import rich
 from pydantic import BaseModel
 from rich.markdown import Markdown
 
-from lmnop_wakeup.tracing import langfuse_span  # Add the new import
-
 from ..common import assert_not_none, get_hass_api_key, get_pirate_weather_api_key
 from ..locations import CoordinateLocation, LocationName, location_named
 from ..tools.hass_api import calendar_events_in_range, get_general_information
 from ..tools.weather_api import get_weather_report
+from ..tracing import langfuse_span
 from .timekeeper import SchedulingDetails, SchedulingInputs, create_timekeeper
 
 
@@ -41,7 +40,11 @@ async def schedule(
       general_info, all_cals, weather = await asyncio.gather(
         get_general_information(todays_date=todays_date, hass_api_token=hass_token),
         calendar_events_in_range(start_ts=start_ts, end_ts=end_ts, hass_api_token=hass_token),
-        get_weather_report(location, pirate_weather_api_key=get_pirate_weather_api_key()),
+        get_weather_report(
+          location=location,
+          report_start_time=start_ts,
+          pirate_weather_api_key=get_pirate_weather_api_key(),
+        ),
       )
 
     timekeeper_agent, instructions, prompt_templates = await create_timekeeper()
