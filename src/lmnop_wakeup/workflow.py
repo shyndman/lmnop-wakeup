@@ -1,13 +1,16 @@
+from contextlib import AsyncExitStack
 from datetime import date
 
 import rich
 from langchain_core.runnables import RunnableConfig
-from langgraph.cache.memory import InMemoryCache
-from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
+from langgraph.cache.sqlite import SqliteCache
+from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from langgraph.graph import StateGraph
+from langgraph.store.postgres import AsyncPostgresStore
 from pydantic import BaseModel
 
 from lmnop_wakeup import APP_DIRS
+from lmnop_wakeup.env import get_postgres_connection_string
 from lmnop_wakeup.events.model import CalendarSet
 
 
@@ -65,12 +68,19 @@ async def run_briefing_workflow(briefing_date: date) -> None:
   Args:
       briefing_date: The date for which to run the briefing.
   """
-  async with AsyncSqliteSaver.from_conn_string(
-    str(APP_DIRS.user_cache_path / "cache.db"),
-  ) as saver:
+  async with AsyncExitStack() as stack:
+    pg_connection_string = get_postgres_connection_string()
+    store = await stack.enter_async_context(
+      AsyncPostgresStore.from_conn_string(pg_connection_string)
+    )
+    saver = await stack.enter_async_context(
+      AsyncPostgresSaver.from_conn_string(pg_connection_string)
+    )
+
     graph = builder.compile(
-      cache=InMemoryCache(),
+      cache=SqliteCache(path=str(APP_DIRS.user_cache_path / "cache.db")),
       checkpointer=saver,
+      store=store,
     )
     config: RunnableConfig = {"configurable": {"thread_id": "1"}}
 

@@ -3,6 +3,9 @@ from pydantic_ai.mcp import MCPServerStdio
 
 def sandboxed_python_mcp_server() -> MCPServerStdio:
   """
+  A sandboxed Python MCP server that runs in a subprocess and exposes a safe mechanism for agents
+  to execute Python code.
+
   More info:
   * https://github.com/pydantic/pydantic-ai/tree/main/mcp-run-python
   * https://ai.pydantic.dev/mcp/run-python

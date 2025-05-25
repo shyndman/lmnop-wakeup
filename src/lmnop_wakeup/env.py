@@ -29,6 +29,21 @@ class EnvName(StrEnum):
   """The environment variable name for the Langfuse secret key."""
   LANGFUSE_HOST = "LANGFUSE_HOST"
   """The environment variable name for the Langfuse host."""
+  POSTGRES_CONNECTION_STRING = "POSTGRES_CONNECTION_STRING"
+  """The environment variable name for the Postgres database URL."""
+
+
+def get_postgres_connection_string() -> str:
+  """
+  Retrieves the Postgres database URL from environment variables.
+
+  Returns:
+    The Postgres database URL.
+
+  Raises:
+    EnvironmentError: If the POSTGRES_CONNECTION_STRING environment variable is not set.
+  """
+  return assert_not_none(os.getenv(EnvName.POSTGRES_CONNECTION_STRING))
 
 
 def get_litellm_api_key() -> ApiKey:
