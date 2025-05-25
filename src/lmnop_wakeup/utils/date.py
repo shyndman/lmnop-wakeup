@@ -1,7 +1,7 @@
 from datetime import date as Date
+from datetime import datetime, time, timezone
 from datetime import datetime as Datetime
-from datetime import timezone
-from typing import override
+from typing import overload, override
 from zoneinfo import ZoneInfo
 
 from pydantic import AwareDatetime, BaseModel
@@ -89,21 +89,42 @@ def parse_date(raw: str | list[str]) -> Date:
   return Datetime.strptime(raw, "%Y-%m-%d").date()
 
 
-def to_start_of_day(dt: AwareDatetime) -> AwareDatetime:
+LOCAL_TIMEZONE = datetime.now().astimezone().tzinfo
+
+
+@overload
+def start_of_local_day(dt: AwareDatetime) -> AwareDatetime:
   """Returns the start of the day in local time."""
-  return dt.replace(dt.year, dt.month, dt.day, 0, 0, 0, 0)
+  ...
 
 
-def to_end_of_day(dt: AwareDatetime) -> AwareDatetime:
-  """Returns the start of the day in local time."""
-  return dt.replace(dt.year, dt.month, dt.day, 23, 59, 59, 999999)
-
-
-def start_of_local_day(date: Date) -> AwareDatetime:
+@overload
+def start_of_local_day(dt: Date) -> AwareDatetime:
   """Returns the start of the provided datetime's day"""
-  return to_start_of_day(Datetime.now().astimezone())
+  ...
 
 
-def end_of_local_day(date: Date) -> AwareDatetime:
+@overload
+def end_of_local_day(dt: AwareDatetime) -> AwareDatetime:
+  """Returns the start of the day in local time."""
+  ...
+
+
+@overload
+def end_of_local_day(dt: Date) -> AwareDatetime:
   """Returns the end of the provided datetime's day"""
-  return to_end_of_day(Datetime.now().astimezone())
+  ...
+
+
+def start_of_local_day(dt) -> AwareDatetime:
+  if isinstance(dt, Date):
+    return Datetime.combine(dt, time.min, tzinfo=LOCAL_TIMEZONE)
+
+  return dt.replace(hour=0, minute=0, second=0, microsecond=0, tzinfo=LOCAL_TIMEZONE)
+
+
+def end_of_local_day(dt) -> AwareDatetime:
+  if isinstance(dt, Date):
+    return Datetime.combine(dt, time.max, tzinfo=LOCAL_TIMEZONE)
+
+  return dt.replace(hour=23, minute=59, second=59, microsecond=999999, tzinfo=LOCAL_TIMEZONE)

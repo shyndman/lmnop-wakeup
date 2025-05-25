@@ -1,7 +1,7 @@
 from pydantic import AwareDatetime, BaseModel, EmailStr, Field
 from pydantic_extra_types.timezone_name import TimeZoneName
 
-from lmnop_wakeup.utils.date import TimeInfo, to_end_of_day, to_start_of_day
+from lmnop_wakeup.utils.date import TimeInfo, end_of_local_day, start_of_local_day
 
 
 class CalendarEmailUser(BaseModel):
@@ -49,7 +49,7 @@ class CalendarEvent(BaseModel):
     For all-day events, this is the start of the day.
     """
     if self.is_all_day():
-      return to_start_of_day(self.start_ts.to_aware_datetime())
+      return start_of_local_day(self.start_ts.to_aware_datetime())
     return self.start_ts.to_aware_datetime()
 
   @property
@@ -59,7 +59,7 @@ class CalendarEvent(BaseModel):
     For all-day events, this is the end of the day.
     """
     if self.is_all_day():
-      return to_end_of_day(self.start_ts.to_aware_datetime())
+      return end_of_local_day(self.start_ts.to_aware_datetime())
     if self.end_ts is None:
       raise ValueError("End time is not set for this event, and it is not an all-day event.")
     return self.end_ts.to_aware_datetime()
