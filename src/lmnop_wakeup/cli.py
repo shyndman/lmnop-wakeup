@@ -9,12 +9,12 @@ from rich.console import Console
 
 from .arg import parse_date_arg
 from .brief import workflow
-from .brief.meteorologist import (
+from .location.model import CoordinateLocation, LocationName, location_named
+from .schedule.run import SchedulingDetails, langfuse_span, schedule
+from .weather.meteorologist import (
   create_meteorologist,
   weather_report_for_brief,
 )
-from .locations import CoordinateLocation, LocationName, location_named
-from .schedule.run import SchedulingDetails, langfuse_span, schedule
 from .workflow import run_briefing_workflow
 
 

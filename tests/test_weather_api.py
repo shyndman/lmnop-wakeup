@@ -1,8 +1,9 @@
 from datetime import date, datetime, time, timezone
 
+from lmnop_wakeup.core.typing import nn
+
 # Import the functions and classes to be tested
-from lmnop_wakeup.tools.weather_api import WeatherReport, is_timestamp_on_date
-from lmnop_wakeup.utils.typing import nn, nu
+from lmnop_wakeup.weather.model import WeatherReport, is_timestamp_on_date
 from pirate_weather_api_client.models import (
   Currently,
   Daily,
@@ -66,7 +67,7 @@ def test_get_hourlies_for_day_filters_correctly():
 
   # Expecting only ts1 and ts2 to be included
   expected_timestamps = {ts1, ts2}
-  actual_timestamps = {nu(item.time) for item in hourlies_for_day}
+  actual_timestamps = {nn(item.time) for item in hourlies_for_day}
 
   assert actual_timestamps == expected_timestamps
   assert len(hourlies_for_day) == 2

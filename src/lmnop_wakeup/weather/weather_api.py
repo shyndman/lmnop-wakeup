@@ -1,54 +1,19 @@
-from datetime import date, datetime, time, tzinfo
 from typing import cast
 
 from loguru import logger
-from pydantic import AwareDatetime, BaseModel
+from pydantic import AwareDatetime
 
 from pirate_weather_api_client import Client
 from pirate_weather_api_client.api.weather import weather
 from pirate_weather_api_client.errors import UnexpectedStatus
 from pirate_weather_api_client.models import (
-  AlertsItem,
-  Currently,
-  Daily,
-  Hourly,
-  HourlyDataItem,
   WeatherResponse200,
 )
 
-from ..common import ApiKey
-from ..locations import CoordinateLocation
-from ..utils.typing import nu
-
-
-class WeatherNotAvailable(Exception):
-  pass
-
-
-def is_timestamp_on_date(ts: int, midnight_on_date: datetime) -> bool:
-  date_to_check = datetime.fromtimestamp(ts, tz=midnight_on_date.tzinfo)
-  return date_to_check.date() == midnight_on_date.date()
-
-
-class WeatherReport(BaseModel):
-  currently: Currently
-  hourly: Hourly
-  daily: Daily
-  alerts: list[AlertsItem]
-
-  def get_hourlies_for_day(self, date: date, tz: tzinfo) -> list[HourlyDataItem]:
-    midnight_on_date = datetime.combine(date, time(0, 0, 0), tzinfo=tz)
-    hourly_data = nu(self.hourly.data) if self.hourly and self.hourly.data is not None else []
-
-    return list(
-      filter(
-        lambda hour: hour.time and is_timestamp_on_date(hour.time, midnight_on_date),
-        hourly_data,
-      )
-    )
-
-
-type WeatherResult = WeatherReport | WeatherNotAvailable
+from ..core.typing import nn
+from ..env import ApiKey
+from ..location.model import CoordinateLocation
+from .model import WeatherNotAvailable, WeatherReport
 
 _API_BASE_URL = "https://api.pirateweather.net"
 
@@ -80,13 +45,13 @@ async def get_weather_report(
         raise WeatherNotAvailable()
 
       res = cast(WeatherResponse200, res)
-      logger.info("Async Current Temperature: {temp}", temp=nu(res.currently).temperature)
+      logger.info("Async Current Temperature: {temp}", temp=nn(res.currently).temperature)
 
       return WeatherReport(
-        currently=nu(res.currently),
-        hourly=nu(res.hourly),
-        daily=nu(res.daily),
-        alerts=nu(res.alerts),
+        currently=nn(res.currently),
+        hourly=nn(res.hourly),
+        daily=nn(res.daily),
+        alerts=nn(res.alerts),
       )
     except UnexpectedStatus:
       logger.exception("Async API returned an unexpected status")

@@ -2,10 +2,10 @@ from datetime import datetime
 
 from loguru import logger
 
-from ..common import ApiKey
-from . import hass_api
+from ..env import ApiKey
+from ..tools import hass_api
 from .calendar import gcalendar_api
-from .calendar.model import Calendar
+from .model import Calendar
 
 # Define a constant dictionary mapping calendar entity IDs to instruction strings.
 # TODO: Replace placeholder IDs and instructions with actual values.

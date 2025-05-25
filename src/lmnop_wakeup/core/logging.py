@@ -4,7 +4,6 @@ import sys
 from io import StringIO
 from typing import override
 
-import logfire
 import rich
 from loguru import logger
 
@@ -24,25 +23,6 @@ def initialize_logging():
     sys.stderr,
     format="<green>{time:HH:mm:ss}</green> <dim>[{module}]</dim> <level>{level} {message}</level>",
   )
-
-  # Configure Logfire for use with Langfuse
-  logfire.configure(
-    service_name="lmnop:wakeup",
-    send_to_logfire=False,
-    scrubbing=False,
-    code_source=logfire.CodeSource(
-      repository="https://github.com/shyndman/lmnop-wakeup/",
-      revision="main",
-      root_path="/",
-    ),
-  ).with_settings(
-    console_log=True,
-  )
-  logfire.instrument_httpx(capture_all=True)
-  logfire.instrument_pydantic(record="failure")
-  logfire.instrument_pydantic_ai(event_mode="logs")
-  logfire.instrument_mcp()
-  logfire.instrument_sqlite3()
 
 
 class InterceptHandler(logging.Handler):

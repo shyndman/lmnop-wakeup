@@ -8,10 +8,10 @@ from pydantic_ai import Agent
 
 from pirate_weather_api_client.models import AlertsItem, Currently, Daily, Hourly
 
-from ..common import get_pirate_weather_api_key
+from ..env import get_pirate_weather_api_key
 from ..llm import GEMINI_25_FLASH, create_litellm_model, get_langfuse_prompt_bundle
-from ..locations import NamedLocation
-from .run import get_weather_report
+from ..location.model import NamedLocation
+from .weather_api import get_weather_report
 
 
 class RawWeatherData(BaseModel):
@@ -159,7 +159,7 @@ async def create_meteorologist(model: str = GEMINI_25_FLASH) -> tuple[Meteorolog
   def posix_to_local_time(posix: int) -> datetime:
     return datetime.fromtimestamp(posix).astimezone()
 
-  return meteorologist, bundle.instructions, bundle.task_prompt_templates
+  return meteorologist, bundle.instructions, bundle.task_prompt_templates  # type: ignore
 
 
 async def weather_report_for_brief(location: NamedLocation):

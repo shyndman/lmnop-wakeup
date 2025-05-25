@@ -3,8 +3,8 @@ from importlib.metadata import version
 import nest_asyncio
 from platformdirs import AppDirs
 
-from lmnop_wakeup.tracing import initialize_tracing
-from lmnop_wakeup.utils.logging import initialize_logging
+from lmnop_wakeup.core.logging import initialize_logging
+from lmnop_wakeup.core.tracing import initialize_tracing
 
 # Permit the user of nested asyncio.run calls
 nest_asyncio.apply()

@@ -1,7 +1,7 @@
 from pydantic import AwareDatetime, BaseModel, EmailStr, Field
 from pydantic_extra_types.timezone_name import TimeZoneName
 
-from lmnop_wakeup.utils.date import TimeInfo, end_of_local_day, start_of_local_day
+from lmnop_wakeup.core.date import TimeInfo, end_of_local_day, start_of_local_day
 
 
 class CalendarEmailUser(BaseModel):

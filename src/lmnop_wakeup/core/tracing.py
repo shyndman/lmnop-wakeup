@@ -1,12 +1,33 @@
 import os
 from typing import Any
 
+import logfire
+
 # Global variables for ambient tracing information
 _user_id: str | None = None
 _session_id: str | None = None
 
 
 def initialize_tracing():
+  # Configure Logfire for use with Langfuse
+  logfire.configure(
+    service_name="lmnop:wakeup",
+    send_to_logfire=False,
+    scrubbing=False,
+    code_source=logfire.CodeSource(
+      repository="https://github.com/shyndman/lmnop-wakeup/",
+      revision="main",
+      root_path="/",
+    ),
+  ).with_settings(
+    console_log=True,
+  )
+  logfire.instrument_httpx(capture_all=True)
+  logfire.instrument_pydantic(record="failure")
+  logfire.instrument_pydantic_ai(event_mode="logs")
+  logfire.instrument_mcp()
+  logfire.instrument_sqlite3()
+
   from RandomWordGenerator import RandomWord
 
   """

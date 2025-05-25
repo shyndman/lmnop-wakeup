@@ -17,8 +17,8 @@ from pydantic_ai.models.google import GoogleModel
 from pydantic_ai.providers.google import GoogleProvider
 from pydantic_ai.settings import ModelSettings
 
-from .common import ApiKey, EnvName, get_litellm_api_key
-from .tracing import langfuse_span
+from .core.tracing import langfuse_span
+from .env import ApiKey, EnvName, get_litellm_api_key
 
 GEMINI_25_FLASH = "gemini-2.5-flash-preview-05-20"
 GEMINI_25_PRO = "gemini-2.5-pro-preview-03-25"

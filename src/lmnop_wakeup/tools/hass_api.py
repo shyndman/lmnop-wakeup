@@ -6,8 +6,8 @@ import httpx
 from loguru import logger
 from pydantic import BaseModel
 
-from ..common import ApiKey
-from .calendar.model import Calendar, CalendarEvent
+from ..env import ApiKey
+from ..events.model import Calendar, CalendarEvent
 
 _HASS_API_BASE = "http://home.don/api"
 

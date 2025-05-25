@@ -4,8 +4,8 @@ from typing import NewType
 import httpx
 from loguru import logger
 
-from ...common import ApiKey
-from .model import Calendar, CalendarEvent
+from ...env import ApiKey
+from ..model import Calendar, CalendarEvent
 
 _HASS_API_BASE = "http://home.don/api"
 

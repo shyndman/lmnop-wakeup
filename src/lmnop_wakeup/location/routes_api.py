@@ -16,9 +16,9 @@ from google.protobuf.timestamp_pb2 import Timestamp
 from loguru import logger
 from pydantic import BaseModel, computed_field
 
-from ..common import ApiKey
-from ..locations import AddressLocation, CoordinateLocation
-from ..utils.asyncio import gather_map
+from ..core.asyncio import gather_map
+from ..env import ApiKey
+from .model import AddressLocation, CoordinateLocation
 
 
 class RouteDetails(BaseModel):

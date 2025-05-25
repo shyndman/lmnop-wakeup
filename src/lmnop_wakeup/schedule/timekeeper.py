@@ -1,4 +1,3 @@
-import asyncio
 from datetime import date, datetime
 from typing import TypedDict
 
@@ -8,42 +7,17 @@ from pydantic_ai import Agent
 
 from pirate_weather_api_client.models import HourlyDataItem
 
-from ..common import get_google_routes_api_key, get_hass_api_key
+from ..env import get_google_routes_api_key
+from ..events.model import CalendarEvent, CalendarSet
 from ..llm import GEMINI_25_FLASH, create_litellm_model, get_langfuse_prompt_bundle
-from ..locations import AddressLocation, CoordinateLocation
-from ..tools import hass_api, routes_api
-from ..tools.calendar import gcalendar_api
-from ..tools.calendar.model import Calendar, CalendarEvent, CalendarSet
-from ..tools.routes_api import (
+from ..location import routes_api
+from ..location.model import AddressLocation, CoordinateLocation
+from ..location.routes_api import (
   CyclingRouteDetails,
   RouteDetails,
   RouteDetailsByMode,
   TimeConstraint,
 )
-
-
-async def calendar_events_for_scheduling(start_ts: datetime, end_ts: datetime) -> list[Calendar]:
-  hass_calendars_task = hass_api.calendar_events_in_range(
-    start_ts=start_ts,
-    end_ts=end_ts,
-    hass_api_token=get_hass_api_key(),
-  )
-
-  loop = asyncio.get_running_loop()
-  shared_calendar_task = loop.run_in_executor(
-    None,
-    lambda: gcalendar_api.calendar_events_in_range(
-      start_ts=start_ts,
-      end_ts=end_ts,
-    ),
-  )
-
-  hass_calendars, google_calendars = await asyncio.gather(
-    hass_calendars_task,
-    shared_calendar_task,
-  )
-
-  return [] + google_calendars + hass_calendars
 
 
 class SchedulingInputs(TypedDict):

@@ -4,14 +4,14 @@ from zoneinfo import ZoneInfo
 import pytest
 from pydantic import AwareDatetime
 
-from lmnop_wakeup.tools.calendar.model import (
+from lmnop_wakeup.core.date import TimeInfo
+from lmnop_wakeup.events.model import (
   Calendar,
   CalendarEmailUser,
   CalendarEvent,
   CalendarSet,
   CalendarUser,
 )
-from lmnop_wakeup.utils.date import TimeInfo
 
 
 # Helper for creating timezone-aware datetimes

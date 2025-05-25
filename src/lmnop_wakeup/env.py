@@ -2,30 +2,10 @@ import os
 from enum import StrEnum
 from typing import NewType
 
-from .utils.typing import assert_not_none
+from .core.typing import assert_not_none
 
 ApiKey = NewType("ApiKey", str)
 """Represents an API key."""
-
-
-def api_key_parser(raw: str | list[str]) -> ApiKey:
-  """
-  Parses a raw string or list of strings into an ApiKey.
-
-  Args:
-    raw: The raw input string or list of strings.
-
-  Returns:
-    An ApiKey instance.
-
-  Raises:
-    ValueError: If the input is a list or an empty string.
-  """
-  if isinstance(raw, list):
-    raise ValueError("List input not supported")
-  if len(raw.strip()) == 0:
-    raise ValueError("API key may not be empty")
-  return ApiKey(raw)
 
 
 class EnvName(StrEnum):
