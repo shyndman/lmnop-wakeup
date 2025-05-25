@@ -6,6 +6,7 @@ readme = "README.md"
 authors = [{ name = "Scott Hyndman", email = "scotty.hyndman@gmail.com" }]
 requires-python = ">=3.13,<4.0"
 dependencies = [
+    "appdirs>=1.4.4",
     "attrs>=22.2.0",
     "clypi>=1.2.22",
     "email-validator>=2.2.0",
