@@ -6,7 +6,7 @@ readme = "README.md"
 authors = [{ name = "Scott Hyndman", email = "scotty.hyndman@gmail.com" }]
 requires-python = ">=3.13,<4.0"
 dependencies = [
-    "appdirs>=1.4.4",
+    "aiosqlite>=0.21.0",
     "attrs>=22.2.0",
     "clypi>=1.2.22",
     "email-validator>=2.2.0",
@@ -18,11 +18,14 @@ dependencies = [
     "httpx>=0.28.1",
     "langfuse>=2.60.4",
     "langgraph>=0.4.5",
+    "langgraph-checkpoint-sqlite>=2.0.10",
     "logfire>=3.15.1",
     "loguru>=0.7.3",
     "nest-asyncio>=1.6.0",
     "openapi-python-client>=0.24.3",
     "opentelemetry-instrumentation-httpx>=0.54b0",
+    "opentelemetry-instrumentation-sqlite3>=0.54b1",
+    "platformdirs>=4.3.8",
     "pydantic>=2.11.4",
     "pydantic-ai[logfire]>=0.2.7",
     "pydantic-extra-types>=2.10.4",

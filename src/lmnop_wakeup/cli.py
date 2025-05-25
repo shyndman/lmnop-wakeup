@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 from textwrap import dedent
 from typing import override
@@ -7,6 +7,7 @@ from clypi import Command, arg
 from loguru import logger
 from rich.console import Console
 
+from .arg import parse_date_arg
 from .brief import workflow
 from .brief.meteorologist import (
   create_meteorologist,
@@ -14,23 +15,14 @@ from .brief.meteorologist import (
 )
 from .locations import CoordinateLocation, LocationName, location_named
 from .schedule.run import SchedulingDetails, langfuse_span, schedule
-from .utils.date import parse_date
-
-HOME = Path("~/").expanduser()
+from .workflow import run_briefing_workflow
 
 
 class Schedule(Command):
   """Determines tomorrow's schedule"""
 
-  current_location: LocationName | tuple[float, float] = arg(
-    LocationName.home,
-    help="name or latlng of current location",
-  )
-  todays_date: date = arg(
-    default=date.today(),
-    parser=parse_date,
-    help="the date considered 'today' when generating the briefing",
-  )
+  current_location: LocationName | tuple[float, float] = arg(inherited=True)
+  todays_date: date = arg(inherited=True)
   output: Path = arg(short="o", help="path where the schedule will be written")
 
   @override
@@ -95,7 +87,21 @@ class Weather(Command):
 class Wakeup(Command):
   """Root command for producing day schedules"""
 
-  subcommand: Schedule | Brief | Weather
+  subcommand: Schedule | Brief | Weather | None
+
+  current_location: LocationName | tuple[float, float] = arg(
+    LocationName.home,
+    help="name or latlng of the user's location",
+  )
+  todays_date: date = arg(
+    default=date.today() + timedelta(days=1),
+    parser=parse_date_arg,
+    help="the date of the briefing [format: YYYY-MM-DD | +N | today | tomorrow]",
+  )
+
+  @override
+  async def run(self):
+    await run_briefing_workflow(self.todays_date)
 
 
 def main():

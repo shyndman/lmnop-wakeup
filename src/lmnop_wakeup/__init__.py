@@ -1,4 +1,7 @@
+from importlib.metadata import version
+
 import nest_asyncio
+from platformdirs import AppDirs
 
 from lmnop_wakeup.tracing import initialize_tracing
 from lmnop_wakeup.utils.logging import initialize_logging
@@ -8,3 +11,13 @@ nest_asyncio.apply()
 
 initialize_logging()
 initialize_tracing()
+
+PACKAGE = __name__.split(".")[0]
+__version__ = version(PACKAGE)
+
+APP_DIRS = AppDirs(
+  appname=PACKAGE,
+  appauthor=False,
+  version=__version__,
+  ensure_exists=True,
+)
