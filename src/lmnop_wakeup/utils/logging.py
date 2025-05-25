@@ -42,6 +42,7 @@ def initialize_logging():
   logfire.instrument_pydantic(record="failure")
   logfire.instrument_pydantic_ai(event_mode="logs")
   logfire.instrument_mcp()
+  logfire.instrument_sqlite3()
 
 
 class InterceptHandler(logging.Handler):
