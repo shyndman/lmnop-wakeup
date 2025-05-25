@@ -2,14 +2,17 @@ import functools
 import os
 import re
 from dataclasses import dataclass
-from typing import cast, override
+from typing import cast
 
+from google import genai
+from google.genai.types import HttpOptions
 from langfuse import Langfuse
 from langfuse.api import ChatMessage
 from langfuse.api.core import RequestOptions
 from pydantic_ai import Agent
-from pydantic_ai.models.gemini import GeminiModel
-from pydantic_ai.providers.google_gla import GoogleGLAProvider
+from pydantic_ai.models import Model
+from pydantic_ai.models.google import GoogleModel
+from pydantic_ai.providers.google import GoogleProvider
 from pydantic_ai.settings import ModelSettings
 
 from .common import ApiKey, EnvName, get_litellm_api_key
@@ -22,32 +25,34 @@ LATEST_PROMPT_LABEL = "latest"
 PRODUCTION_PROMPT_LABEL = "production"
 
 
-class LiteLlmGooglePassthroughProvider(GoogleGLAProvider):
+class LiteLlmGooglePassthroughProvider(GoogleProvider):
   def __init__(
     self,
-    *args,
-    litellm_api_url: str | None = None,
+    api_url: str | None = None,
     litellm_virtual_key: ApiKey | None = None,
-    **kwargs,
   ):
-    self.litellm_api_url = litellm_api_url or os.environ[EnvName.LITELLM_API_URL]
-    if not self.litellm_api_url:
+    api_url = api_url or os.environ[EnvName.LITELLM_API_URL]
+    if not api_url:
       raise ValueError("litellm_api_url is a required argument")
+
     api_key = litellm_virtual_key or os.environ[EnvName.LITELLM_API_KEY]
-    super().__init__(*args, **kwargs, api_key=api_key)
+    if not api_key:
+      raise ValueError("litellm_virtual_key is a required argument")
 
-  @property
-  @override
-  def base_url(self) -> str:
-    return self.litellm_api_url
+    super().__init__(
+      client=genai.Client(
+        api_key=api_key,
+        http_options=HttpOptions(base_url=api_url),
+      )
+    )
 
 
-def create_litellm_model(gemini_model_name: str) -> GeminiModel:
+def create_litellm_model(gemini_model_name: str) -> Model:
   litellm_key = get_litellm_api_key()
   provider = LiteLlmGooglePassthroughProvider(
     litellm_virtual_key=litellm_key,
   )
-  return GeminiModel(gemini_model_name, provider=provider)
+  return GoogleModel(gemini_model_name, provider=provider)
 
 
 @dataclass

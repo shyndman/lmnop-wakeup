@@ -28,7 +28,7 @@ async def run(
 ):
   console = rich.console.Console()
 
-  with langfuse_span(name="brief"):  # Replace with langfuse_span
+  with langfuse_span(name="brief"):
     start_ts = (
       datetime.combine(todays_date, time(0))
       .astimezone()
@@ -41,7 +41,7 @@ async def run(
     end_ts = start_ts.replace(hour=23, minute=59, second=59) + timedelta(days=30)
     hass_token = get_hass_api_key()
     general_info = all_cals = weather = None
-    with langfuse_span(name="loading context"):  # Replace with langfuse_span
+    with langfuse_span(name="loading context"):
       general_info, all_cals, weather = await asyncio.gather(
         get_general_information(todays_date=todays_date, hass_api_token=hass_token),
         calendar_events_for_briefing(start_ts=start_ts, end_ts=end_ts),
@@ -71,6 +71,6 @@ async def run(
     task_prompt = prompt_templates.format(**model_dump["inputs"])
     console.print(Markdown(task_prompt))
 
-    with langfuse_span(name="unleash showrunner"):  # Replace with langfuse_span
+    with langfuse_span(name="unleash showrunner"):
       schedule = await timekeeper_agent.run(task_prompt, deps=briefing_inputs)
       return schedule

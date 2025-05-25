@@ -13,7 +13,7 @@ from ..llm import GEMINI_25_FLASH, create_litellm_model, get_langfuse_prompt_bun
 from ..locations import AddressLocation, CoordinateLocation
 from ..tools import hass_api, routes_api
 from ..tools.calendar import gcalendar_api
-from ..tools.calendar.model import Calendar, CalendarEvent
+from ..tools.calendar.model import Calendar, CalendarEvent, CalendarSet
 from ..tools.routes_api import (
   CyclingRouteDetails,
   RouteDetails,
@@ -47,8 +47,8 @@ async def calendar_events_for_scheduling(start_ts: datetime, end_ts: datetime) -
 
 
 class SchedulingInputs(TypedDict):
-  calendars: list[Calendar]
   todays_date: date
+  calendars: CalendarSet
   is_today_workday: bool
   hourly_weather: list[HourlyDataItem]
   home_location: AddressLocation | CoordinateLocation
