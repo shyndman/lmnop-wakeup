@@ -52,7 +52,7 @@ async def schedule(
       home_location=location_named(LocationName.home),
       todays_date=todays_date,
       is_today_workday=general_info.is_today_workday,
-      calendars=CalendarSet(calendars=all_cals),
+      calendars=CalendarSet(calendars={c.name: c for c in all_cals}),
       hourly_weather=weather.get_hourlies_for_day(todays_date, tz=assert_not_none(start_ts.tzinfo)),
     )
     console.print(scheduling_inputs)
