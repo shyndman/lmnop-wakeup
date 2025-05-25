@@ -48,6 +48,7 @@ dev = [
     "jupyterlab>=4.4.2",
     "notebook>=7.4.2",
     "pytest>=8.3.5",
+    "pytest-asyncio>=0.26.0",
 ]
 
 [tool.pyright]

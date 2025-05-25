@@ -1,4 +1,5 @@
 import os
+from typing import Any
 
 # Global variables for ambient tracing information
 _user_id: str | None = None
@@ -35,14 +36,14 @@ class LangfuseSpanContext:
   def __init__(self, name: str, tags: list[str] | None = None):
     self.name = name
     self.tags = tags
-    self._logfire_span_context = None  # To store the Logfire span context manager
+    self._logfire_span = None  # To store the Logfire span context manager
 
   def __enter__(self):
     import logfire
 
     # Create and enter the Logfire span context manager
-    self._logfire_span_context = logfire.span(self.name)
-    span = self._logfire_span_context.__enter__()  # Get the actual span object
+    span = self._logfire_span = logfire.span(self.name)
+    self._logfire_span.__enter__()  # Get the actual span object
 
     if span and span.is_recording():
       # Set ambient attributes from global variables
@@ -58,8 +59,24 @@ class LangfuseSpanContext:
     return self
 
   def __exit__(self, exc_type, exc_val, exc_tb) -> None:
-    if self._logfire_span_context:
-      self._logfire_span_context.__exit__(exc_type, exc_val, exc_tb)
+    if self._logfire_span:
+      self._logfire_span.__exit__(exc_type, exc_val, exc_tb)
+      self._logfire_span = None
+
+  def set_attribute(self, key: str, value: Any) -> None:
+    """
+    Sets an attribute on the current span.
+
+    Args:
+      key: The attribute key
+      value: The attribute value
+
+    Raises:
+      RuntimeError: If called outside a span context
+    """
+    if not self._logfire_span:
+      raise RuntimeError("Cannot set attribute outside of span context")
+    self._logfire_span.set_attribute(key, value)
 
 
 def langfuse_span(name: str, tags: list[str] | None = None) -> LangfuseSpanContext:
