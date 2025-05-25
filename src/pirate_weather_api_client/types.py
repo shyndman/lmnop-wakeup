@@ -2,18 +2,9 @@
 
 from collections.abc import MutableMapping
 from http import HTTPStatus
-from typing import BinaryIO, Generic, Literal, TypeVar
+from typing import BinaryIO, Generic, TypeVar
 
 from attrs import define
-from pydantic import BaseModel
-
-
-class Unset(BaseModel):
-  def __bool__(self) -> Literal[False]:
-    return False
-
-
-UNSET: Unset = Unset()
 
 FileJsonType = tuple[str | None, BinaryIO, str | None]
 
@@ -44,4 +35,4 @@ class Response(Generic[T]):
   parsed: T | None
 
 
-__all__ = ["UNSET", "File", "FileJsonType", "Response", "Unset"]
+__all__ = ["File", "FileJsonType", "Response"]

@@ -1,10 +1,7 @@
 from collections.abc import Mapping
 from typing import Any, TypeVar
 
-from attrs import field as _attrs_field
 from pydantic import BaseModel
-
-from ..types import UNSET, Unset
 
 T = TypeVar("T", bound="FlagsSourceTimes")
 
@@ -13,26 +10,25 @@ class FlagsSourceTimes(BaseModel):
   """The times in UTC when the models were last updated.
 
   Attributes:
-      hrrr_0_18 (Unset | str): The time the HRRR model for 0-18 hours was last updated.
+      hrrr_0_18 (None | str): The time the HRRR model for 0-18 hours was last updated.
           Example: 2025-04-30 15Z.
-      hrrr_subh (Unset | str): The time the HRRR sub-hourly model was last updated.
+      hrrr_subh (None | str): The time the HRRR sub-hourly model was last updated.
           Example: 2025-04-30 14Z.
-      nbm (Unset | str): The time the NBM model was last updated. Example: 2025-04-29 17Z.
-      nbm_fire (Unset | str): The time the NBM fire model was last updated. Example: 2025-04-30 12Z.
-      hrrr_18_48 (Unset | str): The time the HRRR model for 18-48 hours was last updated.
+      nbm (None | str): The time the NBM model was last updated. Example: 2025-04-29 17Z.
+      nbm_fire (None | str): The time the NBM fire model was last updated. Example: 2025-04-30 12Z.
+      hrrr_18_48 (None | str): The time the HRRR model for 18-48 hours was last updated.
           Example: 2025-04-30 12Z.
-      gfs (Unset | str): The time the GFS model was last updated. Example: 2025-04-30 06Z.
-      gefs (Unset | str): The time the GEFS model was last updated. Example: 2025-04-29 00Z.
+      gfs (None | str): The time the GFS model was last updated. Example: 2025-04-30 06Z.
+      gefs (None | str): The time the GEFS model was last updated. Example: 2025-04-29 00Z.
   """
 
-  hrrr_0_18: Unset | str = UNSET
-  hrrr_subh: Unset | str = UNSET
-  nbm: Unset | str = UNSET
-  nbm_fire: Unset | str = UNSET
-  hrrr_18_48: Unset | str = UNSET
-  gfs: Unset | str = UNSET
-  gefs: Unset | str = UNSET
-  additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
+  hrrr_0_18: None | str = None
+  hrrr_subh: None | str = None
+  nbm: None | str = None
+  nbm_fire: None | str = None
+  hrrr_18_48: None | str = None
+  gfs: None | str = None
+  gefs: None | str = None
 
   def to_dict(self) -> dict[str, Any]:
     hrrr_0_18 = self.hrrr_0_18
@@ -50,21 +46,20 @@ class FlagsSourceTimes(BaseModel):
     gefs = self.gefs
 
     field_dict: dict[str, Any] = {}
-    field_dict.update(self.additional_properties)
     field_dict.update({})
-    if hrrr_0_18 is not UNSET:
+    if hrrr_0_18 is not None:
       field_dict["hrrr_0-18"] = hrrr_0_18
-    if hrrr_subh is not UNSET:
+    if hrrr_subh is not None:
       field_dict["hrrr_subh"] = hrrr_subh
-    if nbm is not UNSET:
+    if nbm is not None:
       field_dict["nbm"] = nbm
-    if nbm_fire is not UNSET:
+    if nbm_fire is not None:
       field_dict["nbm_fire"] = nbm_fire
-    if hrrr_18_48 is not UNSET:
+    if hrrr_18_48 is not None:
       field_dict["hrrr_18-48"] = hrrr_18_48
-    if gfs is not UNSET:
+    if gfs is not None:
       field_dict["gfs"] = gfs
-    if gefs is not UNSET:
+    if gefs is not None:
       field_dict["gefs"] = gefs
 
     return field_dict
@@ -72,19 +67,19 @@ class FlagsSourceTimes(BaseModel):
   @classmethod
   def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
     d = dict(src_dict)
-    hrrr_0_18 = d.pop("hrrr_0-18", UNSET)
+    hrrr_0_18 = d.pop("hrrr_0-18", None)
 
-    hrrr_subh = d.pop("hrrr_subh", UNSET)
+    hrrr_subh = d.pop("hrrr_subh", None)
 
-    nbm = d.pop("nbm", UNSET)
+    nbm = d.pop("nbm", None)
 
-    nbm_fire = d.pop("nbm_fire", UNSET)
+    nbm_fire = d.pop("nbm_fire", None)
 
-    hrrr_18_48 = d.pop("hrrr_18-48", UNSET)
+    hrrr_18_48 = d.pop("hrrr_18-48", None)
 
-    gfs = d.pop("gfs", UNSET)
+    gfs = d.pop("gfs", None)
 
-    gefs = d.pop("gefs", UNSET)
+    gefs = d.pop("gefs", None)
 
     flags_source_times = cls(
       hrrr_0_18=hrrr_0_18,
@@ -96,21 +91,4 @@ class FlagsSourceTimes(BaseModel):
       gefs=gefs,
     )
 
-    flags_source_times.additional_properties = d
     return flags_source_times
-
-  @property
-  def additional_keys(self) -> list[str]:
-    return list(self.additional_properties.keys())
-
-  def __getitem__(self, key: str) -> Any:
-    return self.additional_properties[key]
-
-  def __setitem__(self, key: str, value: Any) -> None:
-    self.additional_properties[key] = value
-
-  def __delitem__(self, key: str) -> None:
-    del self.additional_properties[key]
-
-  def __contains__(self, key: str) -> bool:
-    return key in self.additional_properties

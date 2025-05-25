@@ -11,20 +11,20 @@ from ...models.weather_response_400 import WeatherResponse400
 from ...models.weather_response_404 import WeatherResponse404
 from ...models.weather_response_500 import WeatherResponse500
 from ...models.weather_response_502 import WeatherResponse502
-from ...types import UNSET, Response, Unset
+from ...types import Response
 
 
 def _get_kwargs(
   api_key: str,
   lat_and_long_or_time: str,
   *,
-  exclude: Unset | str = UNSET,
-  extend: Unset | str = UNSET,
-  lang: Unset | WeatherLang = UNSET,
-  units: Unset | str = UNSET,
-  version: Unset | int = UNSET,
-  tmextra: Unset | int = UNSET,
-  icon: Unset | str = UNSET,
+  exclude: None | str = None,
+  extend: None | str = None,
+  lang: None | WeatherLang = None,
+  units: None | str = None,
+  version: None | int = None,
+  tmextra: None | int = None,
+  icon: None | str = None,
 ) -> dict[str, Any]:
   params: dict[str, Any] = {}
 
@@ -32,8 +32,8 @@ def _get_kwargs(
 
   params["extend"] = extend
 
-  json_lang: Unset | str = UNSET
-  if not isinstance(lang, Unset):
+  json_lang: None | str = None
+  if lang is not None:
     json_lang = lang.value
 
   params["lang"] = json_lang
@@ -46,7 +46,7 @@ def _get_kwargs(
 
   params["icon"] = icon
 
-  params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
+  params = {k: v for k, v in params.items() if v is not None and v is not None}
 
   _kwargs: dict[str, Any] = {
     "method": "get",
@@ -123,13 +123,13 @@ def sync_detailed(
   lat_and_long_or_time: str,
   *,
   client: AuthenticatedClient | Client,
-  exclude: Unset | str = UNSET,
-  extend: Unset | str = UNSET,
-  lang: Unset | WeatherLang = UNSET,
-  units: Unset | str = UNSET,
-  version: Unset | int = UNSET,
-  tmextra: Unset | int = UNSET,
-  icon: Unset | str = UNSET,
+  exclude: None | str = None,
+  extend: None | str = None,
+  lang: None | WeatherLang = None,
+  units: None | str = None,
+  version: None | int = None,
+  tmextra: None | int = None,
+  icon: None | str = None,
 ) -> Response[
   WeatherResponse200
   | WeatherResponse400
@@ -145,13 +145,13 @@ def sync_detailed(
   Args:
       api_key (str):
       lat_and_long_or_time (str):
-      exclude (Unset | str):
-      extend (Unset | str):
-      lang (Unset | WeatherLang):
-      units (Unset | str):
-      version (Unset | int):
-      tmextra (Unset | int):
-      icon (Unset | str):
+      exclude (None | str):
+      extend (None | str):
+      lang (None | WeatherLang):
+      units (None | str):
+      version (None | int):
+      tmextra (None | int):
+      icon (None | str):
 
   Raises:
       errors.UnexpectedStatus: If the server returns an undocumented status code and
@@ -187,13 +187,13 @@ def sync(
   lat_and_long_or_time: str,
   *,
   client: AuthenticatedClient | Client,
-  exclude: Unset | str = UNSET,
-  extend: Unset | str = UNSET,
-  lang: Unset | WeatherLang = UNSET,
-  units: Unset | str = UNSET,
-  version: Unset | int = UNSET,
-  tmextra: Unset | int = UNSET,
-  icon: Unset | str = UNSET,
+  exclude: None | str = None,
+  extend: None | str = None,
+  lang: None | WeatherLang = None,
+  units: None | str = None,
+  version: None | int = None,
+  tmextra: None | int = None,
+  icon: None | str = None,
 ) -> (
   WeatherResponse200
   | WeatherResponse400
@@ -210,13 +210,13 @@ def sync(
   Args:
       api_key (str):
       lat_and_long_or_time (str):
-      exclude (Unset | str):
-      extend (Unset | str):
-      lang (Unset | WeatherLang):
-      units (Unset | str):
-      version (Unset | int):
-      tmextra (Unset | int):
-      icon (Unset | str):
+      exclude (None | str):
+      extend (None | str):
+      lang (None | WeatherLang):
+      units (None | str):
+      version (None | int):
+      tmextra (None | int):
+      icon (None | str):
 
   Raises:
       errors.UnexpectedStatus: If the server returns an undocumented status code and
@@ -247,13 +247,13 @@ async def asyncio_detailed(
   lat_and_long_or_time: str,
   *,
   client: AuthenticatedClient | Client,
-  exclude: Unset | str = UNSET,
-  extend: Unset | str = UNSET,
-  lang: Unset | WeatherLang = UNSET,
-  units: Unset | str = UNSET,
-  version: Unset | int = UNSET,
-  tmextra: Unset | int = UNSET,
-  icon: Unset | str = UNSET,
+  exclude: None | str = None,
+  extend: None | str = None,
+  lang: None | WeatherLang = None,
+  units: None | str = None,
+  version: None | int = None,
+  tmextra: None | int = None,
+  icon: None | str = None,
 ) -> Response[
   WeatherResponse200
   | WeatherResponse400
@@ -269,13 +269,13 @@ async def asyncio_detailed(
   Args:
       api_key (str):
       lat_and_long_or_time (str):
-      exclude (Unset | str):
-      extend (Unset | str):
-      lang (Unset | WeatherLang):
-      units (Unset | str):
-      version (Unset | int):
-      tmextra (Unset | int):
-      icon (Unset | str):
+      exclude (None | str):
+      extend (None | str):
+      lang (None | WeatherLang):
+      units (None | str):
+      version (None | int):
+      tmextra (None | int):
+      icon (None | str):
 
   Raises:
       errors.UnexpectedStatus: If the server returns an undocumented status code and
@@ -309,13 +309,13 @@ async def asyncio(
   lat_and_long_or_time: str,
   *,
   client: AuthenticatedClient | Client,
-  exclude: Unset | str = UNSET,
-  extend: Unset | str = UNSET,
-  lang: Unset | WeatherLang = UNSET,
-  units: Unset | str = UNSET,
-  version: Unset | int = UNSET,
-  tmextra: Unset | int = UNSET,
-  icon: Unset | str = UNSET,
+  exclude: None | str = None,
+  extend: None | str = None,
+  lang: None | WeatherLang = None,
+  units: None | str = None,
+  version: None | int = None,
+  tmextra: None | int = None,
+  icon: None | str = None,
 ) -> (
   WeatherResponse200
   | WeatherResponse400
@@ -332,13 +332,13 @@ async def asyncio(
   Args:
       api_key (str):
       lat_and_long_or_time (str):
-      exclude (Unset | str):
-      extend (Unset | str):
-      lang (Unset | WeatherLang):
-      units (Unset | str):
-      version (Unset | int):
-      tmextra (Unset | int):
-      icon (Unset | str):
+      exclude (None | str):
+      extend (None | str):
+      lang (None | WeatherLang):
+      units (None | str):
+      version (None | int):
+      tmextra (None | int):
+      icon (None | str):
 
   Raises:
       errors.UnexpectedStatus: If the server returns an undocumented status code and

@@ -147,18 +147,18 @@ async def fetch_weather_async():
 
 The weather API functions (`sync`, `sync_detailed`, `asyncio`, `asyncio_detailed`) accept several optional keyword parameters to customize the request:
 
-- `exclude` (`str` | `Unset`): Comma-separated list of data blocks to exclude (e.g., `"minutely,hourly"`).
-- `extend` (`str` | `Unset`): Set to `"hourly"` to extend the hourly forecast from 48 hours to 168 hours.
-- `lang` (`WeatherLang` | `Unset`): Language for text summaries and alerts. Import `WeatherLang` from `pirate_weather_api_client.models`.
-- `units` (`str` | `Unset`): Units for the forecast. Options include:
+- `exclude` (`str` | `None`): Comma-separated list of data blocks to exclude (e.g., `"minutely,hourly"`).
+- `extend` (`str` | `None`): Set to `"hourly"` to extend the hourly forecast from 48 hours to 168 hours.
+- `lang` (`WeatherLang` | `None`): Language for text summaries and alerts. Import `WeatherLang` from `pirate_weather_api_client.models`.
+- `units` (`str` | `None`): Units for the forecast. Options include:
     - `"auto"`: Selects units automatically based on geographic location.
     - `"ca"`: SI units, but with windSpeed in kilometers per hour.
     - `"uk2"`: SI units, but with windSpeed in miles per hour and visibility in miles.
     - `"us"`: Imperial units.
     - `"si"`: SI units (default).
-- `version` (`int` | `Unset`): API version.
-- `tmextra` (`int` | `Unset`): Include extra time machine data.
-- `icon` (`str` | `Unset`): Icon set to use.
+- `version` (`int` | `None`): API version.
+- `tmextra` (`int` | `None`): Include extra time machine data.
+- `icon` (`str` | `None`): Icon set to use.
 
 For detailed information on these parameters, refer to the official Pirate Weather API documentation.
 
@@ -178,7 +178,7 @@ API responses are parsed into `attrs`-based models, which are defined in the `pi
 - **`client.py`**: Defines `Client` for making API requests. (The `AuthenticatedClient` is also available but less relevant for Pirate Weather's API key usage model).
 - **`api/`**: Contains modules for specific API endpoints. Currently, `api/weather/weather.py` holds the weather forecast functions.
 - **`models/`**: Includes all data models for request and response payloads (e.g., `WeatherResponse200`, `Currently`, `DailyDataItem`).
-- **`types.py`**: Defines shared utility types like `Response`, `File`, and `UNSET`.
+- **`types.py`**: Defines shared utility types like `Response`, `File`, and `None`.
 - **`errors.py`**: Contains custom exception classes like `UnexpectedStatus`.
 
 ## Further Information

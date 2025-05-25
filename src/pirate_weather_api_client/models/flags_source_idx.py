@@ -1,14 +1,12 @@
 from collections.abc import Mapping
 from typing import Any, TypeVar
 
-from attrs import field as _attrs_field
 from pydantic import BaseModel
 
 from ..models.flags_source_idx_etopo import FlagsSourceIDXEtopo
 from ..models.flags_source_idx_gfs import FlagsSourceIDXGfs
 from ..models.flags_source_idx_hrrr import FlagsSourceIDXHrrr
 from ..models.flags_source_idx_nbm import FlagsSourceIDXNbm
-from ..types import UNSET, Unset
 
 T = TypeVar("T", bound="FlagsSourceIDX")
 
@@ -18,45 +16,43 @@ class FlagsSourceIDX(BaseModel):
   Only returned when version>2.
 
       Attributes:
-          hrrr (Unset | FlagsSourceIDXHrrr):
-          nbm (Unset | FlagsSourceIDXNbm):
-          gfs (Unset | FlagsSourceIDXGfs):
-          etopo (Unset | FlagsSourceIDXEtopo):
+          hrrr (None | FlagsSourceIDXHrrr):
+          nbm (None | FlagsSourceIDXNbm):
+          gfs (None | FlagsSourceIDXGfs):
+          etopo (None | FlagsSourceIDXEtopo):
   """
 
-  hrrr: Unset | FlagsSourceIDXHrrr = UNSET
-  nbm: Unset | FlagsSourceIDXNbm = UNSET
-  gfs: Unset | FlagsSourceIDXGfs = UNSET
-  etopo: Unset | FlagsSourceIDXEtopo = UNSET
-  additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
+  hrrr: None | FlagsSourceIDXHrrr = None
+  nbm: None | FlagsSourceIDXNbm = None
+  gfs: None | FlagsSourceIDXGfs = None
+  etopo: None | FlagsSourceIDXEtopo = None
 
   def to_dict(self) -> dict[str, Any]:
-    hrrr: Unset | dict[str, Any] = UNSET
-    if not isinstance(self.hrrr, Unset):
+    hrrr: None | dict[str, Any] = None
+    if self.hrrr is not None:
       hrrr = self.hrrr.to_dict()
 
-    nbm: Unset | dict[str, Any] = UNSET
-    if not isinstance(self.nbm, Unset):
+    nbm: None | dict[str, Any] = None
+    if self.nbm is not None:
       nbm = self.nbm.to_dict()
 
-    gfs: Unset | dict[str, Any] = UNSET
-    if not isinstance(self.gfs, Unset):
+    gfs: None | dict[str, Any] = None
+    if self.gfs is not None:
       gfs = self.gfs.to_dict()
 
-    etopo: Unset | dict[str, Any] = UNSET
-    if not isinstance(self.etopo, Unset):
+    etopo: None | dict[str, Any] = None
+    if self.etopo is not None:
       etopo = self.etopo.to_dict()
 
     field_dict: dict[str, Any] = {}
-    field_dict.update(self.additional_properties)
     field_dict.update({})
-    if hrrr is not UNSET:
+    if hrrr is not None:
       field_dict["hrrr"] = hrrr
-    if nbm is not UNSET:
+    if nbm is not None:
       field_dict["nbm"] = nbm
-    if gfs is not UNSET:
+    if gfs is not None:
       field_dict["gfs"] = gfs
-    if etopo is not UNSET:
+    if etopo is not None:
       field_dict["etopo"] = etopo
 
     return field_dict
@@ -69,31 +65,31 @@ class FlagsSourceIDX(BaseModel):
     from ..models.flags_source_idx_nbm import FlagsSourceIDXNbm
 
     d = dict(src_dict)
-    _hrrr = d.pop("hrrr", UNSET)
-    hrrr: Unset | FlagsSourceIDXHrrr
-    if isinstance(_hrrr, Unset):
-      hrrr = UNSET
+    _hrrr = d.pop("hrrr", None)
+    hrrr: None | FlagsSourceIDXHrrr
+    if _hrrr is None:
+      hrrr = None
     else:
       hrrr = FlagsSourceIDXHrrr.from_dict(_hrrr)
 
-    _nbm = d.pop("nbm", UNSET)
-    nbm: Unset | FlagsSourceIDXNbm
-    if isinstance(_nbm, Unset):
-      nbm = UNSET
+    _nbm = d.pop("nbm", None)
+    nbm: None | FlagsSourceIDXNbm
+    if _nbm is None:
+      nbm = None
     else:
       nbm = FlagsSourceIDXNbm.from_dict(_nbm)
 
-    _gfs = d.pop("gfs", UNSET)
-    gfs: Unset | FlagsSourceIDXGfs
-    if isinstance(_gfs, Unset):
-      gfs = UNSET
+    _gfs = d.pop("gfs", None)
+    gfs: None | FlagsSourceIDXGfs
+    if _gfs is None:
+      gfs = None
     else:
       gfs = FlagsSourceIDXGfs.from_dict(_gfs)
 
-    _etopo = d.pop("etopo", UNSET)
-    etopo: Unset | FlagsSourceIDXEtopo
-    if isinstance(_etopo, Unset):
-      etopo = UNSET
+    _etopo = d.pop("etopo", None)
+    etopo: None | FlagsSourceIDXEtopo
+    if _etopo is None:
+      etopo = None
     else:
       etopo = FlagsSourceIDXEtopo.from_dict(_etopo)
 
@@ -104,21 +100,4 @@ class FlagsSourceIDX(BaseModel):
       etopo=etopo,
     )
 
-    flags_source_idx.additional_properties = d
     return flags_source_idx
-
-  @property
-  def additional_keys(self) -> list[str]:
-    return list(self.additional_properties.keys())
-
-  def __getitem__(self, key: str) -> Any:
-    return self.additional_properties[key]
-
-  def __setitem__(self, key: str, value: Any) -> None:
-    self.additional_properties[key] = value
-
-  def __delitem__(self, key: str) -> None:
-    del self.additional_properties[key]
-
-  def __contains__(self, key: str) -> bool:
-    return key in self.additional_properties

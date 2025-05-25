@@ -2,7 +2,6 @@ from collections.abc import Mapping
 from typing import Any, TypeVar
 
 from attrs import define as _attrs_define
-from attrs import field as _attrs_field
 
 from ..models.alerts_item import AlertsItem
 from ..models.currently import Currently
@@ -10,7 +9,6 @@ from ..models.daily import Daily
 from ..models.flags import Flags
 from ..models.hourly import Hourly
 from ..models.minutely import Minutely
-from ..types import UNSET, Unset
 
 T = TypeVar("T", bound="WeatherResponse200")
 
@@ -19,38 +17,37 @@ T = TypeVar("T", bound="WeatherResponse200")
 class WeatherResponse200:
   """
   Attributes:
-      latitude (Unset | float): The requested latitude. Example: 37.3035.
-      longitude (Unset | float): The requested longitude. Example: -89.523.
-      timezone (Unset | str): The timezone name for the requested location.
+      latitude (None | float): The requested latitude. Example: 37.3035.
+      longitude (None | float): The requested longitude. Example: -89.523.
+      timezone (None | str): The timezone name for the requested location.
           Example: America/Chicago.
-      offset (Unset | float): The timezone offset in hours. Example: -6.
-      elevation (Unset | int): The elevation in meters of the forecast point. Example: 105.
-      currently (Unset | Currently): A block containing the current weather for the
+      offset (None | float): The timezone offset in hours. Example: -6.
+      elevation (None | int): The elevation in meters of the forecast point. Example: 105.
+      currently (None | Currently): A block containing the current weather for the
           requested location.
-      minutely (Unset | Minutely): A block containing minute-by-minute precipitation intensity for
+      minutely (None | Minutely): A block containing minute-by-minute precipitation intensity for
           the next 60 minutes.
-      hourly (Unset | Hourly): A block containing hour-by-hour forecasted conditions for the
+      hourly (None | Hourly): A block containing hour-by-hour forecasted conditions for the
           next 48 hours. If `extend=hourly` is used, the hourly block gives hour-by-hour forecasted
           conditions for the next 168 hours.
-      daily (Unset | Daily): A block containing day-by-day forecasted conditions for the
+      daily (None | Daily): A block containing day-by-day forecasted conditions for the
           next 7 days.
-      alerts (Unset | list['AlertsItem']): A block containing any severe weather alerts for the
+      alerts (None | list['AlertsItem']): A block containing any severe weather alerts for the
           current location.
-      flags (Unset | Flags): A block containing miscellaneous data for the API request.
+      flags (None | Flags): A block containing miscellaneous data for the API request.
   """
 
-  latitude: Unset | float = UNSET
-  longitude: Unset | float = UNSET
-  timezone: Unset | str = UNSET
-  offset: Unset | float = UNSET
-  elevation: Unset | int = UNSET
-  currently: Unset | Currently = UNSET
-  minutely: Unset | Minutely = UNSET
-  hourly: Unset | Hourly = UNSET
-  daily: Unset | Daily = UNSET
-  alerts: Unset | list[AlertsItem] = UNSET
-  flags: Unset | Flags = UNSET
-  additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
+  latitude: None | float = None
+  longitude: None | float = None
+  timezone: None | str = None
+  offset: None | float = None
+  elevation: None | int = None
+  currently: None | Currently = None
+  minutely: None | Minutely = None
+  hourly: None | Hourly = None
+  daily: None | Daily = None
+  alerts: None | list[AlertsItem] = None
+  flags: None | Flags = None
 
   def to_dict(self) -> dict[str, Any]:
     latitude = self.latitude
@@ -63,57 +60,56 @@ class WeatherResponse200:
 
     elevation = self.elevation
 
-    currently: Unset | dict[str, Any] = UNSET
-    if not isinstance(self.currently, Unset):
+    currently: None | dict[str, Any] = None
+    if self.currently is not None:
       currently = self.currently.to_dict()
 
-    minutely: Unset | dict[str, Any] = UNSET
-    if not isinstance(self.minutely, Unset):
+    minutely: None | dict[str, Any] = None
+    if self.minutely is not None:
       minutely = self.minutely.to_dict()
 
-    hourly: Unset | dict[str, Any] = UNSET
-    if not isinstance(self.hourly, Unset):
+    hourly: None | dict[str, Any] = None
+    if self.hourly is not None:
       hourly = self.hourly.to_dict()
 
-    daily: Unset | dict[str, Any] = UNSET
-    if not isinstance(self.daily, Unset):
+    daily: None | dict[str, Any] = None
+    if self.daily is not None:
       daily = self.daily.to_dict()
 
-    alerts: Unset | list[dict[str, Any]] = UNSET
-    if not isinstance(self.alerts, Unset):
+    alerts: None | list[dict[str, Any]] = None
+    if self.alerts is not None:
       alerts = []
       for componentsschemasalerts_item_data in self.alerts:
         componentsschemasalerts_item = componentsschemasalerts_item_data.to_dict()
         alerts.append(componentsschemasalerts_item)
 
-    flags: Unset | dict[str, Any] = UNSET
-    if not isinstance(self.flags, Unset):
+    flags: None | dict[str, Any] = None
+    if self.flags is not None:
       flags = self.flags.to_dict()
 
     field_dict: dict[str, Any] = {}
-    field_dict.update(self.additional_properties)
     field_dict.update({})
-    if latitude is not UNSET:
+    if latitude is not None:
       field_dict["latitude"] = latitude
-    if longitude is not UNSET:
+    if longitude is not None:
       field_dict["longitude"] = longitude
-    if timezone is not UNSET:
+    if timezone is not None:
       field_dict["timezone"] = timezone
-    if offset is not UNSET:
+    if offset is not None:
       field_dict["offset"] = offset
-    if elevation is not UNSET:
+    if elevation is not None:
       field_dict["elevation"] = elevation
-    if currently is not UNSET:
+    if currently is not None:
       field_dict["currently"] = currently
-    if minutely is not UNSET:
+    if minutely is not None:
       field_dict["minutely"] = minutely
-    if hourly is not UNSET:
+    if hourly is not None:
       field_dict["hourly"] = hourly
-    if daily is not UNSET:
+    if daily is not None:
       field_dict["daily"] = daily
-    if alerts is not UNSET:
+    if alerts is not None:
       field_dict["alerts"] = alerts
-    if flags is not UNSET:
+    if flags is not None:
       field_dict["flags"] = flags
 
     return field_dict
@@ -128,55 +124,55 @@ class WeatherResponse200:
     from ..models.minutely import Minutely
 
     d = dict(src_dict)
-    latitude = d.pop("latitude", UNSET)
+    latitude = d.pop("latitude", None)
 
-    longitude = d.pop("longitude", UNSET)
+    longitude = d.pop("longitude", None)
 
-    timezone = d.pop("timezone", UNSET)
+    timezone = d.pop("timezone", None)
 
-    offset = d.pop("offset", UNSET)
+    offset = d.pop("offset", None)
 
-    elevation = d.pop("elevation", UNSET)
+    elevation = d.pop("elevation", None)
 
-    _currently = d.pop("currently", UNSET)
-    currently: Unset | Currently
-    if isinstance(_currently, Unset):
-      currently = UNSET
+    _currently = d.pop("currently", None)
+    currently: None | Currently
+    if _currently is None:
+      currently = None
     else:
       currently = Currently.from_dict(_currently)
 
-    _minutely = d.pop("minutely", UNSET)
-    minutely: Unset | Minutely
-    if isinstance(_minutely, Unset):
-      minutely = UNSET
+    _minutely = d.pop("minutely", None)
+    minutely: None | Minutely
+    if _minutely is None:
+      minutely = None
     else:
       minutely = Minutely.from_dict(_minutely)
 
-    _hourly = d.pop("hourly", UNSET)
-    hourly: Unset | Hourly
-    if isinstance(_hourly, Unset):
-      hourly = UNSET
+    _hourly = d.pop("hourly", None)
+    hourly: None | Hourly
+    if _hourly is None:
+      hourly = None
     else:
       hourly = Hourly.from_dict(_hourly)
 
-    _daily = d.pop("daily", UNSET)
-    daily: Unset | Daily
-    if isinstance(_daily, Unset):
-      daily = UNSET
+    _daily = d.pop("daily", None)
+    daily: None | Daily
+    if _daily is None:
+      daily = None
     else:
       daily = Daily.from_dict(_daily)
 
     alerts = []
-    _alerts = d.pop("alerts", UNSET)
+    _alerts = d.pop("alerts", None)
     for componentsschemasalerts_item_data in _alerts or []:
       componentsschemasalerts_item = AlertsItem.from_dict(componentsschemasalerts_item_data)
 
       alerts.append(componentsschemasalerts_item)
 
-    _flags = d.pop("flags", UNSET)
-    flags: Unset | Flags
-    if isinstance(_flags, Unset):
-      flags = UNSET
+    _flags = d.pop("flags", None)
+    flags: None | Flags
+    if _flags is None:
+      flags = None
     else:
       flags = Flags.from_dict(_flags)
 
@@ -194,21 +190,4 @@ class WeatherResponse200:
       flags=flags,
     )
 
-    weather_response_200.additional_properties = d
     return weather_response_200
-
-  @property
-  def additional_keys(self) -> list[str]:
-    return list(self.additional_properties.keys())
-
-  def __getitem__(self, key: str) -> Any:
-    return self.additional_properties[key]
-
-  def __setitem__(self, key: str, value: Any) -> None:
-    self.additional_properties[key] = value
-
-  def __delitem__(self, key: str) -> None:
-    del self.additional_properties[key]
-
-  def __contains__(self, key: str) -> bool:
-    return key in self.additional_properties

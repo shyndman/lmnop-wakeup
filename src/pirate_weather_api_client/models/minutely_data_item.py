@@ -1,10 +1,7 @@
 from collections.abc import Mapping
 from typing import Any, TypeVar
 
-from attrs import field as _attrs_field
 from pydantic import BaseModel
-
-from ..types import UNSET, Unset
 
 T = TypeVar("T", bound="MinutelyDataItem")
 
@@ -12,20 +9,19 @@ T = TypeVar("T", bound="MinutelyDataItem")
 class MinutelyDataItem(BaseModel):
   """
   Attributes:
-      time (Unset | int): The time of the data point in UNIX format. Example: 1746033120.
-      precip_intensity (Unset | float): The intensity of precipitation.
-      precip_probability (Unset | float): The probability of precipitation. Example: 0.14.
-      precip_intensity_error (Unset | float): The standard deviation of the precipitation
+      time (None | int): The time of the data point in UNIX format. Example: 1746033120.
+      precip_intensity (None | float): The intensity of precipitation.
+      precip_probability (None | float): The probability of precipitation. Example: 0.14.
+      precip_intensity_error (None | float): The standard deviation of the precipitation
           intensity. Example: 0.41.
-      precip_type (Unset | str): The type of precipitation occurring. Example: none.
+      precip_type (None | str): The type of precipitation occurring. Example: none.
   """
 
-  time: Unset | int = UNSET
-  precip_intensity: Unset | float = UNSET
-  precip_probability: Unset | float = UNSET
-  precip_intensity_error: Unset | float = UNSET
-  precip_type: Unset | str = UNSET
-  additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
+  time: None | int = None
+  precip_intensity: None | float = None
+  precip_probability: None | float = None
+  precip_intensity_error: None | float = None
+  precip_type: None | str = None
 
   def to_dict(self) -> dict[str, Any]:
     time = self.time
@@ -39,17 +35,16 @@ class MinutelyDataItem(BaseModel):
     precip_type = self.precip_type
 
     field_dict: dict[str, Any] = {}
-    field_dict.update(self.additional_properties)
     field_dict.update({})
-    if time is not UNSET:
+    if time is not None:
       field_dict["time"] = time
-    if precip_intensity is not UNSET:
+    if precip_intensity is not None:
       field_dict["precipIntensity"] = precip_intensity
-    if precip_probability is not UNSET:
+    if precip_probability is not None:
       field_dict["precipProbability"] = precip_probability
-    if precip_intensity_error is not UNSET:
+    if precip_intensity_error is not None:
       field_dict["precipIntensityError"] = precip_intensity_error
-    if precip_type is not UNSET:
+    if precip_type is not None:
       field_dict["precipType"] = precip_type
 
     return field_dict
@@ -57,15 +52,15 @@ class MinutelyDataItem(BaseModel):
   @classmethod
   def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
     d = dict(src_dict)
-    time = d.pop("time", UNSET)
+    time = d.pop("time", None)
 
-    precip_intensity = d.pop("precipIntensity", UNSET)
+    precip_intensity = d.pop("precipIntensity", None)
 
-    precip_probability = d.pop("precipProbability", UNSET)
+    precip_probability = d.pop("precipProbability", None)
 
-    precip_intensity_error = d.pop("precipIntensityError", UNSET)
+    precip_intensity_error = d.pop("precipIntensityError", None)
 
-    precip_type = d.pop("precipType", UNSET)
+    precip_type = d.pop("precipType", None)
 
     minutely_data_item = cls(
       time=time,
@@ -75,21 +70,4 @@ class MinutelyDataItem(BaseModel):
       precip_type=precip_type,
     )
 
-    minutely_data_item.additional_properties = d
     return minutely_data_item
-
-  @property
-  def additional_keys(self) -> list[str]:
-    return list(self.additional_properties.keys())
-
-  def __getitem__(self, key: str) -> Any:
-    return self.additional_properties[key]
-
-  def __setitem__(self, key: str, value: Any) -> None:
-    self.additional_properties[key] = value
-
-  def __delitem__(self, key: str) -> None:
-    del self.additional_properties[key]
-
-  def __contains__(self, key: str) -> bool:
-    return key in self.additional_properties
