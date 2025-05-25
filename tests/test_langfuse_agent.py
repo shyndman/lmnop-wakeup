@@ -1,3 +1,4 @@
+from typing import override
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -5,14 +6,27 @@ from langfuse.api import Prompt_Chat
 from langfuse.api.core import RequestOptions
 from pydantic import BaseModel
 
-from lmnop_wakeup.llm import PRODUCTION_PROMPT_LABEL, AgentContext, LangfuseAgent
+from lmnop_wakeup.llm import (
+  PRODUCTION_PROMPT_LABEL,
+  AgentContext,
+  LangfuseAgent,
+  LangfuseInput,
+  ModelName,
+)
 
 pytestmark = pytest.mark.asyncio
 
 
-class MockInput(BaseModel):
+class MockInput(LangfuseInput):
   name: str
   age: int
+
+  @override
+  def to_prompt_variable_map(self) -> dict[str, str]:
+    return {
+      "name": self.name,
+      "age": str(self.age),
+    }
 
 
 class MockOutput(BaseModel):
@@ -41,9 +55,9 @@ class TestLangfuseAgent:
     mock_agent_class.return_value = mock_agent_instance
 
     # Create agent
-    agent = await LangfuseAgent.create(
+    agent = LangfuseAgent[MockInput, MockOutput].create(
       prompt_name="test_prompt",
-      model="gemini-2.5-flash",
+      model=ModelName.GEMINI_25_FLASH,
       input_type=MockInput,
       output_type=MockOutput,
     )

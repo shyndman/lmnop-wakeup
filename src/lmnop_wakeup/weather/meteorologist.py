@@ -9,7 +9,7 @@ from pydantic_ai import Agent
 from pirate_weather_api_client.models import AlertsItem, Currently, Daily, Hourly
 
 from ..env import get_pirate_weather_api_key
-from ..llm import GEMINI_25_FLASH, create_litellm_model, get_langfuse_prompt_bundle
+from ..llm import ModelName, create_litellm_model, get_langfuse_prompt_bundle
 from ..location.model import NamedLocation
 from .weather_api import get_weather_report
 
@@ -143,7 +143,9 @@ class WeatherReportForBrief(BaseModel):
 type MeteorologistAgent = Agent[RawWeatherData, WeatherReportForBrief]
 
 
-async def create_meteorologist(model: str = GEMINI_25_FLASH) -> tuple[MeteorologistAgent, str, str]:
+async def create_meteorologist(
+  model: ModelName = ModelName.GEMINI_25_FLASH,
+) -> tuple[MeteorologistAgent, str, str]:
   bundle = await get_langfuse_prompt_bundle("meteorologist")
   meteorologist = Agent(
     model=create_litellm_model(model),

@@ -1,5 +1,7 @@
 import abc
+from collections.abc import Iterable
 from enum import StrEnum
+from types import MappingProxyType
 from typing import NewType, override
 
 # from google.maps.routing import LatLng as GLatLng
@@ -30,6 +32,15 @@ class Location(BaseModel, abc.ABC):
     """
     pass
 
+  def has_coordinates(self) -> bool:
+    """
+    Checks if the location has coordinates.
+
+    Returns:
+        bool: True if the location has coordinates, False otherwise.
+    """
+    return False
+
 
 class CoordinateLocation(Location):
   """
@@ -54,6 +65,10 @@ class CoordinateLocation(Location):
         lat_lng=GLatLng(latitude=self.latlng[0], longitude=self.latlng[1]),
       )
     )
+
+  @override
+  def has_coordinates(self) -> bool:
+    return True
 
 
 class AddressLocation(Location):
@@ -119,50 +134,52 @@ class LocationName(StrEnum):
   the_farm = "the_farm"
 
 
-_NAMED_LOCATIONS = {
-  LocationName.home: NamedLocation(
-    name="Home",
-    slug=LocationSlug("home"),
-    description="Our little bungalow in Toronto",
-    address="16 Doncaster Ave, East York, ON M4C 1Y5",
-    latlng=(43.69107214185943, -79.3077542870965),
-  ),
-  LocationName.the_cottage: NamedLocation(
-    name="The Cottage",
-    slug=LocationSlug("the_cottage"),
-    description="Our family cottage, situated on a small island, accessible only by boat. "
-    "We park our car at #village_marina",
-    latlng=(44.89267017178425, -79.87324555175594),
-  ),
-  LocationName.village_marina: NamedLocation(
-    name="Village Marina, Honey Harbour",
-    slug=LocationSlug("village_marina"),
-    description="Our boat is located at this harbour, which is necessary to access #the_cottage",
-    address="2762 Honey Harbour Rd, Honey Harbour, ON P0E 1E0",
-    latlng=(44.871795380739854, -79.8169490161212),
-  ),
-  LocationName.clares_house: NamedLocation(
-    name="Clare's House",
-    slug=LocationSlug("clares_house"),
-    description="Hilary's sister Clare and her nephew Raines live here",
-    address="25 Boston Ave, Toronto, ON M4M 2T8",
-    latlng=(43.662295739811015, -79.33893969395115),
-  ),
-  LocationName.hilarys_moms_house: NamedLocation(
-    name="Hilary's Mom's House",
-    slug=LocationSlug("hilarys_mom_house"),
-    description="Where Hilary's mom (Barb) and her step dad Dale live",
-    address="20 Glebe Rd W, Toronto, ON M4S 1Z9",
-    latlng=(43.70085281487342, -79.39773088140363),
-  ),
-  LocationName.the_farm: NamedLocation(
-    name="The Farm",
-    slug=LocationSlug("the_farm"),
-    description="Where Scott's mom (Jane) and dad (Hugh) live",
-    address="11923 Fifth Line, Limehouse, ON L0P 1H0",
-    latlng=(43.62859507321176, -79.96554318542952),
-  ),
-}
+NAMED_LOCATIONS = MappingProxyType(
+  {
+    LocationName.home: NamedLocation(
+      name="Home",
+      slug=LocationSlug("home"),
+      description="Our little bungalow in Toronto",
+      address="16 Doncaster Ave, East York, ON M4C 1Y5",
+      latlng=(43.69107214185943, -79.3077542870965),
+    ),
+    LocationName.the_cottage: NamedLocation(
+      name="The Cottage",
+      slug=LocationSlug("the_cottage"),
+      description="Our family cottage, situated on a small island, accessible only by boat. "
+      "We park our car at #village_marina",
+      latlng=(44.89267017178425, -79.87324555175594),
+    ),
+    LocationName.village_marina: NamedLocation(
+      name="Village Marina, Honey Harbour",
+      slug=LocationSlug("village_marina"),
+      description="Our boat is located at this harbour, which is necessary to access #the_cottage",
+      address="2762 Honey Harbour Rd, Honey Harbour, ON P0E 1E0",
+      latlng=(44.871795380739854, -79.8169490161212),
+    ),
+    LocationName.clares_house: NamedLocation(
+      name="Clare's House",
+      slug=LocationSlug("clares_house"),
+      description="Hilary's sister Clare and her nephew Raines live here",
+      address="25 Boston Ave, Toronto, ON M4M 2T8",
+      latlng=(43.662295739811015, -79.33893969395115),
+    ),
+    LocationName.hilarys_moms_house: NamedLocation(
+      name="Hilary's Mom's House",
+      slug=LocationSlug("hilarys_mom_house"),
+      description="Where Hilary's mom (Barb) and her step dad Dale live",
+      address="20 Glebe Rd W, Toronto, ON M4S 1Z9",
+      latlng=(43.70085281487342, -79.39773088140363),
+    ),
+    LocationName.the_farm: NamedLocation(
+      name="The Farm",
+      slug=LocationSlug("the_farm"),
+      description="Where Scott's mom (Jane) and dad (Hugh) live",
+      address="11923 Fifth Line, Limehouse, ON L0P 1H0",
+      latlng=(43.62859507321176, -79.96554318542952),
+    ),
+  }
+)
 """A dictionary mapping LocationName enums to NamedLocation instances."""
 
 
@@ -176,4 +193,25 @@ def location_named(name: LocationName) -> NamedLocation:
   Returns:
       NamedLocation: The corresponding NamedLocation instance.
   """
-  return _NAMED_LOCATIONS[name]
+  return NAMED_LOCATIONS[name]
+
+
+class ReferencedLocations(BaseModel):
+  adhoc_location_map: dict[str, Location] = {}
+
+  def __init__(self):
+    # for name, loc in _NAMED_LOCATIONS.items():
+    #   self.adhoc_location_map[name.value] = loc
+    pass
+
+    # TODO: Figure out how we can integrate the persistence layer
+
+  def add_event_location(self, possible_address: str) -> AddressLocation:
+    # TODO: We have to be able to handle this, but I want to see how it happens
+    if possible_address in self.adhoc_location_map:
+      raise ValueError(f"Location {possible_address} already exists in the map.")
+    loc = self.adhoc_location_map[possible_address] = AddressLocation(address=possible_address)
+    return loc
+
+  def all_locations(self) -> Iterable[Location]:
+    return self.adhoc_location_map.values()

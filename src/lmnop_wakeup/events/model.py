@@ -1,3 +1,6 @@
+from collections.abc import Generator
+from typing import Any
+
 from pydantic import AwareDatetime, BaseModel, EmailStr, Field
 from pydantic_extra_types.timezone_name import TimeZoneName
 
@@ -109,18 +112,29 @@ class Calendar(BaseModel):
     return [event for event in self.events if event.overlaps_with_range(start_ts, end_ts)]
 
 
-class CalendarSet(BaseModel):
+class CalendarsOfInterest(BaseModel):
   """Represents a collection of calendars."""
 
-  calendars: dict[str, Calendar] = {}
+  calendars_by_id: dict[str, Calendar] = {}
   """A dictionary mapping calendar entity IDs to Calendar objects."""
+
+  def __init__(self, *args, calendars: list[Calendar] | None = None, **kwargs):
+    if "calendars_by_id" not in kwargs and calendars is not None:
+      self.calendars_by_id = {calendar.entity_id: calendar for calendar in calendars}
+    super().__init__(*args, **kwargs)
+
+  def all_events_with_location(self) -> Generator[CalendarEvent, Any, None]:
+    for cal in self.calendars_by_id.values():
+      for event in cal.events:
+        if event.location:
+          yield event
 
   def filter(
     self,
     start_ts: AwareDatetime,
     end_ts: AwareDatetime,
     name_inclusion_list: set[str] | None = None,
-  ) -> "CalendarSet":
+  ) -> "CalendarsOfInterest":
     """
     Filters the calendars in this set to only include those that have events
     in the given time range and optionally match a name inclusion list.
@@ -135,7 +149,7 @@ class CalendarSet(BaseModel):
       A new CalendarSet containing only the filtered calendars and their events.
     """
     filtered_calendars = {}
-    for entity_id, calendar in self.calendars.items():
+    for entity_id, calendar in self.calendars_by_id.items():
       if name_inclusion_list is not None and calendar.name not in name_inclusion_list:
         continue
 
@@ -146,4 +160,4 @@ class CalendarSet(BaseModel):
         filtered_calendar.events = filtered_events
         filtered_calendars[entity_id] = filtered_calendar
 
-    return CalendarSet(calendars=filtered_calendars)
+    return CalendarsOfInterest(calendars_by_id=filtered_calendars)

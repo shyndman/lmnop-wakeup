@@ -9,7 +9,7 @@ from ..core.date import end_of_local_day, start_of_local_day
 from ..core.tracing import langfuse_span
 from ..env import assert_not_none, get_hass_api_key, get_pirate_weather_api_key
 from ..events.events_api import get_filtered_calendars_with_notes
-from ..events.model import CalendarSet
+from ..events.model import CalendarsOfInterest
 from ..location.model import CoordinateLocation, LocationName, location_named
 from ..tools.hass_api import get_general_information
 from ..weather.weather_api import get_weather_report
@@ -51,7 +51,7 @@ async def schedule(
       home_location=location_named(LocationName.home),
       todays_date=todays_date,
       is_today_workday=general_info.is_today_workday,
-      calendars=CalendarSet(calendars={c.name: c for c in all_cals}),
+      calendars=CalendarsOfInterest(calendars=all_cals),
       hourly_weather=weather.get_hourlies_for_day(todays_date, tz=assert_not_none(start_ts.tzinfo)),
     )
     console.print(scheduling_inputs)

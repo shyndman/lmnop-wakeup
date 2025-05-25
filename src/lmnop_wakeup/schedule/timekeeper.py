@@ -8,8 +8,8 @@ from pydantic_ai import Agent
 from pirate_weather_api_client.models import HourlyDataItem
 
 from ..env import get_google_routes_api_key
-from ..events.model import CalendarEvent, CalendarSet
-from ..llm import GEMINI_25_FLASH, create_litellm_model, get_langfuse_prompt_bundle
+from ..events.model import CalendarEvent, CalendarsOfInterest
+from ..llm import ModelName, create_litellm_model, get_langfuse_prompt_bundle
 from ..location import routes_api
 from ..location.model import AddressLocation, CoordinateLocation
 from ..location.routes_api import (
@@ -22,7 +22,7 @@ from ..location.routes_api import (
 
 class SchedulingInputs(TypedDict):
   todays_date: date
-  calendars: CalendarSet
+  calendars: CalendarsOfInterest
   is_today_workday: bool
   hourly_weather: list[HourlyDataItem]
   home_location: AddressLocation | CoordinateLocation
@@ -87,7 +87,9 @@ class SchedulingDetails(BaseModel):
 type TimekeeperAgent = Agent[SchedulingInputs, SchedulingDetails]
 
 
-async def create_timekeeper(model: str = GEMINI_25_FLASH) -> tuple[TimekeeperAgent, str, str]:
+async def create_timekeeper(
+  model: ModelName = ModelName.GEMINI_25_FLASH,
+) -> tuple[TimekeeperAgent, str, str]:
   logger.debug("Creating Timekeeper agent with model: {model}", model=model)
   bundle = await get_langfuse_prompt_bundle("timekeeper")
   timekeeper = Agent(

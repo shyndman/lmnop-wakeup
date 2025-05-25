@@ -2,7 +2,7 @@ from datetime import datetime
 
 from loguru import logger
 
-from ..env import ApiKey
+from ..env import ApiKey, get_hass_api_key
 from ..tools import hass_api
 from .calendar import gcalendar_api
 from .model import Calendar
@@ -44,7 +44,7 @@ CALENDAR_INSTRUCTIONS = {
 async def get_filtered_calendars_with_notes(
   start_ts: datetime,
   end_ts: datetime,
-  hass_api_token: ApiKey,
+  hass_api_token: ApiKey | None = None,
 ) -> list[Calendar]:
   """
   Fetches calendars from Google Calendar and Home Assistant, filters them based on
@@ -61,7 +61,9 @@ async def get_filtered_calendars_with_notes(
     start_ts=start_ts,
     end_ts=end_ts,
   )
-  hass_calendars = await hass_api.calendar_events_in_range(start_ts, end_ts, hass_api_token)
+  hass_calendars = await hass_api.calendar_events_in_range(
+    start_ts, end_ts, hass_api_token or get_hass_api_key()
+  )
   logger.info("Fetched {num_hass_cals} Home Assistant Calendars", num_hass_cals=len(hass_calendars))
 
   all_calendars = google_calendars + hass_calendars

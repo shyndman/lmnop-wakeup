@@ -1,7 +1,8 @@
-import functools
 import os
 import re
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from enum import StrEnum
 from typing import cast
 
 from google import genai
@@ -20,8 +21,12 @@ from pydantic_ai.settings import ModelSettings
 from .core.tracing import langfuse_span
 from .env import ApiKey, EnvName, get_litellm_api_key
 
-GEMINI_25_FLASH = "gemini-2.5-flash-preview-05-20"
-GEMINI_25_PRO = "gemini-2.5-pro-preview-03-25"
+
+class ModelName(StrEnum):
+  GEMINI_25_FLASH = "gemini-2.5-flash-preview-05-20"
+  GEMINI_25_PRO = "gemini-2.5-pro-preview-03-25"
+  GEMINI_20_FLASH = "gemini-2.0-flash"
+  GEMINI_20_FLASH_LITE = "gemini-2.0-flash-lite"
 
 
 LATEST_PROMPT_LABEL = "latest"
@@ -50,12 +55,12 @@ class LiteLlmGooglePassthroughProvider(GoogleProvider):
     )
 
 
-def create_litellm_model(gemini_model_name: str) -> Model:
+def create_litellm_model(name: ModelName) -> Model:
   litellm_key = get_litellm_api_key()
   provider = LiteLlmGooglePassthroughProvider(
     litellm_virtual_key=litellm_key,
   )
-  return GoogleModel(gemini_model_name, provider=provider)
+  return GoogleModel(name, provider=provider)
 
 
 @dataclass
@@ -99,12 +104,6 @@ async def get_langfuse_prompt_bundle(prompt_name: str) -> LangfusePromptBundle:
   )
 
 
-ApplicationAgent = functools.partial(
-  Agent,
-  model=GEMINI_25_FLASH,
-)
-
-
 @dataclass
 class AgentContext[Input: BaseModel]:
   """Context object passed to LangfuseAgent's underlying pydantic-ai Agent.
@@ -117,7 +116,23 @@ class AgentContext[Input: BaseModel]:
   input: Input
 
 
-class LangfuseAgent[Input: BaseModel, Output: BaseModel]:
+class LangfuseInput(ABC, BaseModel):
+  """Protocol for Langfuse input data.
+
+  This protocol defines the expected structure of input data for Langfuse agents.
+  It is used to ensure that the input data passed to the agent matches the expected format.
+  """
+
+  @property
+  def prompt_variables_supplied(self) -> set[str]:
+    return set(self.model_dump().keys())
+
+  @abstractmethod
+  def to_prompt_variable_map(self) -> dict[str, str]:
+    raise NotImplementedError("to_prompt_variable_map must be implemented in subclasses")
+
+
+class LangfuseAgent[Input: LangfuseInput, Output: BaseModel]:
   """A pydantic-ai Agent wrapper that integrates with Langfuse prompts and tracing.
 
   This class provides a standardized way to create agents that:
@@ -144,10 +159,10 @@ class LangfuseAgent[Input: BaseModel, Output: BaseModel]:
     self._raw_prompt = raw_prompt
 
   @classmethod
-  async def create(
+  def create(
     cls,
     prompt_name: str,
-    model: str,
+    model: ModelName,
     input_type: type[Input],
     output_type: type[Output],
   ) -> "LangfuseAgent[Input, Output]":
@@ -163,7 +178,7 @@ class LangfuseAgent[Input: BaseModel, Output: BaseModel]:
       Configured LangfuseAgent instance ready for use
     """
     # Fetch raw prompt from Langfuse
-    res = await Langfuse().async_api.prompts.get(
+    res = Langfuse().api.prompts.get(
       prompt_name,
       label=PRODUCTION_PROMPT_LABEL,
       request_options=RequestOptions(
@@ -172,6 +187,10 @@ class LangfuseAgent[Input: BaseModel, Output: BaseModel]:
       ),
     )
     raw_prompt = cast(Prompt_Chat, res)
+
+    # TODO: At this point we should be able to verify that the prompt's variables match what the
+    # input type supplies, although we may have to expose it on the class...if that's something
+    # that you can do in Python?
 
     # Create agent without instructions (will be set via decorator)
     agent = Agent(
@@ -196,7 +215,7 @@ class LangfuseAgent[Input: BaseModel, Output: BaseModel]:
 
     return cls(agent, prompt_name, raw_prompt)
 
-  async def run(self, inputs: Input) -> Output:
+  async def run(self, input: Input) -> Output:
     """Run the agent with the given inputs, wrapped in a tracing span.
 
     Args:
@@ -207,10 +226,10 @@ class LangfuseAgent[Input: BaseModel, Output: BaseModel]:
     """
     with langfuse_span(name=f"run {self.prompt_name}") as span:
       # Set input attribute on span
-      span.set_attribute("input.value", inputs)
+      span.set_attribute("input.value", input)
 
       # Create context and run agent
-      ctx = AgentContext(prompt=self._raw_prompt, input=inputs)
+      ctx = AgentContext(prompt=self._raw_prompt, input=input)
       result = await self._agent.run(deps=ctx)
 
       # Set output attribute on span

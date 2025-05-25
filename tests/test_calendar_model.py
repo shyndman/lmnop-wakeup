@@ -9,7 +9,7 @@ from lmnop_wakeup.events.model import (
   Calendar,
   CalendarEmailUser,
   CalendarEvent,
-  CalendarSet,
+  CalendarsOfInterest,
   CalendarUser,
 )
 
@@ -241,32 +241,32 @@ def test_calendar_set_filter():
     )
   )
 
-  cal_set = CalendarSet(calendars={"cal1": cal1, "cal2": cal2, "cal3": cal3})
+  cal_set = CalendarsOfInterest(calendars_by_id={"cal1": cal1, "cal2": cal2, "cal3": cal3})
 
   # Test filter without name_inclusion_list
   filtered_set = cal_set.filter(start_range, end_range)
-  assert len(filtered_set.calendars) == 2
-  assert "cal1" in filtered_set.calendars
-  assert "cal3" in filtered_set.calendars
-  assert "cal2" not in filtered_set.calendars
-  assert len(filtered_set.calendars["cal1"].events) == 1
-  assert len(filtered_set.calendars["cal3"].events) == 1
+  assert len(filtered_set.calendars_by_id) == 2
+  assert "cal1" in filtered_set.calendars_by_id
+  assert "cal3" in filtered_set.calendars_by_id
+  assert "cal2" not in filtered_set.calendars_by_id
+  assert len(filtered_set.calendars_by_id["cal1"].events) == 1
+  assert len(filtered_set.calendars_by_id["cal3"].events) == 1
 
   # Test filter with name_inclusion_list
   filtered_set_with_names = cal_set.filter(start_range, end_range, name_inclusion_list={"Work"})
-  assert len(filtered_set_with_names.calendars) == 1
-  assert "cal1" in filtered_set_with_names.calendars
-  assert "cal3" not in filtered_set_with_names.calendars
-  assert len(filtered_set_with_names.calendars["cal1"].events) == 1
+  assert len(filtered_set_with_names.calendars_by_id) == 1
+  assert "cal1" in filtered_set_with_names.calendars_by_id
+  assert "cal3" not in filtered_set_with_names.calendars_by_id
+  assert len(filtered_set_with_names.calendars_by_id["cal1"].events) == 1
 
   # Test filter with name_inclusion_list where no calendars match
   filtered_set_no_match = cal_set.filter(
     start_range, end_range, name_inclusion_list={"NonExistent"}
   )
-  assert len(filtered_set_no_match.calendars) == 0
+  assert len(filtered_set_no_match.calendars_by_id) == 0
 
   # Test filter where no events overlap
   no_overlap_start = create_aware_datetime(2025, 5, 25, 0, 0)
   no_overlap_end = create_aware_datetime(2025, 5, 25, 1, 0)
   filtered_set_no_events = cal_set.filter(no_overlap_start, no_overlap_end)
-  assert len(filtered_set_no_events.calendars) == 0
+  assert len(filtered_set_no_events.calendars_by_id) == 0

@@ -5,6 +5,10 @@ from pydantic import BaseModel
 from pirate_weather_api_client.models import AlertsItem, Currently, Daily, Hourly, HourlyDataItem
 
 
+class RegionalWeatherReports(BaseModel):
+  pass
+
+
 def is_timestamp_on_date(ts: int, midnight_on_date: datetime) -> bool:
   date_to_check = datetime.fromtimestamp(ts, tz=midnight_on_date.tzinfo)
   return date_to_check.date() == midnight_on_date.date()
