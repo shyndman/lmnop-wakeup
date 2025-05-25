@@ -1,4 +1,3 @@
-from typing import TypedDict
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -11,7 +10,7 @@ from lmnop_wakeup.llm import PRODUCTION_PROMPT_LABEL, AgentContext, LangfuseAgen
 pytestmark = pytest.mark.asyncio
 
 
-class MockInput(TypedDict):
+class MockInput(BaseModel):
   name: str
   age: int
 
