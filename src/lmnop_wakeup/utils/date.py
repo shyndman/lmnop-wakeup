@@ -71,24 +71,6 @@ def format_time_info(time_info: TimeInfo, date_format: str, time_format: str) ->
   raise ValueError("Neither 'date' nor 'dateTime' is set")
 
 
-def parse_date(raw: str | list[str]) -> Date:
-  """
-  Parses a raw string into a Date.
-
-  Args:
-    raw: The raw input string in 'YYYY-MM-DD' format.
-
-  Returns:
-    A Date instance.
-
-  Raises:
-    ValueError: If the input is a list.
-  """
-  if isinstance(raw, list):
-    raise ValueError("List input not supported")
-  return Datetime.strptime(raw, "%Y-%m-%d").date()
-
-
 LOCAL_TIMEZONE = datetime.now().astimezone().tzinfo
 
 
