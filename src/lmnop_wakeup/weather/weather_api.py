@@ -26,7 +26,7 @@ async def get_weather_report(
   async with Client(base_url=_API_BASE_URL) as async_client:
     try:
       posix_time = int(report_start_time.timestamp())
-      spacetime = f"{location.latlng[0]},{location.latlng[1]},{posix_time}"
+      spacetime = f"{location.latitude},{location.longitude},{posix_time}"
 
       res = await weather.asyncio(
         api_key=pirate_weather_api_key,

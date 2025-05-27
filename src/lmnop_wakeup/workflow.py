@@ -113,11 +113,12 @@ async def resolve_location(state: LocationDataState) -> LocationDataState:
   if isinstance(result.location, NamedLocation):
     return state
   if isinstance(result.location, CoordinateLocation):
+    coordinate = result.location.latlng
     return state.model_copy(
       update={
         "location": ResolvedLocation(
           address=input_location.address,
-          latlng=result.location.latlng,
+          latlng=(coordinate.latitude, coordinate.longitude),
         ),
       }
     )

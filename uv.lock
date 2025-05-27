@@ -720,6 +720,15 @@ wheels = [
 ]
 
 [[package]]
+name = "haversine"
+version = "2.9.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/1f/fe/5dc394a9db15c9f08c64ae050c03c01128227632fce07cc62aa5d32240d5/haversine-2.9.0.tar.gz", hash = "sha256:1103d7e1f0f108c25b31b63452c54d9d6f29389a70de7dd75fd4b908329b6fcf", size = 10171, upload-time = "2024-11-28T09:21:55.362Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/fb/80/c9fa943acea97ec173deba84f7c83cc0639798c1dd97970bb90a73c1dc91/haversine-2.9.0-py2.py3-none-any.whl", hash = "sha256:d32031b6b4232e37764730a781a3b8cb248710f92aca6f553b8097524420754d", size = 7728, upload-time = "2024-11-28T09:21:53.817Z" },
+]
+
+[[package]]
 name = "hf-xet"
 version = "1.1.2"
 source = { registry = "https://pypi.org/simple" }
@@ -1361,6 +1370,7 @@ dependencies = [
     { name = "google-auth-oauthlib" },
     { name = "google-genai" },
     { name = "google-maps-routing" },
+    { name = "haversine" },
     { name = "httpx" },
     { name = "langfuse" },
     { name = "langgraph" },
@@ -1402,6 +1412,7 @@ requires-dist = [
     { name = "google-auth-oauthlib", specifier = ">=1.2.2" },
     { name = "google-genai", specifier = ">=1.16.1" },
     { name = "google-maps-routing", specifier = ">=0.6.15" },
+    { name = "haversine", specifier = ">=2.9.0" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "langfuse", specifier = ">=2.60.4" },
     { name = "langgraph", specifier = ">=0.4.5" },

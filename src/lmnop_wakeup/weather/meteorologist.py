@@ -164,7 +164,7 @@ async def create_meteorologist(
   return meteorologist, bundle.instructions, bundle.task_prompt_templates  # type: ignore
 
 
-async def weather_report_for_brief(location: NamedLocation):
+async def weather_report_for_brief(location: NamedLocation) -> RawWeatherData:
   r = await get_weather_report(
     location=location,
     report_start_time=datetime.now().astimezone(),
