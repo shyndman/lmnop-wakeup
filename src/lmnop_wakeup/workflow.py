@@ -273,6 +273,25 @@ async def run_briefing_workflow(briefing_date: date) -> None:
       cache=SqliteCache(path=str(APP_DIRS.user_cache_path / "cache.db")),
       checkpointer=saver,
       store=store,
+      # interrupt_before=[
+      #   "resolve_location",
+      #   "request_weather",
+      #   "calculate_briefing_day_routes",
+      #   "calculate_schedule",
+      #   "prioritize_events",
+      #   "write_briefing_outline",
+      #   "write_briefing_script",
+      # ],
+      # interrupt_after=[
+      #   "populate_raw_inputs",
+      #   "resolve_location",
+      #   "request_weather",
+      #   "calculate_briefing_day_routes",
+      #   "calculate_schedule",
+      #   "prioritize_events",
+      #   "write_briefing_outline",
+      #   "write_briefing_script",
+      # ],
     )
     config: RunnableConfig = {"configurable": {"thread_id": briefing_date.isoformat()}}
 
