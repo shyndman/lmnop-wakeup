@@ -167,7 +167,7 @@ async def create_meteorologist(
 async def weather_report_for_brief(location: NamedLocation) -> RawWeatherData:
   r = await get_weather_report(
     location=location,
-    report_start_time=datetime.now().astimezone(),
+    report_start_ts=datetime.now().astimezone(),
     pirate_weather_api_key=get_pirate_weather_api_key(),
   )
   return RawWeatherData(alerts=r.alerts, currently=r.currently, hourly=r.hourly, daily=r.daily)

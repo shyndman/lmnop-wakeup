@@ -17,7 +17,7 @@ from loguru import logger
 from pydantic import BaseModel, computed_field
 
 from ..core.asyncio import gather_map
-from ..env import ApiKey
+from ..env import ApiKey, get_google_routes_api_key
 from .model import AddressLocation, CoordinateLocation
 
 
@@ -95,7 +95,7 @@ async def compute_route_durations(
   include_cycling: bool,
   include_transit: bool,
   include_walking: bool,
-  google_routes_api_key: ApiKey,
+  google_routes_api_key: ApiKey | None = None,
 ) -> RouteDetailsByMode:
   logger.debug(
     "Computing route durations for origin={origin}, destination={destination}, "
@@ -111,7 +111,7 @@ async def compute_route_durations(
   # Create a client
   client = routing_v2.RoutesAsyncClient(
     credentials=Credentials(
-      token=google_routes_api_key,
+      token=google_routes_api_key or get_google_routes_api_key(),
     )
   )
 

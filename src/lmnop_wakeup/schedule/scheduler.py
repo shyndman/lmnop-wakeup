@@ -1,72 +1,51 @@
-from datetime import date, datetime
-from typing import TypedDict
+from datetime import date
 
 from loguru import logger
-from pydantic import BaseModel, Field
-from pydantic_ai import Agent
+from pydantic import AwareDatetime, BaseModel
 
 from pirate_weather_api_client.models import HourlyDataItem
 
-from ..env import get_google_routes_api_key
-from ..events.model import CalendarEvent, CalendarsOfInterest
-from ..llm import ModelName, create_litellm_model, get_langfuse_prompt_bundle
+from ..events.model import CalendarEvent
+from ..llm import (
+  LangfuseAgent,
+  LangfuseInput,
+  ModelName,
+)
 from ..location import routes_api
 from ..location.model import AddressLocation, CoordinateLocation
 from ..location.routes_api import (
-  CyclingRouteDetails,
-  RouteDetails,
   RouteDetailsByMode,
   TimeConstraint,
 )
+from ..workflow import CalendarsOfInterest
+from .model import EventRouteOptions
 
 
-class SchedulingInputs(TypedDict):
+class SchedulerInput(LangfuseInput):
+  """Input data required by the Timekeeper LLM to determine optimal wake-up times and schedules.
+
+  This class encapsulates all the contextual information needed for the scheduling agent
+  to make intelligent decisions about when a user should wake up, considering their
+  calendar events, weather conditions, work schedule, and location.
+  """
+
   todays_date: date
+  """The current date for which the schedule is being computed."""
+
   calendars: CalendarsOfInterest
+  """Collection of calendar events from various sources that may influence the schedule."""
+
   is_today_workday: bool
+  """Whether today is considered a work day, affecting default wake-up time calculations."""
+
   hourly_weather: list[HourlyDataItem]
+  """Hourly weather forecast data that may impact transportation mode decisions and timing."""
+
   home_location: AddressLocation | CoordinateLocation
+  """The user's home location, used as the origin point for route calculations."""
 
 
-class ModeRejectionResult(BaseModel):
-  """A data structure representing an LLM's rationale for rejecting a particular transportation
-  mode.
-
-  Attributes:
-    rejection_rationale (str): A human-readable explanation for why a specific
-      transportation mode was deemed unsuitable by the LLM.
-  """
-
-  rejection_rationale: str
-  """Two sentences max, specifically describing the broken rule that lead to the rejection"""
-
-
-class EventRouteOptions(BaseModel):
-  """Represents the available route options and details for travel between two locations.
-
-  This structure is used by the Timekeeper LLM to understand the possible ways to travel
-  for a scheduled event, including details for different transportation modes and
-  reasons why a mode might be unsuitable.
-  """
-
-  origin: AddressLocation | CoordinateLocation
-  """The starting location for the route."""
-  destination: AddressLocation | CoordinateLocation
-  """The ending location for the route."""
-  related_event_id: list[str] = Field(min_length=1, max_length=2)
-  """The identifier(s) of the calendar event(s) the user is travelling to or from, or both"""
-
-  bike: CyclingRouteDetails | ModeRejectionResult
-  """Route details for cycling, or a rejection result if cycling is not a viable option."""
-  drive: RouteDetails
-  """Route details for driving. A driving route is always expected to be available."""
-  transit: RouteDetails | ModeRejectionResult
-  """Route details for public transit, or a rejection result if transit is not a viable option."""
-  walk: RouteDetails | ModeRejectionResult
-  """Route details for walking, or a rejection result if walking is not a viable option."""
-
-
-class SchedulingDetails(BaseModel):
+class SchedulerOutput(BaseModel):
   """Represents the detailed schedule and route information determined by the Timekeeper LLM.
 
   This structure provides the necessary context for the user to understand the planned wake-up
@@ -75,33 +54,32 @@ class SchedulingDetails(BaseModel):
 
   date: date
   """The day described by this schedule."""
-  wakeup_time: datetime
+
+  wakeup_time: AwareDatetime
   """The calculated time the user should wake up."""
+
   triggering_event_details: CalendarEvent | None
   """The calendar event that was used to determine the wakeup_time. This will be `null` if the
   wake-up time was based on the latest possible time rather than a specific event."""
+
   routes: list[EventRouteOptions]
   """Details about the computed routes for travel related to the scheduled event(s)."""
 
 
-type TimekeeperAgent = Agent[SchedulingInputs, SchedulingDetails]
+type SchedulerAgent = LangfuseAgent[SchedulerInput, SchedulerOutput]
 
 
-async def create_timekeeper(
-  model: ModelName = ModelName.GEMINI_25_FLASH,
-) -> tuple[TimekeeperAgent, str, str]:
-  logger.debug("Creating Timekeeper agent with model: {model}", model=model)
-  bundle = await get_langfuse_prompt_bundle("timekeeper")
-  timekeeper = Agent(
-    model=create_litellm_model(model),
-    instructions=bundle.instructions,
-    deps_type=SchedulingInputs,
-    output_type=SchedulingDetails,
-    model_settings=bundle.model_settings,
-    instrument=True,
+def get_scheduler_agent() -> SchedulerAgent:
+  """Get the location resolver agent."""
+
+  agent = LangfuseAgent[SchedulerInput, SchedulerOutput].create(
+    "scheduler",
+    model=ModelName.GEMINI_25_FLASH,
+    input_type=SchedulerInput,
+    output_type=SchedulerOutput,
   )
 
-  @timekeeper.tool_plain()
+  @agent.tool_plain()
   async def compute_routes(
     origin: AddressLocation | CoordinateLocation,
     destination: AddressLocation | CoordinateLocation,
@@ -150,7 +128,6 @@ async def create_timekeeper(
       include_walking=include_walking,
     )
     return await routes_api.compute_route_durations(
-      google_routes_api_key=get_google_routes_api_key(),
       origin=origin,
       destination=destination,
       time_constraint=time_constraint,
@@ -159,13 +136,4 @@ async def create_timekeeper(
       include_walking=include_walking,
     )
 
-  return timekeeper, bundle.instructions, bundle.task_prompt_templates
-
-
-async def determine_day_schedule(
-  timekeeper: TimekeeperAgent, deps: SchedulingInputs
-) -> SchedulingDetails:
-  logger.debug("Determining day schedule with Timekeeper agent")
-  res = await timekeeper.run("", deps=deps)
-  logger.debug("Timekeeper agent run completed. Returning output.")
-  return res.output
+  return agent

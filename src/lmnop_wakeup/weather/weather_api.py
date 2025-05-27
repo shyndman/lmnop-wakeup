@@ -11,7 +11,7 @@ from pirate_weather_api_client.models import (
 )
 
 from ..core.typing import nn
-from ..env import ApiKey
+from ..env import ApiKey, get_pirate_weather_api_key
 from ..location.model import CoordinateLocation
 from .model import WeatherNotAvailable, WeatherReport
 
@@ -20,22 +20,23 @@ _API_BASE_URL = "https://api.pirateweather.net"
 
 async def get_weather_report(
   location: CoordinateLocation,
-  report_start_time: AwareDatetime,
-  pirate_weather_api_key: ApiKey,
+  report_start_ts: AwareDatetime,
+  report_end_ts: AwareDatetime | None = None,
+  pirate_weather_api_key: ApiKey | None = None,
 ) -> WeatherReport:
   async with Client(base_url=_API_BASE_URL) as async_client:
     try:
-      posix_time = int(report_start_time.timestamp())
+      posix_time = int(report_start_ts.timestamp())
       spacetime = f"{location.latitude},{location.longitude},{posix_time}"
 
       res = await weather.asyncio(
-        api_key=pirate_weather_api_key,
         lat_and_long_or_time=spacetime,
         client=async_client,
         units="ca",
         version=2,
         extend="hourly",
         exclude="minutely",
+        api_key=pirate_weather_api_key or get_pirate_weather_api_key(),
       )
 
       if not isinstance(res, WeatherResponse200) or res.currently is None:

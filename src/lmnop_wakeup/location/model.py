@@ -58,8 +58,7 @@ class CoordinateLocation(Location):
   """The latitude and longitude of the location."""
 
   def __init__(self, *args, latlng: tuple[float, float], **kwargs):
-    self.latlng = latlng  # type: ignore
-    super().__init__(*args, **kwargs)
+    super().__init__(*args, latlng=latlng, **kwargs)  # type: ignore
 
   @property
   def latitude(self) -> Latitude:
@@ -118,7 +117,7 @@ class AddressLocation(Location):
   address: str | None = None
   """The street address of the location."""
 
-  def __init__(*args, **kwargs):
+  def __init__(self, *args, **kwargs):
     super().__init__(*args, **kwargs)
 
   @override
@@ -145,7 +144,6 @@ class ResolvedLocation(CoordinateLocation, AddressLocation):
     latlng: tuple[float, float],
     **kwargs,
   ):
-    self.latlng = latlng  # type: ignore
     super().__init__(*args, **kwargs, latlng=latlng)
 
 
@@ -167,15 +165,9 @@ class NamedLocation(ResolvedLocation):
   def __init__(
     self,
     *args,
-    name: str,
-    slug: LocationSlug,
-    description: str,
     latlng: tuple[float, float],
     **kwargs,
   ):
-    self.name = name
-    self.slug = slug
-    self.description = description
     super().__init__(*args, **kwargs, latlng=latlng)
 
 

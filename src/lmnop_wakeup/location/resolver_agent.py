@@ -30,17 +30,22 @@ class LocationResolverInput(LangfuseInput):
     }
 
 
-class LocationResolverOutput(BaseModel):
-  """Output for the location resolver agent."""
-
-  location: NamedLocation | CoordinateLocation | None
-  """Set to the NamedLocation, if the input location was identified as one of the user's named
-  locations, or a CoordinateLocation returned by the geocode tool.
-
-  If no location could be determined, set to None, and supply a failure reason"""
+class ResolutionFailure(BaseModel):
+  """Indicates failure to resolve a location"""
 
   failure_reason: str | None = None
   """If no location could be determined, this field should contain a reason for the failure."""
+
+
+class LocationResolverOutput(BaseModel):
+  """Output for the location resolver agent."""
+
+  location: NamedLocation | CoordinateLocation | ResolutionFailure
+  """Set to the NamedLocation, if the input location was identified as one of the user's named
+  locations, or a CoordinateLocation returned by the geocode tool.
+
+  If no location could be determined, set this value to a ResolutionFailure instance, describing
+  the problem."""
 
 
 type LocationResolverAgent = LangfuseAgent[LocationResolverInput, LocationResolverOutput]
@@ -58,7 +63,21 @@ def _get_location_resolver_agent() -> LocationResolverAgent:
 
   @agent.tool_plain
   async def geocode(location: str) -> CoordinateLocation | None:
-    """Geocode a location to coordinates."""
+    """Geocode a location string, like an address or the name of a place, to geographic coordinates.
+    This agent is designed to take a natural language location query and convert it into a precise
+    latitude and longitude.
+
+    Args:
+      location (str): The location string to geocode. This can be:
+        - A full address (e.g., "1600 Amphitheatre Parkway, Mountain View, CA")
+        - A partial address (e.g., "Eiffel Tower, Paris")
+        - A named place (e.g., "Central Park", "Golden Gate Bridge")
+        - A city and country (e.g., "London, UK")
+
+    Returns:
+      CoordinateLocation | None: A `CoordinateLocation` object containing the latitude and longitude
+        if the location is successfully geocoded, otherwise `None`.
+    """
     # TODO: Write me
     return CoordinateLocation(latlng=(43.69349321829292, -79.29817931845875))
 

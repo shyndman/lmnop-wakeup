@@ -1,7 +1,9 @@
 from collections.abc import Mapping
-from typing import Any, TypeVar
+from typing import Any, Self, TypeVar
 
-from pydantic import BaseModel
+from pydantic import AwareDatetime, BaseModel
+
+from lmnop_wakeup.core.typing import nn
 
 from ..models.hourly_data_item import HourlyDataItem
 
@@ -23,6 +25,16 @@ class Hourly(BaseModel):
   summary: str | None = None
   icon: str | None = None
   data: list[HourlyDataItem] | None = None
+
+  def trim_to_datetime(self, dt: AwareDatetime) -> Self:
+    if self.data is not None:
+      filtered_data = []
+      for item in self.data:
+        if nn(item.local_time) > dt:
+          break
+        filtered_data.append(item)
+      self.data = filtered_data
+    return self
 
   def to_dict(self) -> dict[str, Any]:
     summary = self.summary
