@@ -4,9 +4,9 @@ from typing import override
 import lazy_object_proxy
 from pydantic import BaseModel
 
-from lmnop_wakeup.core.typing import ensure
-
+from ..core.typing import ensure
 from ..llm import LangfuseAgent, LangfuseInput, ModelName
+from .geocode_api import GeocodeSearchResult, geocode_location
 from .model import AddressLocation, CoordinateLocation, NamedLocation
 
 
@@ -62,24 +62,38 @@ def _get_location_resolver_agent() -> LocationResolverAgent:
   )
 
   @agent.tool_plain
-  async def geocode(location: str) -> CoordinateLocation | None:
-    """Geocode a location string, like an address or the name of a place, to geographic coordinates.
-    This agent is designed to take a natural language location query and convert it into a precise
-    latitude and longitude.
+  async def geocode(location: str) -> list[GeocodeSearchResult]:
+    """
+    Geocode a location string, such as an address or the name of a place, to its precise geographic
+    coordinates.
+
+    Geocoding is the process of transforming a human-readable address or place name (like "Eiffel
+    Tower, Paris" or "1600 Amphitheatre Parkway, Mountain View, CA") into a set of geographical
+    coordinates, specifically latitude and longitude. These coordinates are numerical values that
+    pinpoint a unique location on the Earth's surface.
+
+    This tool acts as an interface to a geocoding service, allowing the system to understand and
+    process natural language location queries. It converts these queries into a format that can be
+    used for mapping, navigation, or any location-based service.
 
     Args:
-      location (str): The location string to geocode. This can be:
-        - A full address (e.g., "1600 Amphitheatre Parkway, Mountain View, CA")
-        - A partial address (e.g., "Eiffel Tower, Paris")
-        - A named place (e.g., "Central Park", "Golden Gate Bridge")
-        - A city and country (e.g., "London, UK")
+      location (str): The location string to be geocoded. This input is flexible and can include:
+        - A complete street address (e.g., "1600 Amphitheatre Parkway, Mountain View, CA, USA")
+        - A partial address, which the service will attempt to resolve (e.g., "Eiffel Tower, Paris")
+        - The name of a well-known landmark or place (e.g., "Central Park", "Golden Gate Bridge")
+        - A combination of city and country (e.g., "London, UK")
+        The more specific the input, the more accurate and precise the geocoding result is likely to
+        be.
 
     Returns:
-      CoordinateLocation | None: A `CoordinateLocation` object containing the latitude and longitude
-        if the location is successfully geocoded, otherwise `None`.
+      list[GeocodeSearchResult]: A list of `GeocodeSearchResult` objects. Each object in the list
+        represents a possible geocoded location, containing both the `latlng` (latitude and
+        longitude) and the `address` (a standardized, human-readable format of the location). A list
+        is returned because a single input query might correspond to multiple real-world locations
+        (e.g., "Springfield" exists in many states). If no location can be found for the given
+        input, an empty list will be returned.
     """
-    # TODO: Write me
-    return CoordinateLocation(latlng=(43.69349321829292, -79.29817931845875))
+    return await geocode_location(location)
 
   return agent
 

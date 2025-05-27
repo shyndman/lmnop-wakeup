@@ -1384,6 +1384,7 @@ source = { editable = "." }
 dependencies = [
     { name = "aiosqlite" },
     { name = "attrs" },
+    { name = "cachetools" },
     { name = "clypi" },
     { name = "email-validator" },
     { name = "geopy" },
@@ -1429,6 +1430,7 @@ dev = [
 requires-dist = [
     { name = "aiosqlite", specifier = ">=0.21.0" },
     { name = "attrs", specifier = ">=22.2.0" },
+    { name = "cachetools", specifier = ">=5.5.2" },
     { name = "clypi", specifier = ">=1.2.22" },
     { name = "email-validator", specifier = ">=2.2.0" },
     { name = "geopy", specifier = ">=2.4.1" },

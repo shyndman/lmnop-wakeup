@@ -1,7 +1,9 @@
 from importlib.metadata import version
 
 import nest_asyncio
+from cachetools import LRUCache
 from platformdirs import AppDirs
+from shelved_cache import PersistentCache
 
 from lmnop_wakeup.core.logging import initialize_logging
 from lmnop_wakeup.core.tracing import initialize_tracing
@@ -20,4 +22,8 @@ APP_DIRS = AppDirs(
   appauthor=False,
   version=__version__,
   ensure_exists=True,
+)
+
+FCACHE = PersistentCache(
+  LRUCache, filename=str(APP_DIRS.user_cache_path / "function_cache.db"), maxsize=2000
 )
