@@ -4,14 +4,14 @@ from typing import override
 
 from pydantic import BaseModel
 
-from ..events.model import CalendarEvent, CalendarEventId, CalendarsOfInterest
-from ..llm import LangfuseAgent, LangfuseInput, ModelName
-from ..schedule.scheduler import SchedulerOutput
+from ..llm import LangfuseAgent, LangfuseAgentInput, ModelName
 from ..weather.model import RegionalWeatherReports
+from .model import CalendarEvent, CalendarEventId, CalendarsOfInterest
+from .scheduler_agent import SchedulerOutput
 
 
-class EventPrioritizerInput(LangfuseInput):
-  """Input for the location resolver agent."""
+class EventPrioritizerInput(LangfuseAgentInput):
+  """Input for the event prioritizer agent."""
 
   schedule: SchedulerOutput
   calendars_of_interest: CalendarsOfInterest
@@ -33,7 +33,7 @@ class EventPrioritizerInput(LangfuseInput):
 
 
 class EventPrioritizerOutput(BaseModel):
-  """Output for the location resolver agent."""
+  """Output for the event prioritizer agent."""
 
   must_mention: list[CalendarEventId]
   """
@@ -68,11 +68,13 @@ class EventPrioritizerOutput(BaseModel):
   """
 
 
+type PrioritizedEvents = EventPrioritizerOutput
+
 type EventPrioritizerAgent = LangfuseAgent[EventPrioritizerInput, EventPrioritizerOutput]
 
 
 def get_event_prioritizer_agent() -> EventPrioritizerAgent:
-  """Get the location resolver agent."""
+  """Get the event prioritizer agent."""
 
   agent = LangfuseAgent[EventPrioritizerInput, EventPrioritizerOutput].create(
     "event_prioritizer",

@@ -1,0 +1,61 @@
+from typing import override
+
+from pydantic import BaseModel, RootModel
+
+from ..events.model import Schedule
+from ..llm import LangfuseAgent, LangfuseAgentInput, ModelName
+from ..weather.meteorologist_agent import WeatherReportForBrief
+from .model import BriefingScript, CharacterPool
+from .sectioner_agent import BriefingOutline, PrioritizedEvents
+
+
+class PreviousScripts(RootModel[list[BriefingScript]]):
+  root: list[BriefingScript]
+
+
+class ScriptWriterInput(LangfuseAgentInput):
+  briefing_outline: BriefingOutline
+
+  prioritized_events: PrioritizedEvents
+
+  schedule: Schedule
+
+  weather_data: WeatherReportForBrief
+
+  character_pool: CharacterPool
+
+  previous_scripts: list[BriefingScript]
+
+  @override
+  def to_prompt_variable_map(self) -> dict[str, str]:
+    return {
+      "briefing_outline": self.briefing_outline.model_dump_json(),
+      "prioritized_events": self.prioritized_events.model_dump_json(),
+      "schedule": self.schedule.model_dump_json(),
+      "weather_data": self.weather_data.model_dump_json(),
+      "character_pool": self.character_pool.model_dump_json(),
+      "previous_scripts": PreviousScripts(self.previous_scripts).model_dump_json(),
+    }
+
+
+class ScriptWriterOutput(BaseModel):
+  """Output for the script_writer agent."""
+
+  briefing_script: BriefingScript
+  """The generated briefing script."""
+
+
+type ScriptWriterAgent = LangfuseAgent[ScriptWriterInput, ScriptWriterOutput]
+
+
+def get_script_writer_agent() -> ScriptWriterAgent:
+  """Get the script_writer agent."""
+
+  agent = LangfuseAgent[ScriptWriterInput, ScriptWriterOutput].create(
+    "script_writer",
+    model=ModelName.GEMINI_25_PRO,
+    input_type=ScriptWriterInput,
+    output_type=ScriptWriterOutput,
+  )
+
+  return agent

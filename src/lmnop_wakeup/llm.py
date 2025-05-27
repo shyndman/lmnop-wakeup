@@ -1,5 +1,4 @@
 import os
-import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import StrEnum
@@ -72,51 +71,9 @@ class LangfusePromptBundle:
 
 
 HORIZONTAL_RULE = "\n---------\n"
-langfuse_template_pattern = re.compile(r"{{\s*(\w+)\s*}}", re.NOFLAG)
 
 
-async def get_langfuse_prompt_bundle(prompt_name: str) -> LangfusePromptBundle:
-  input = {}
-  res = await Langfuse().async_api.prompts.get(
-    prompt_name,
-    label=PRODUCTION_PROMPT_LABEL,
-    request_options=RequestOptions(
-      max_retries=5,
-      timeout_in_seconds=10,
-    ),
-  )
-  prompt_chat_messages = ChatPromptClient(cast(Prompt_Chat, res)).compile(**input)
-  instructions, *prompts = map(
-    lambda p: p["content"],
-    prompt_chat_messages,
-  )
-  prompts = HORIZONTAL_RULE.join(prompts)
-  model_settings = res.config
-
-  # Replace double-braced syntax with single, so str.format will format successfully
-  prompts = langfuse_template_pattern.sub(r"{\g<1>}", prompts)
-
-  return LangfusePromptBundle(
-    name=prompt_name,
-    instructions=instructions,
-    model_settings=ModelSettings(model_settings),
-    task_prompt_templates=prompts,
-  )
-
-
-@dataclass
-class AgentContext[Input: BaseModel]:
-  """Context object passed to LangfuseAgent's underlying pydantic-ai Agent.
-
-  Contains the raw Langfuse prompt and the input data needed for template rendering.
-  This allows the agent's @instructions decorator to render prompts with runtime inputs.
-  """
-
-  prompt: Prompt_Chat
-  input: Input
-
-
-class LangfuseInput(ABC, BaseModel):
+class LangfuseAgentInput(ABC, BaseModel):
   """Protocol for Langfuse input data.
 
   This protocol defines the expected structure of input data for Langfuse agents.
@@ -132,7 +89,46 @@ class LangfuseInput(ABC, BaseModel):
     raise NotImplementedError("to_prompt_variable_map must be implemented in subclasses")
 
 
-class LangfuseAgent[Input: LangfuseInput, Output: BaseModel]:
+@dataclass
+class AgentContext[Input: LangfuseAgentInput]:
+  """Context object passed to LangfuseAgent's underlying pydantic-ai Agent.
+
+  Contains the system and user prompts for the agent, as supplied by langfuse.
+  """
+
+  prompt: Prompt_Chat
+  input: Input
+  instructions_prompt: str
+  user_prompt: str
+
+  def __init__(self, **kwargs):
+    super().__init__(**kwargs)
+
+    client = ChatPromptClient(self.prompt)
+    if set(client.variables) != self.input.prompt_variables_supplied:
+      raise ValueError(
+        f"Prompt variables {client.variables} do not match input variables "
+        f"{self.input.prompt_variables_supplied}"
+      )
+
+    prompt_messages = client.compile(
+      **self.input.to_prompt_variable_map(),
+    )
+    if not (
+      len(prompt_messages) == 2
+      and prompt_messages[0]["role"] == "system"
+      and prompt_messages[1]["role"] == "user"
+    ):
+      raise ValueError(
+        "Prompt must contain exactly two messages: system instructions and user prompt"
+      )
+
+    system, user = prompt_messages
+    self.instructions_prompt = system["content"]
+    self.user_prompt = user["content"]
+
+
+class LangfuseAgent[Input: LangfuseAgentInput, Output: BaseModel]:
   """A pydantic-ai Agent wrapper that integrates with Langfuse prompts and tracing.
 
   This class provides a standardized way to create agents that:
@@ -186,6 +182,7 @@ class LangfuseAgent[Input: LangfuseInput, Output: BaseModel]:
         timeout_in_seconds=10,
       ),
     )
+
     raw_prompt = cast(Prompt_Chat, res)
 
     # TODO: At this point we should be able to verify that the prompt's variables match what the
@@ -204,14 +201,7 @@ class LangfuseAgent[Input: LangfuseInput, Output: BaseModel]:
     # Set up the instructions decorator function
     @agent.instructions
     def rendered_instructions(ctx: RunContext[AgentContext[Input]]) -> str:
-      """Render Langfuse prompt with runtime input data."""
-      prompt_chat_messages = ChatPromptClient(ctx.deps.prompt).compile(
-        **ctx.deps.input.model_dump(),
-      )
-      instructions, *prompts = map(lambda p: p["content"], prompt_chat_messages)
-      if prompts:
-        return f"{instructions}\n{HORIZONTAL_RULE}\n{HORIZONTAL_RULE.join(prompts)}"
-      return instructions
+      return ctx.deps.instructions_prompt
 
     return cls(agent, prompt_name, raw_prompt)
 
@@ -230,7 +220,7 @@ class LangfuseAgent[Input: LangfuseInput, Output: BaseModel]:
 
       # Create context and run agent
       ctx = AgentContext(prompt=self._raw_prompt, input=input)
-      result = await self._agent.run(deps=ctx)
+      result = await self._agent.run(user_prompt=ctx.user_prompt, deps=ctx)
 
       # Set output attribute on span
       span.set_attribute("output.value", result.output)

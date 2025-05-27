@@ -1,24 +1,34 @@
-import json
 from datetime import datetime
-from importlib import resources
 from math import floor
+from typing import override
 
-from pydantic import BaseModel, Field
-from pydantic_ai import Agent
+from pydantic import BaseModel, Field, RootModel
 
 from pirate_weather_api_client.models import AlertsItem, Currently, Daily, Hourly
 
-from ..env import get_pirate_weather_api_key
-from ..llm import ModelName, create_litellm_model, get_langfuse_prompt_bundle
-from ..location.model import NamedLocation
-from .weather_api import get_weather_report
+from ..llm import LangfuseAgent, LangfuseAgentInput, ModelName
 
 
-class RawWeatherData(BaseModel):
+class AlertList(RootModel[list[AlertsItem]]):
+  root: list[AlertsItem]
+
+
+class MeteorologistInput(LangfuseAgentInput):
+  """Input data for the meteorologist agent."""
+
   alerts: list[AlertsItem]
   currently: Currently
   hourly: Hourly
   daily: Daily
+
+  @override
+  def to_prompt_variable_map(self) -> dict[str, str]:
+    return {
+      "alerts": AlertList(self.alerts).model_dump_json(),
+      "currently": self.currently.model_dump_json(),
+      "hourly": self.hourly.model_dump_json(),
+      "daily": self.daily.model_dump_json(),
+    }
 
 
 class WeatherPattern(BaseModel):
@@ -64,7 +74,7 @@ class WeatherPattern(BaseModel):
     """
 
 
-class WeatherReportForBrief(BaseModel):
+class MeteorologistOutput(BaseModel):
   """Weather analysis with pattern groupings and weatherperson script"""
 
   expert_analysis: str = Field(max_length=220 * 5)
@@ -124,61 +134,24 @@ class WeatherReportForBrief(BaseModel):
     should aim for about a minute of speaking time, or 100-200 words.
     """
 
-  """
-    A concise list of the most important planning recommendations based on the forecast.
 
-    These should be practical, actionable takeaways that help with decision-making.
+type WeatherReportForBrief = MeteorologistOutput
 
-    Examples:
-    - "Plan outdoor activities for Monday and Tuesday; avoid Wednesday afternoon"
-    - "Best cottage/beach weather comes this weekend - Friday through Sunday"
-    - "Pack both warm and cool weather clothing as temperatures will vary significantly"
-    - "Morning hours consistently offer the best conditions for outdoor exercise"
-    - "Wednesday afternoon carries significant rain risk - have indoor alternatives ready"
-
-    Include 3-7 key recommendations that capture the most important planning insights.
-    """
+type MeteorologistAgent = LangfuseAgent[MeteorologistInput, MeteorologistOutput]
 
 
-type MeteorologistAgent = Agent[RawWeatherData, WeatherReportForBrief]
+def create_meteorologist() -> MeteorologistAgent:
+  """Get the location resolver agent."""
 
-
-async def create_meteorologist(
-  model: ModelName = ModelName.GEMINI_25_FLASH,
-) -> tuple[MeteorologistAgent, str, str]:
-  bundle = await get_langfuse_prompt_bundle("meteorologist")
-  meteorologist = Agent(
-    model=create_litellm_model(model),
-    instructions=bundle.instructions,
-    deps_type=RawWeatherData,
-    output_type=WeatherReportForBrief,
-    model_settings=bundle.model_settings,
-    # mcp_servers=[sandboxed_python_mcp_server()],
-    instrument=True,
+  agent = LangfuseAgent[MeteorologistInput, MeteorologistOutput].create(
+    "meteorologist",
+    model=ModelName.GEMINI_25_FLASH,
+    input_type=MeteorologistInput,
+    output_type=MeteorologistOutput,
   )
 
-  @meteorologist.tool_plain()
+  @agent.tool_plain()
   def posix_to_local_time(posix: int) -> datetime:
     return datetime.fromtimestamp(posix).astimezone()
 
-  return meteorologist, bundle.instructions, bundle.task_prompt_templates  # type: ignore
-
-
-async def weather_report_for_brief(location: NamedLocation) -> RawWeatherData:
-  r = await get_weather_report(
-    location=location,
-    report_start_ts=datetime.now().astimezone(),
-    pirate_weather_api_key=get_pirate_weather_api_key(),
-  )
-  return RawWeatherData(alerts=r.alerts, currently=r.currently, hourly=r.hourly, daily=r.daily)
-
-
-def cached_weather_report() -> RawWeatherData:
-  """
-  Load the weather.json file as a resource.
-
-  Returns:
-      dict: The parsed JSON data from the weather.json file.
-  """
-  with resources.files("lmnop_wakeup.brief").joinpath("weather.json").open("r") as f:
-    return RawWeatherData.model_validate(json.load(f))
+  return agent

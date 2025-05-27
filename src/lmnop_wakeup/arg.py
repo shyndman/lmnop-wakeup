@@ -7,6 +7,23 @@ from typing import ClassVar
 from pydantic import PositiveInt
 from pydantic.dataclasses import dataclass
 
+from lmnop_wakeup.location.model import CoordinateLocation, LocationName, location_named
+
+
+def parse_location(raw: str | list[str]) -> CoordinateLocation:
+  if isinstance(raw, list):
+    raise ValueError("List input not supported")
+
+  if "," in raw:
+    lat, lng = map(float, raw.split(","))
+    return CoordinateLocation(latlng=(lat, lng))
+
+  if raw in LocationName:
+    return location_named(LocationName(raw))
+
+  raise ValueError(f"Invalid location: {raw}")
+
+
 TODAY = date.today()
 
 

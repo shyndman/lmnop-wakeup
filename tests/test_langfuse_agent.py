@@ -10,14 +10,14 @@ from lmnop_wakeup.llm import (
   PRODUCTION_PROMPT_LABEL,
   AgentContext,
   LangfuseAgent,
-  LangfuseInput,
+  LangfuseAgentInput,
   ModelName,
 )
 
 pytestmark = pytest.mark.asyncio
 
 
-class MockInput(LangfuseInput):
+class MockInput(LangfuseAgentInput):
   name: str
   age: int
 

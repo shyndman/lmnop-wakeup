@@ -1,4 +1,5 @@
 from contextlib import AsyncExitStack
+from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import cast
 
@@ -12,21 +13,14 @@ from langgraph.types import RetryPolicy
 from langgraph_sdk.schema import Send
 from pydantic import AwareDatetime, BaseModel
 
-from lmnop_wakeup.core.typing import ensure
-from lmnop_wakeup.events.prioritizer import get_event_prioritizer_agent
-from lmnop_wakeup.location.resolver_agent import LocationResolverInput
-from lmnop_wakeup.location.routes_api import (
-  ArriveByConstraint,
-  DepartAtConstraint,
-  compute_route_durations,
-)
-from lmnop_wakeup.schedule.scheduler import get_scheduler_agent
-
 from . import APP_DIRS
 from .core.date import start_of_local_day
+from .core.typing import ensure
 from .env import get_postgres_connection_string
 from .events.events_api import get_filtered_calendars_with_notes
-from .events.model import CalendarsOfInterest, end_of_local_day
+from .events.model import CalendarsOfInterest, Schedule, end_of_local_day
+from .events.prioritizer_agent import RegionalWeatherReports, get_event_prioritizer_agent
+from .events.scheduler_agent import get_scheduler_agent
 from .location.model import (
   NAMED_LOCATIONS,
   AddressLocation,
@@ -38,9 +32,13 @@ from .location.model import (
   ResolvedLocation,
   location_named,
 )
-from .location.resolver_agent import get_location_resolver_agent
-from .weather.model import RegionalWeatherReports, WeatherReport
-from .weather.weather_api import get_weather_report
+from .location.resolver_agent import LocationResolverInput, get_location_resolver_agent
+from .location.routes_api import (
+  ArriveByConstraint,
+  DepartAtConstraint,
+  compute_route_durations,
+)
+from .weather.weather_api import WeatherReport, get_weather_report
 
 
 class State(BaseModel):
@@ -71,7 +69,7 @@ class State(BaseModel):
   """Contains weather reports for all locations the user may occupy, for the dates they would
   occupy them, as determined by the calendars"""
   route_durations_by_time: dict[str, float] | None = None
-  # schedule: Schedule
+  schedule: Schedule | None = None
 
 
 class LocationDataState(BaseModel):
@@ -251,7 +249,30 @@ builder.add_edge("write_briefing_outline", "write_briefing_script")
 builder.set_finish_point("write_briefing_script")
 
 
-async def run_briefing_workflow(briefing_date: date) -> None:
+@dataclass
+class Run:
+  briefing_date: date
+  briefing_location: CoordinateLocation
+
+
+@dataclass
+class ListCheckpoints:
+  briefing_date: date
+
+
+type WorkflowCommand = Run | ListCheckpoints
+
+
+def config_for_date(briefing_date: date) -> RunnableConfig:
+  """Create a configuration for the workflow based on the briefing date."""
+  return {
+    "configurable": {
+      "thread_id": briefing_date.isoformat(),
+    }
+  }
+
+
+async def run_workflow_command(cmd: WorkflowCommand) -> None:
   """Run the morning briefing workflow.
 
   Args:
@@ -273,42 +294,26 @@ async def run_briefing_workflow(briefing_date: date) -> None:
       cache=SqliteCache(path=str(APP_DIRS.user_cache_path / "cache.db")),
       checkpointer=saver,
       store=store,
-      # interrupt_before=[
-      #   "resolve_location",
-      #   "request_weather",
-      #   "calculate_briefing_day_routes",
-      #   "calculate_schedule",
-      #   "prioritize_events",
-      #   "write_briefing_outline",
-      #   "write_briefing_script",
-      # ],
-      # interrupt_after=[
-      #   "populate_raw_inputs",
-      #   "resolve_location",
-      #   "request_weather",
-      #   "calculate_briefing_day_routes",
-      #   "calculate_schedule",
-      #   "prioritize_events",
-      #   "write_briefing_outline",
-      #   "write_briefing_script",
-      # ],
     )
-    config: RunnableConfig = {"configurable": {"thread_id": briefing_date.isoformat()}}
 
-    day_start_ts = start_of_local_day(briefing_date)
-    for _ in range(3):
-      # Run the workflow with a state update
-      rich.print(
-        await graph.ainvoke(
-          input=State(
-            day_start_ts=day_start_ts,
-            day_end_ts=end_of_local_day(day_start_ts),
-            briefing_day_location=location_named(LocationName.home),
-          ),
-          config=config,
-          stream_mode="updates",
+    match cmd:
+      case Run(briefing_date, location):
+        config: RunnableConfig = config_for_date(briefing_date)
+        day_start_ts = start_of_local_day(briefing_date)
+        # Run the workflow with a state update
+        rich.print(
+          await graph.ainvoke(
+            input=State(
+              day_start_ts=day_start_ts,
+              day_end_ts=end_of_local_day(day_start_ts),
+              briefing_day_location=location,
+            ),
+            config=config,
+            stream_mode="updates",
+          )
         )
-      )
 
-  # Run the workflow
-  # await workflow.run(briefing_date)
+      case ListCheckpoints(briefing_date):
+        config = config_for_date(briefing_date)
+        saver.list(config=config)
+        pass

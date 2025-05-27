@@ -1,14 +1,13 @@
 from datetime import date
 
 from loguru import logger
-from pydantic import AwareDatetime, BaseModel
+from pydantic import BaseModel
 
 from pirate_weather_api_client.models import HourlyDataItem
 
-from ..events.model import CalendarEvent
 from ..llm import (
   LangfuseAgent,
-  LangfuseInput,
+  LangfuseAgentInput,
   ModelName,
 )
 from ..location import routes_api
@@ -18,10 +17,10 @@ from ..location.routes_api import (
   TimeConstraint,
 )
 from ..workflow import CalendarsOfInterest
-from .model import EventRouteOptions
+from .model import Schedule
 
 
-class SchedulerInput(LangfuseInput):
+class SchedulerInput(LangfuseAgentInput):
   """Input data required by the Timekeeper LLM to determine optimal wake-up times and schedules.
 
   This class encapsulates all the contextual information needed for the scheduling agent
@@ -52,18 +51,7 @@ class SchedulerOutput(BaseModel):
   time, the event that influenced it, and the computed travel routes for the day.
   """
 
-  date: date
-  """The day described by this schedule."""
-
-  wakeup_time: AwareDatetime
-  """The calculated time the user should wake up."""
-
-  triggering_event_details: CalendarEvent | None
-  """The calendar event that was used to determine the wakeup_time. This will be `null` if the
-  wake-up time was based on the latest possible time rather than a specific event."""
-
-  event_travel_routes: list[EventRouteOptions]
-  """Details about the computed routes for travel related to the scheduled event(s)."""
+  schedule: Schedule
 
 
 type SchedulerAgent = LangfuseAgent[SchedulerInput, SchedulerOutput]

@@ -3,10 +3,10 @@ from typing import override
 
 from pydantic import AwareDatetime, BaseModel
 
-from lmnop_wakeup.llm import LangfuseAgent, LangfuseInput, ModelName
+from lmnop_wakeup.llm import LangfuseAgent, LangfuseAgentInput, ModelName
 
 
-class SunsetOracleInput(LangfuseInput):
+class SunsetOracleInput(LangfuseAgentInput):
   """Input for the location resolver agent."""
 
   weather_report: str
@@ -40,6 +40,9 @@ class SunsetQuality(StrEnum):
 
   awful = auto()
   """Sunset likely obscured or completely blocked (0-19)."""
+
+
+type SunsetPrediction = SunsetOracleOutput
 
 
 class SunsetOracleOutput(BaseModel):

@@ -4,16 +4,17 @@ from typing import override
 from clypi import Command, arg
 from loguru import logger
 
-from .arg import parse_date_arg
-from .location.model import LocationName
-from .workflow import run_briefing_workflow
+from .arg import parse_date_arg, parse_location
+from .location.model import CoordinateLocation, LocationName, location_named
+from .workflow import ListCheckpoints, Run, run_workflow_command
 
 
 class Wakeup(Command):
-  """Root command for producing day schedules"""
+  """Generates a daily briefing for the users based on location and date"""
 
-  current_location: LocationName | tuple[float, float] = arg(
-    LocationName.home,
+  current_location: CoordinateLocation = arg(
+    location_named(LocationName.home),
+    parser=parse_location,
     help="name or latlng of the user's location",
   )
   briefing_date: date = arg(
@@ -21,10 +22,18 @@ class Wakeup(Command):
     parser=parse_date_arg,
     help="the date of the briefing [format: YYYY-MM-DD | +N | today | tomorrow]",
   )
+  list_checkpoints: bool = arg(
+    default=False, short="l", help="list checkpoints instead of running the workflow"
+  )
 
   @override
   async def run(self):
-    await run_briefing_workflow(self.briefing_date)
+    cmd = None
+    if self.list_checkpoints:
+      cmd = ListCheckpoints(briefing_date=self.briefing_date)
+    else:
+      cmd = Run(briefing_date=self.briefing_date, briefing_location=self.current_location)
+    await run_workflow_command(cmd)
 
 
 def main():

@@ -5,12 +5,12 @@ import lazy_object_proxy
 from pydantic import BaseModel
 
 from ..core.typing import ensure
-from ..llm import LangfuseAgent, LangfuseInput, ModelName
+from ..llm import LangfuseAgent, LangfuseAgentInput, ModelName
 from .geocode_api import GeocodeSearchResult, geocode_location
 from .model import AddressLocation, CoordinateLocation, NamedLocation
 
 
-class LocationResolverInput(LangfuseInput):
+class LocationResolverInput(LangfuseAgentInput):
   """Input for the location resolver agent."""
 
   home_location: NamedLocation
