@@ -2,16 +2,8 @@ from datetime import date, datetime, time, tzinfo
 
 from pydantic import AwareDatetime, BaseModel
 
+from lmnop_wakeup.core.date import is_timestamp_on_date
 from pirate_weather_api_client.models import AlertsItem, Currently, Daily, Hourly, HourlyDataItem
-
-
-class RegionalWeatherReports(BaseModel):
-  pass
-
-
-def is_timestamp_on_date(ts: int, midnight_on_date: datetime) -> bool:
-  date_to_check = datetime.fromtimestamp(ts, tz=midnight_on_date.tzinfo)
-  return date_to_check.date() == midnight_on_date.date()
 
 
 class WeatherReport(BaseModel):
@@ -42,6 +34,10 @@ class WeatherReport(BaseModel):
 
 class WeatherNotAvailable(Exception):
   pass
+
+
+class RegionalWeatherReports(BaseModel):
+  reports_by_latlng: dict[tuple[float, float], WeatherReport]
 
 
 type WeatherResult = WeatherReport | WeatherNotAvailable

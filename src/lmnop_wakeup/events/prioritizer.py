@@ -1,9 +1,10 @@
 # from typing import override
 
+from typing import override
+
 from pydantic import BaseModel
 
-from lmnop_wakeup.events.model import CalendarEvent, CalendarsOfInterest
-
+from ..events.model import CalendarEvent, CalendarEventId, CalendarsOfInterest
 from ..llm import LangfuseAgent, LangfuseInput, ModelName
 from ..schedule.scheduler import SchedulerOutput
 from ..weather.model import RegionalWeatherReports
@@ -13,31 +14,58 @@ class EventPrioritizerInput(LangfuseInput):
   """Input for the location resolver agent."""
 
   schedule: SchedulerOutput
-  calendars: CalendarsOfInterest
-  # current_date_info
-  weather_data: RegionalWeatherReports
-  yesterday_events: list[CalendarEvent]
+  calendars_of_interest: CalendarsOfInterest
+  regional_weather_reports: RegionalWeatherReports
+  yesterday_events: list[CalendarEvent] | None
 
-  # @override
-  # def to_prompt_variable_map(self) -> dict[str, str]:
-  #   """Convert the input to a map of prompt variables."""
-  #   return {
-  #     "schedule": self.schedule,
-  #     "calendars": self.calendars,
-  #     "current_date_info": self.current_date_info,
-  #     "weather_data": self.weather_data,
-  #     "yesterday_events": self.yesterday_events,
-  #   }
+  @override
+  def to_prompt_variable_map(self) -> dict[str, str]:
+    """Convert the input to a map of prompt variables."""
+    return {
+      k: v.model_dump_json() if v is not None else "null"
+      for k, v in {
+        "schedule": self.schedule,
+        "calendars_of_interest": self.calendars_of_interest,
+        "regional_weather_reports": self.regional_weather_reports,
+        "yesterday_events": self.yesterday_events,
+      }.items()
+    }
 
 
 class EventPrioritizerOutput(BaseModel):
   """Output for the location resolver agent."""
 
-  """Set to the NamedLocation, if the input location was identified as one of the user's named
-  locations, or a CoordinateLocation returned by the geocode tool.
-
-  If no location could be determined, set this value to a ResolutionFailure instance, describing
-  the problem."""
+  must_mention: list[CalendarEventId]
+  """
+  Events that absolutely need to be included in the briefing:
+  - Today's critical wake-up event
+  - Today's high-priority events
+  - Upcoming personal important events (within reminder window)
+  """
+  interesting_to_mention: list[CalendarEventId]
+  """
+  Events worth discussing if space/time allows:
+  - Today's standard events
+  - Upcoming weekend/weeknight plans (within reminder window)
+  - Select informational events that might be particularly relevant
+  - Weather conditions for travel destinations or notable local weather patterns
+  """
+  didnt_quite_make_the_cut: list[CalendarEventId]
+  """
+  Events that were considered but excluded, with brief reasoning:
+  - Informational events that seemed less relevant
+  - Events outside optimal reminder windows
+  - Events that conflict with higher priorities
+  """
+  yesterdays_notable: list[CalendarEventId] | None = None
+  """
+  Interesting observations from yesterday's events for friendly contextual remarks.
+  This field is only required if data about the previous day was provided:
+  - Personal celebrations (birthdays, anniversaries, etc.)
+  - Unusual or irregular events
+  - Late-night activities or events ending unusually late
+  - Anything that seems worth a casual mention or follow-up
+  """
 
 
 type EventPrioritizerAgent = LangfuseAgent[EventPrioritizerInput, EventPrioritizerOutput]

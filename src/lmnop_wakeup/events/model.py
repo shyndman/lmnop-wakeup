@@ -1,5 +1,5 @@
 from collections.abc import Generator
-from typing import Any
+from typing import Any, NewType
 
 from pydantic import AwareDatetime, BaseModel, EmailStr, Field
 from pydantic_extra_types.timezone_name import TimeZoneName
@@ -23,9 +23,14 @@ class CalendarUser(CalendarEmailUser):
   """The email address of the user."""
 
 
+CalendarEventId = NewType("CalendarEventId", str)
+
+
 class CalendarEvent(BaseModel):
   """Represents a single calendar event."""
 
+  event_id: CalendarEventId
+  """Uniquely identifies the event in its calendar"""
   summary: str
   """A brief summary or title of the event."""
   creator: CalendarEmailUser | None = None

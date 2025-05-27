@@ -3,7 +3,7 @@ from typing import Any, Self, TypeVar
 
 from pydantic import AwareDatetime, BaseModel
 
-from lmnop_wakeup.core.typing import nn
+from lmnop_wakeup.core.typing import ensure
 
 from ..models.daily_data_item import DailyDataItem
 
@@ -25,7 +25,7 @@ class Daily(BaseModel):
     if self.data is not None:
       filtered_data = []
       for item in self.data:
-        if nn(item.local_time) > dt:
+        if ensure(item.local_time) > dt:
           break
         filtered_data.append(item)
       self.data = filtered_data

@@ -4,7 +4,7 @@ from typing import override
 import lazy_object_proxy
 from pydantic import BaseModel
 
-from lmnop_wakeup.core.typing import nn
+from lmnop_wakeup.core.typing import ensure
 
 from ..llm import LangfuseAgent, LangfuseInput, ModelName
 from .model import AddressLocation, CoordinateLocation, NamedLocation
@@ -24,7 +24,7 @@ class LocationResolverInput(LangfuseInput):
   def to_prompt_variable_map(self) -> dict[str, str]:
     """Convert the input to a map of prompt variables."""
     return {
-      "location": nn(self.location.address),
+      "location": ensure(self.location.address),
       "home_location": self.home_location.model_dump_json(),
       "named_locations": "\n".join([f" * {location.name}" for location in self.named_locations]),
     }

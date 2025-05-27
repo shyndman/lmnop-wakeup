@@ -35,7 +35,7 @@ def calendar_events_in_range(start_ts: datetime, end_ts: datetime) -> list[Calen
     for cal_ent in cal_ents
   ]
 
-  for calendar in calendars:
+  for cal_idx, calendar in enumerate(calendars):
     res = (
       service.events()
       .list(
@@ -55,6 +55,11 @@ def calendar_events_in_range(start_ts: datetime, end_ts: datetime) -> list[Calen
       continue
 
     calendar.events.extend(list(map(lambda e: CalendarEvent.model_validate(e), events)))
+    cal_events = [
+      CalendarEvent.model_validate({"entity_id": f"h{cal_idx}.{i}"}.update(raw_event))
+      for i, raw_event in enumerate(events)
+    ]
+    calendar.events = cal_events
 
   return calendars
 

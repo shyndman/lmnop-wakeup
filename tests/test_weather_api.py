@@ -1,6 +1,6 @@
 from datetime import date, datetime, time, timezone
 
-from lmnop_wakeup.core.typing import nn
+from lmnop_wakeup.core.typing import ensure
 
 # Import the functions and classes to be tested
 from lmnop_wakeup.weather.model import WeatherReport, is_timestamp_on_date
@@ -67,7 +67,7 @@ def test_get_hourlies_for_day_filters_correctly():
 
   # Expecting only ts1 and ts2 to be included
   expected_timestamps = {ts1, ts2}
-  actual_timestamps = {nn(item.time) for item in hourlies_for_day}
+  actual_timestamps = {ensure(item.time) for item in hourlies_for_day}
 
   assert actual_timestamps == expected_timestamps
   assert len(hourlies_for_day) == 2
@@ -104,7 +104,7 @@ def test_get_hourlies_for_day_none_data():
 
       return list(
         filter(
-          lambda h: is_timestamp_on_date(nn(h.time), midnight_on_date),
+          lambda h: is_timestamp_on_date(ensure(h.time), midnight_on_date),
           hourly_data if hourly_data is not None else [],  # Handle None case in filter
         )
       )

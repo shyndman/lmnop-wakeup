@@ -12,7 +12,7 @@ from langgraph.types import RetryPolicy
 from langgraph_sdk.schema import Send
 from pydantic import AwareDatetime, BaseModel
 
-from lmnop_wakeup.core.typing import nn
+from lmnop_wakeup.core.typing import ensure
 from lmnop_wakeup.events.prioritizer import get_event_prioritizer_agent
 from lmnop_wakeup.location.resolver_agent import LocationResolverInput
 from lmnop_wakeup.location.routes_api import (
@@ -113,13 +113,13 @@ async def send_location_requests(state: State):
     for state in [
       *(
         LocationDataState(
-          location=AddressLocation(address=nn(event.location)),
+          location=AddressLocation(address=ensure(event.location)),
           event_start_ts=event.start_datetime_aware,
           event_end_ts=event.end_datetime_aware,
           day_start_ts=state.day_start_ts,
-          day_end_ts=nn(state.event_consideration_range_end),
+          day_end_ts=ensure(state.event_consideration_range_end),
         )
-        for event in nn(state.calendars).all_events_with_location()
+        for event in ensure(state.calendars).all_events_with_location()
       ),
     ]
   ]

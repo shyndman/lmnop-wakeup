@@ -62,7 +62,7 @@ class SchedulerOutput(BaseModel):
   """The calendar event that was used to determine the wakeup_time. This will be `null` if the
   wake-up time was based on the latest possible time rather than a specific event."""
 
-  routes: list[EventRouteOptions]
+  event_travel_routes: list[EventRouteOptions]
   """Details about the computed routes for travel related to the scheduled event(s)."""
 
 

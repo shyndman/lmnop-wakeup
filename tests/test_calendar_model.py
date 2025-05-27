@@ -9,6 +9,7 @@ from lmnop_wakeup.events.model import (
   Calendar,
   CalendarEmailUser,
   CalendarEvent,
+  CalendarEventId,
   CalendarsOfInterest,
   CalendarUser,
 )
@@ -47,6 +48,7 @@ def test_calendar_event_regular():
   start_dt = create_aware_datetime(2025, 5, 24, 9, 0)
   end_dt = create_aware_datetime(2025, 5, 24, 10, 0)
   event = CalendarEvent(
+    event_id=CalendarEventId("event1"),
     summary="Meeting",
     start=TimeInfo(dateTime=start_dt),
     end=TimeInfo(dateTime=end_dt),
@@ -60,6 +62,7 @@ def test_calendar_event_regular():
 def test_calendar_event_all_day():
   start_date = date(2025, 5, 24)
   event = CalendarEvent(
+    event_id=CalendarEventId("event2"),
     summary="Holiday",
     start=TimeInfo(date=start_date, timeZone="America/Toronto"),
     end=None,
@@ -115,6 +118,7 @@ def test_overlaps_with_range_regular_events(
   range_end = create_aware_datetime(2025, 5, 24, int(range_end_h), int((range_end_h % 1) * 60))
 
   event = CalendarEvent(
+    event_id=CalendarEventId("event3"),
     summary="Test Event",
     start=TimeInfo(dateTime=event_start),
     end=TimeInfo(dateTime=event_end),
@@ -157,7 +161,10 @@ def test_overlaps_with_range_all_day_events(
 ):
   event_date = date(2025, 5, event_day)
   event = CalendarEvent(
-    summary="All Day Event", start=TimeInfo(date=event_date, timeZone="America/Toronto"), end=None
+    event_id=CalendarEventId("event4"),
+    summary="All Day Event",
+    start=TimeInfo(date=event_date, timeZone="America/Toronto"),
+    end=None,
   )
 
   range_start = create_aware_datetime(2025, 5, range_start_day, 0, 0, 0, 0, "America/Toronto")
@@ -174,24 +181,28 @@ def test_calendar_filter_events_by_range():
 
   # Event within range
   event1 = CalendarEvent(
+    event_id=CalendarEventId("event5"),
     summary="Event 1",
     start=TimeInfo(dateTime=create_aware_datetime(2025, 5, 24, 9, 30)),
     end=TimeInfo(dateTime=create_aware_datetime(2025, 5, 24, 10, 30)),
   )
   # Event outside range
   event2 = CalendarEvent(
+    event_id=CalendarEventId("event6"),
     summary="Event 2",
     start=TimeInfo(dateTime=create_aware_datetime(2025, 5, 24, 7, 0)),
     end=TimeInfo(dateTime=create_aware_datetime(2025, 5, 24, 8, 0)),
   )
   # All-day event overlapping
   event3 = CalendarEvent(
+    event_id=CalendarEventId("event7"),
     summary="All Day Event",
     start=TimeInfo(date=date(2025, 5, 24), timeZone="America/Toronto"),
     end=None,
   )
   # All-day event not overlapping
   event4 = CalendarEvent(
+    event_id=CalendarEventId("event8"),
     summary="Another All Day Event",
     start=TimeInfo(date=date(2025, 5, 25), timeZone="America/Toronto"),
     end=None,
@@ -219,6 +230,7 @@ def test_calendar_set_filter():
   # Event for cal1 (overlaps)
   cal1.events.append(
     CalendarEvent(
+      event_id=CalendarEventId("event9"),
       summary="Work Meeting",
       start=TimeInfo(dateTime=create_aware_datetime(2025, 5, 24, 9, 30)),
       end=TimeInfo(dateTime=create_aware_datetime(2025, 5, 24, 10, 30)),
@@ -227,6 +239,7 @@ def test_calendar_set_filter():
   # Event for cal2 (no overlap)
   cal2.events.append(
     CalendarEvent(
+      event_id=CalendarEventId("event10"),
       summary="Personal Appointment",
       start=TimeInfo(dateTime=create_aware_datetime(2025, 5, 24, 12, 0)),
       end=TimeInfo(dateTime=create_aware_datetime(2025, 5, 24, 13, 0)),
@@ -235,6 +248,7 @@ def test_calendar_set_filter():
   # Event for cal3 (overlaps)
   cal3.events.append(
     CalendarEvent(
+      event_id=CalendarEventId("event11"),
       summary="Family Dinner",
       start=TimeInfo(date=date(2025, 5, 24), timeZone="America/Toronto"),
       end=None,

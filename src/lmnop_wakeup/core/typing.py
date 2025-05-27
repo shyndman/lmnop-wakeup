@@ -9,5 +9,5 @@ def assert_not_none(val: T | None) -> T:
   return val
 
 
-def nn(val: T | None) -> T:
+def ensure(val: T | None) -> T:
   return cast(T, val)

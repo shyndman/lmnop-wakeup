@@ -44,13 +44,16 @@ async def calendar_events_in_range(
     calendars = [Calendar.model_validate(raw_cal) for raw_cal in cals_res.json()]
 
     logger.info("requesting calendar events")
-    for cal in calendars:
+    for cal_idx, cal in enumerate(calendars):
       events_res = await client.get(
         RestEndpoints.events_endpoint(cal.entity_id, start_ts, end_ts),
         headers=request_headers,
       )
 
-      cal_events = [CalendarEvent.model_validate(raw_event) for raw_event in events_res.json()]
+      cal_events = [
+        CalendarEvent.model_validate({"entity_id": f"h{cal_idx}.{i}"}.update(raw_event))
+        for i, raw_event in enumerate(events_res.json())
+      ]
       cal.events = cal_events
 
     return calendars

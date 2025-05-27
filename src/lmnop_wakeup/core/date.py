@@ -7,6 +7,11 @@ from zoneinfo import ZoneInfo
 from pydantic import AwareDatetime, BaseModel
 
 
+def is_timestamp_on_date(ts: int, midnight_on_date: datetime) -> bool:
+  date_to_check = datetime.fromtimestamp(ts, tz=midnight_on_date.tzinfo)
+  return date_to_check.date() == midnight_on_date.date()
+
+
 class TimeInfo(BaseModel):
   """Represents time information, either a date or a datetime."""
 
