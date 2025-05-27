@@ -16,7 +16,7 @@ class Wakeup(Command):
     LocationName.home,
     help="name or latlng of the user's location",
   )
-  todays_date: date = arg(
+  briefing_date: date = arg(
     default=date.today() + timedelta(days=1),
     parser=parse_date_arg,
     help="the date of the briefing [format: YYYY-MM-DD | +N | today | tomorrow]",
@@ -24,7 +24,7 @@ class Wakeup(Command):
 
   @override
   async def run(self):
-    await run_briefing_workflow(self.todays_date)
+    await run_briefing_workflow(self.briefing_date)
 
 
 def main():
