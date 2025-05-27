@@ -2,8 +2,9 @@ from datetime import date, datetime, time, tzinfo
 
 from pydantic import AwareDatetime, BaseModel
 
-from lmnop_wakeup.core.date import is_timestamp_on_date
 from pirate_weather_api_client.models import AlertsItem, Currently, Daily, Hourly, HourlyDataItem
+
+from ..core.date import is_timestamp_on_date
 
 
 class WeatherReport(BaseModel):

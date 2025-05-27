@@ -85,7 +85,7 @@ def get_pirate_weather_api_key() -> ApiKey:
   return ApiKey(assert_not_none(os.getenv(EnvName.PIRATE_WEATHER_API_KEY)))
 
 
-def get_google_routes_api_key() -> ApiKey:
+def get_google_cloud_api_key() -> ApiKey:
   """
   Retrieves the Google Routes API key from environment variables.
 
