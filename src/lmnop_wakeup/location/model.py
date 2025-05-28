@@ -1,5 +1,4 @@
 import abc
-from collections.abc import Iterable
 from enum import StrEnum
 from types import MappingProxyType
 from typing import NewType, override
@@ -35,15 +34,6 @@ class Location(BaseModel, abc.ABC):
         Waypoint: The Google Maps Waypoint representation of the location.
     """
     pass
-
-  def has_coordinates(self) -> bool:
-    """
-    Checks if the location has coordinates.
-
-    Returns:
-        bool: True if the location has coordinates, False otherwise.
-    """
-    return False
 
 
 Kilometers = NewType("Kilometers", float)
@@ -101,46 +91,15 @@ class CoordinateLocation(Location):
       )
     )
 
-  @override
-  def has_coordinates(self) -> bool:
-    return True
 
-
-class AddressLocation(Location):
-  """
-  Represents a location defined by a mailing address.
-
-  An LLM may instantiate this class when a location is provided as a mailing address. It is
-  important that the address provided is fully qualified, including the city, province/state,
-  postal/zip code, and country. At most, you can only be missing a couple of these details, or the
-  tool will fail, and you will fail to accomplish your task.
-  """
-
-  model_config = ConfigDict(frozen=True)
-
-  address: str | None = None
-  """The street address of the location."""
-
-  def __init__(self, *args, **kwargs):
-    super().__init__(*args, **kwargs)
-
-  @override
-  def as_waypoint(self) -> Waypoint:
-    """
-    Converts the address location to a Google Maps Waypoint object.
-
-    Returns:
-        Waypoint: The Google Maps Waypoint representation using the address string.
-    """
-    return Waypoint(address=self.address)
-
-
-class ResolvedLocation(CoordinateLocation, AddressLocation):
+class ResolvedLocation(CoordinateLocation):
   """
   Represents a location that has been resolved to both an address and coordinates.
 
   This class is typically used internally after a location (like an address) has been geocoded.
   """
+
+  address: str
 
   def __init__(
     self,
@@ -218,6 +177,7 @@ NAMED_LOCATIONS = MappingProxyType(
       slug=LocationSlug("the_cottage"),
       description="Our family cottage, situated on a small island, accessible only by boat. "
       "We park our car at #village_marina",
+      address="",
       latlng=(44.89267017178425, -79.87324555175594),
     ),
     LocationName.the_farm: NamedLocation(
@@ -262,15 +222,15 @@ class ReferencedLocations(BaseModel):
 
     # TODO: Figure out how we can integrate the persistence layer
 
-  def add_event_location(self, possible_address: str) -> AddressLocation:
-    # TODO: We have to be able to handle this, but I want to see how it happens
-    if possible_address in self.adhoc_location_map:
-      raise ValueError(f"Location {possible_address} already exists in the map.")
-    loc = self.adhoc_location_map[possible_address] = AddressLocation(address=possible_address)
-    return loc
+  # def add_event_location(self, possible_address: str) -> AddressLocation:
+  #   # TODO: We have to be able to handle this, but I want to see how it happens
+  #   if possible_address in self.adhoc_location_map:
+  #     raise ValueError(f"Location {possible_address} already exists in the map.")
+  #   loc = self.adhoc_location_map[possible_address] = AddressLocation(address=possible_address)
+  #   return loc
 
-  def all_locations(self) -> Iterable[Location]:
-    return self.adhoc_location_map.values()
+  # def all_locations(self) -> Iterable[Location]:
+  #   return self.adhoc_location_map.values()
 
   def __add__(self, other: ResolvedLocation) -> "ReferencedLocations":
     """

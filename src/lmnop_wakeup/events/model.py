@@ -2,12 +2,11 @@ from collections.abc import Generator
 from datetime import date
 from typing import Any, NewType
 
-from loguru import logger
 from pydantic import AwareDatetime, BaseModel, EmailStr, Field
 from pydantic_extra_types.timezone_name import TimeZoneName
 
 from ..core.date import TimeInfo, end_of_local_day, start_of_local_day
-from ..location.model import AddressLocation, CoordinateLocation
+from ..location.model import CoordinateLocation
 from ..location.routes_api import CyclingRouteDetails, RouteDetails
 
 
@@ -136,7 +135,6 @@ class CalendarsOfInterest(BaseModel):
     for cal in self.calendars_by_id.values():
       for event in cal.events:
         if event.location:
-          logger.warning(f"event.location={event.location}")
           yield event
 
   def filter(
@@ -194,10 +192,10 @@ class EventRouteOptions(BaseModel):
   reasons why a mode might be unsuitable.
   """
 
-  origin: AddressLocation | CoordinateLocation
+  origin: CoordinateLocation
   """The starting location for the route."""
 
-  destination: AddressLocation | CoordinateLocation
+  destination: CoordinateLocation
   """The ending location for the route."""
 
   related_event_id: list[str] = Field(min_length=1, max_length=2)

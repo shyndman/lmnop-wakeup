@@ -1,8 +1,9 @@
+import itertools
 import operator
 from collections.abc import Mapping
 from contextlib import AsyncExitStack
 from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from typing import Annotated, Literal, cast
 
 import rich
@@ -12,29 +13,29 @@ from langgraph.cache.sqlite import SqliteCache
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from langgraph.graph import StateGraph
 from langgraph.store.postgres import AsyncPostgresStore
-from langgraph.types import CachePolicy, RetryPolicy
-from langgraph_sdk.schema import Send
-from pydantic import AwareDatetime, BaseModel
+from langgraph.types import CachePolicy, RetryPolicy, Send
+from pydantic import AwareDatetime, BaseModel, computed_field
 from pydantic_extra_types.coordinate import Coordinate
 
-from lmnop_wakeup.brief.model import BriefingScript
-from lmnop_wakeup.brief.sectioner_agent import BriefingOutline
-
 from . import APP_DIRS
+from .brief.model import BriefingScript, CharacterPool
+from .brief.script_writer_agent import ScriptWriterInput, get_script_writer_agent
+from .brief.sectioner_agent import BriefingOutline, SectionerInput, get_sectioner_agent
 from .core.date import start_of_local_day
-from .core.typing import ensure
+from .core.typing import assert_not_none, ensure
 from .env import get_postgres_connection_string
 from .events.events_api import get_filtered_calendars_with_notes
-from .events.model import CalendarsOfInterest, Schedule, end_of_local_day
-from .events.prioritizer_agent import RegionalWeatherReports, get_event_prioritizer_agent
+from .events.model import CalendarEvent, CalendarsOfInterest, Schedule, end_of_local_day
+from .events.prioritizer_agent import (
+  PrioritizedEvents,
+  RegionalWeatherReports,
+  get_event_prioritizer_agent,
+)
 from .events.scheduler_agent import RouteDetailsByMode, get_scheduler_agent
 from .location.model import (
   NAMED_LOCATIONS,
-  AddressLocation,
   CoordinateLocation,
-  Location,
   LocationName,
-  NamedLocation,
   ReferencedLocations,
   ResolvedLocation,
   location_named,
@@ -95,11 +96,32 @@ class State(BaseModel):
   """A schedule of events for the day, including their start and end times, locations, and
   travel information"""
 
+  prioritized_events: PrioritizedEvents | None = None
+  """A list of events prioritized for the briefing, including their importance and
+  relevance to the day's schedule."""
+
   briefing_outline: BriefingOutline | None = None
   """An outline of the briefing, including sections and their content."""
 
   briefing_script: BriefingScript | None = None
   """The final script for the briefing, including all sections and their content."""
+
+  @computed_field
+  @property
+  def yesterday_events(self) -> list[CalendarEvent]:
+    if self.calendars is None:
+      return []
+
+    return list(
+      itertools.chain.from_iterable(
+        [
+          cal.filter_events_by_range(
+            self.day_start_ts - timedelta(days=1), self.day_end_ts - timedelta(days=1)
+          )
+          for cal in self.calendars.calendars_by_id.values()
+        ]
+      )
+    )
 
 
 class LocationDataState(BaseModel):
@@ -114,7 +136,8 @@ class LocationDataState(BaseModel):
   event_start_ts: AwareDatetime
   event_end_ts: AwareDatetime
 
-  location: Location
+  address: str
+  resolved_location: CoordinateLocation | None = None
   weather: WeatherReport | None = None
 
 
@@ -134,7 +157,7 @@ async def populate_raw_inputs(state: State):
 
   calendars = CalendarsOfInterest(
     calendars=await get_filtered_calendars_with_notes(
-      start_ts=state.day_start_ts,
+      start_ts=cast(datetime, state.day_start_ts) - timedelta(days=1),
       end_ts=span_end,
     )
   )
@@ -153,11 +176,17 @@ async def populate_raw_inputs(state: State):
 
 
 async def send_location_requests(state: State) -> Literal["resolve_location"]:
+  # import debugpy
+
+  # logger.debug("Beginning debugpy session")
+  # debugpy.listen(("0.0.0.0", 5678))
+  # debugpy.wait_for_client()
+
   # Loop over all locations taken from calendars
   # `Send` each of them in turn to resolve_location
   location_data_states = [
     LocationDataState(
-      location=AddressLocation(address=event.location),
+      address=event.location,
       event_start_ts=event.start_datetime_aware,
       event_end_ts=event.end_datetime_aware,
       day_start_ts=state.day_start_ts,
@@ -173,41 +202,40 @@ async def send_location_requests(state: State) -> Literal["resolve_location"]:
 
   return [
     Send(
-      node="resolve_location",
-      input=loc_state.model_dump(),
+      "resolve_location",
+      loc_state,
     )
     for loc_state in location_data_states
   ]  # type: ignore[return-value]
 
 
 async def resolve_location(state: LocationDataState) -> LocationDataState:
-  if state.location.has_coordinates():
-    # If the location already has coordinates, we can skip geocoding
-    return state
-
   location_resolver = get_location_resolver_agent()
-  input_location = cast(AddressLocation, state.location)
   input = LocationResolverInput(
-    location=input_location,
+    address=state.address,
     home_location=location_named(LocationName.home),
     named_locations=list(NAMED_LOCATIONS.values()),
   )
 
   result = await location_resolver.run(input)
-  if isinstance(result.location, NamedLocation):
-    return state
-  if isinstance(result.location, CoordinateLocation):
-    coordinate = result.location.latlng
+
+  if result.special_location is not None:
+    if result.special_location not in LocationName:
+      raise ValueError(f"Special location {result.special_location} is not a valid LocationName")
     return state.model_copy(
       update={
-        "location": ResolvedLocation(
-          address=input_location.address,
-          latlng=(coordinate.latitude, coordinate.longitude),
-        ),
+        "resolved_location": location_named(LocationName(result.special_location)),
       }
     )
 
-  raise ValueError(result.location.failure_reason or "Unknown location resolution failure")
+  if isinstance(result.geocoded_location, ResolvedLocation):
+    return state.model_copy(
+      update={
+        "resolved_location": result.geocoded_location,
+      }
+    )
+
+  raise ValueError(result.failure_reason or "Unknown location resolution failure")
 
 
 DISTANCE_WEATHER_THRESHOLD = 40  # km
@@ -216,7 +244,7 @@ DISTANCE_WEATHER_THRESHOLD = 40  # km
 async def request_weather(state: LocationDataState):
   # At this point, state.location will have a coordinate
   home = location_named(LocationName.home)
-  destination = state.location
+  destination = state.resolved_location
 
   if (
     isinstance(destination, CoordinateLocation)
@@ -231,7 +259,7 @@ async def request_weather(state: LocationDataState):
 
   return {
     "regional_weather": [state.weather],
-    "referenced_locations": [state.location],
+    "referenced_locations": [state.resolved_location],
   }
 
 
@@ -270,11 +298,32 @@ async def prioritize_events(state: State) -> State:
 
 
 async def write_briefing_outline(state: State) -> State:
-  return state
+  sectioner = get_sectioner_agent()
+  input = SectionerInput(
+    schedule=assert_not_none(state.schedule),
+    prioritized_events=assert_not_none(state.prioritized_events),
+    regional_weather_reports=assert_not_none(state.regional_weather),
+    yesterday_events=assert_not_none(state.yesterday_events),
+  )
+  out = await sectioner.run(input=input)
+  state.model_copy(update={"briefing_script": out})
+  return state.model_copy(update={"briefing_script": out})
 
 
 async def write_briefing_script(state: State) -> State:
-  return state
+  script_writer = get_script_writer_agent()
+  input = ScriptWriterInput(
+    briefing_outline=assert_not_none(state.briefing_outline),
+    prioritized_events=assert_not_none(state.prioritized_events),
+    schedule=assert_not_none(state.schedule),
+    weather_report=assert_not_none(state.weather_analysis),
+    sunset_prediction=assert_not_none(state.sunset_prediction),
+    character_pool=CharacterPool(),
+    previous_scripts=[],
+  )
+  out = await script_writer.run(input=input)
+  state.model_copy(update={"briefing_script": out})
+  return state.model_copy(update={"briefing_script": out})
 
 
 builder = StateGraph(State)
@@ -291,11 +340,7 @@ builder.add_node(write_briefing_script)
 
 builder.set_entry_point("populate_raw_inputs")
 builder.add_conditional_edges(
-  "populate_raw_inputs",
-  send_location_requests,
-  {
-    "resolve_location": "resolve_location",
-  },
+  "populate_raw_inputs", send_location_requests, then="resolve_location"
 )
 builder.add_edge("resolve_location", "request_weather")
 builder.add_edge("request_weather", "fork_analysis")
@@ -336,6 +381,7 @@ def config_for_date(briefing_date: date) -> RunnableConfig:
   return {
     "configurable": {
       "thread_id": briefing_date.isoformat(),
+      # "checkpoint_id": "1f03c061-e828-6d6b-8009-f87baade1033",
     }
   }
 

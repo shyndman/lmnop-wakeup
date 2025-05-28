@@ -2,7 +2,7 @@ import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import cast
+from typing import Any, cast
 
 from google import genai
 from google.genai.types import HttpOptions
@@ -101,11 +101,12 @@ class AgentContext[Input: LangfuseAgentInput]:
   instructions_prompt: str
   user_prompt: str
 
-  def __init__(self, **kwargs):
-    super().__init__(**kwargs)
+  def __init__(self, prompt: Prompt_Chat, input: Input):
+    self.prompt = prompt
+    self.input = input
 
     client = ChatPromptClient(self.prompt)
-    missing_vars = self.input.prompt_variables_supplied.difference(set(client.variables))
+    missing_vars = set(client.variables).difference(self.input.prompt_variables_supplied)
     if len(missing_vars) > 1:
       raise ValueError(
         f"Prompt {self.prompt.name} input variables do not satisfy, missing={missing_vars}"
@@ -184,10 +185,9 @@ class LangfuseAgent[Input: LangfuseAgentInput, Output: BaseModel]:
     )
 
     raw_prompt = cast(Prompt_Chat, res)
-
-    # TODO: At this point we should be able to verify that the prompt's variables match what the
-    # input type supplies, although we may have to expose it on the class...if that's something
-    # that you can do in Python?
+    model_settings: dict[str, Any] = res.config
+    if model != ModelName.GEMINI_25_FLASH and model != ModelName.GEMINI_25_PRO:
+      del model_settings["google_thinking_config"]
 
     # Create agent without instructions (will be set via decorator)
     agent = Agent(

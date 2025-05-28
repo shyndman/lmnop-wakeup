@@ -1,12 +1,13 @@
 from typing import cast
 
 import geopy
+from geopy.adapters import AioHTTPAdapter
 from geopy.geocoders import GoogleV3
+from haversine import Unit, haversine
 from pydantic import BaseModel
 from pydantic_extra_types.coordinate import Coordinate
 
-from lmnop_wakeup.core.typing import assert_not_none
-
+from ..core.typing import assert_not_none
 from ..env import get_google_cloud_api_key
 
 
@@ -27,25 +28,28 @@ class GeocodeSearchResult(BaseModel):
   latlng: Coordinate
   """
   The geographical coordinates (latitude and longitude) of the geocoded location.
-
-  Latitude specifies the north-south position of a point on the Earth's surface,
-  while longitude specifies the east-west position. Together, they form a unique
-  point that can be plotted on a map. For example, 37.4220 latitude and -122.0841 longitude
-  point to Google's headquarters in Mountain View, California.
   """
 
   address: str
   """
   The human-readable, formatted address string for the geocoded location.
 
-  This is typically a standardized and complete address returned by the geocoding service, which may
+  This is a standardized and complete address returned by the geocoding service, which may
   differ slightly from the original input query. It provides a clear, understandable description of
   the location corresponding to the `latlng` coordinates. For instance, if the input was "Eiffel
   Tower", the address might be "Champ de Mars, 5 Av. Anatole France, 75007 Paris, France".
   """
 
+  distance_from_user_km: float | None
+  """
+  The distance in kilometers from the user's home location to the geocoded location. Can be used to
+  determine the correct geocode result based on the user's context.
+  """
 
-async def geocode_location(address: str) -> list[GeocodeSearchResult]:
+
+async def geocode_location(
+  address: str, include_distance_from: Coordinate | None = None
+) -> list[GeocodeSearchResult]:
   """
   Geocode a location using Google Maps API.
 
@@ -55,13 +59,15 @@ async def geocode_location(address: str) -> list[GeocodeSearchResult]:
   Returns:
       list[GeocodeSearchResult]: A list of geocoding results for the address.
   """
-  geolocator = GoogleV3(api_key=get_google_cloud_api_key())
-  res = await assert_not_none(geolocator.geocode(query=address))
+  async with GoogleV3(
+    api_key=get_google_cloud_api_key(), adapter_factory=AioHTTPAdapter
+  ) as geolocator:
+    res = await assert_not_none(geolocator.geocode(query=address, exactly_one=False))
 
   if res is None:
     raise ValueError(f"Could not geocode address: {address}")
 
-  if not isinstance(list, res):
+  if not isinstance(res, list):
     raise TypeError(f"Expected a list of geocoding results, got {type(res)}")
 
   location_list = cast(list[geopy.Location], res)
@@ -70,6 +76,16 @@ async def geocode_location(address: str) -> list[GeocodeSearchResult]:
     GeocodeSearchResult(
       latlng=Coordinate(latitude=location.latitude, longitude=location.longitude),
       address=location.address,
+      distance_from_user_km=cast(
+        float,
+        haversine(
+          (include_distance_from.latitude, include_distance_from.longitude),
+          (location.latitude, location.longitude),
+          unit=Unit.KILOMETERS,
+        ),
+      )
+      if include_distance_from
+      else None,
     )
     for location in location_list
   ]

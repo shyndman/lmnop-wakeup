@@ -1,13 +1,13 @@
-from collections.abc import Callable
 from typing import override
 
 import lazy_object_proxy
+from loguru import logger
 from pydantic import BaseModel
 
 from ..core.typing import ensure
 from ..llm import LangfuseAgent, LangfuseAgentInput, ModelName
 from .geocode_api import GeocodeSearchResult, geocode_location
-from .model import AddressLocation, CoordinateLocation, NamedLocation
+from .model import NamedLocation, ResolvedLocation
 
 
 class LocationResolverInput(LangfuseAgentInput):
@@ -17,35 +17,34 @@ class LocationResolverInput(LangfuseAgentInput):
   """The user's home location, where they begin their day"""
   named_locations: list[NamedLocation]
   """Special locations for the user, that are referenced by shorter titles"""
-  location: AddressLocation
+  address: str
   """The location to resolve."""
+  # location: CoordinateLocation | None = None
 
   @override
   def to_prompt_variable_map(self) -> dict[str, str]:
     """Convert the input to a map of prompt variables."""
     return {
-      "location": ensure(self.location.address),
+      "event_location": ensure(self.address),
       "home_location": self.home_location.model_dump_json(),
       "named_locations": "\n".join([f" * {location.name}" for location in self.named_locations]),
     }
 
 
-class ResolutionFailure(BaseModel):
-  """Indicates failure to resolve a location"""
-
-  failure_reason: str | None = None
-  """If no location could be determined, this field should contain a reason for the failure."""
-
-
 class LocationResolverOutput(BaseModel):
   """Output for the location resolver agent."""
 
-  location: NamedLocation | CoordinateLocation | ResolutionFailure
-  """Set to the NamedLocation, if the input location was identified as one of the user's named
-  locations, or a CoordinateLocation returned by the geocode tool.
+  special_location: str | None = None
+  """Set to the location's name if the input location was identified as one of the user's named
+  locations."""
 
-  If no location could be determined, set this value to a ResolutionFailure instance, describing
-  the problem."""
+  geocoded_location: ResolvedLocation | None = None
+  """Set to a resolved location object if a likely location candidate was successfully
+  determined."""
+
+  failure_reason: str | None = None
+  """If no location could be determined, set this value to a ResolutionFailure instance, describing
+  the problem. Otherwise leave unset."""
 
 
 type LocationResolverAgent = LangfuseAgent[LocationResolverInput, LocationResolverOutput]
@@ -56,7 +55,7 @@ def _get_location_resolver_agent() -> LocationResolverAgent:
 
   agent = LangfuseAgent[LocationResolverInput, LocationResolverOutput].create(
     "location_resolver",
-    model=ModelName.GEMINI_20_FLASH_LITE,
+    model=ModelName.GEMINI_20_FLASH,
     input_type=LocationResolverInput,
     output_type=LocationResolverOutput,
   )
@@ -87,17 +86,27 @@ def _get_location_resolver_agent() -> LocationResolverAgent:
 
     Returns:
       list[GeocodeSearchResult]: A list of `GeocodeSearchResult` objects. Each object in the list
-        represents a possible geocoded location, containing both the `latlng` (latitude and
-        longitude) and the `address` (a standardized, human-readable format of the location). A list
-        is returned because a single input query might correspond to multiple real-world locations
-        (e.g., "Springfield" exists in many states). If no location can be found for the given
-        input, an empty list will be returned.
+        represents a possible geocoded location, containing the `latlng` (latitude and longitude),
+        the `address` (a standardized, human-readable format of the location), and
+        `distance_from_home_km` (the distance in kilometers from your home location). A list is
+        returned because a single input query might correspond to multiple real-world locations
+        (e.g., "Springfield" exists in many states). Results are typically ordered by relevance, but
+        the distance field can help select the most appropriate option. If no location can be found
+        for the given input, an empty list will be returned.
     """
-    return await geocode_location(location)
+    logger.debug("Geocoding location: {}", location)
+    result = await geocode_location(location)
+    logger.debug("Geocoding result: {}", result)
+    return result
 
   return agent
 
 
-get_location_resolver_agent: Callable[[], LocationResolverAgent] = lazy_object_proxy.Proxy(
+_location_resolver_agent: LocationResolverAgent = lazy_object_proxy.Proxy(
   _get_location_resolver_agent
 )
+
+
+def get_location_resolver_agent() -> LocationResolverAgent:
+  """Get the location resolver agent."""
+  return _location_resolver_agent

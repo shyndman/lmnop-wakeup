@@ -2,6 +2,8 @@ from typing import override
 
 from pydantic import RootModel
 
+from lmnop_wakeup.weather.sunset_oracle_agent import SunsetPrediction
+
 from ..events.model import Schedule
 from ..llm import LangfuseAgent, LangfuseAgentInput, ModelName
 from ..weather.meteorologist_agent import WeatherReportForBrief
@@ -15,24 +17,21 @@ class PreviousScripts(RootModel[list[BriefingScript]]):
 
 class ScriptWriterInput(LangfuseAgentInput):
   briefing_outline: BriefingOutline
-
   prioritized_events: PrioritizedEvents
-
   schedule: Schedule
-
-  weather_data: WeatherReportForBrief
-
+  weather_report: WeatherReportForBrief
+  sunset_prediction: SunsetPrediction
   character_pool: CharacterPool
-
   previous_scripts: list[BriefingScript]
 
   @override
   def to_prompt_variable_map(self) -> dict[str, str]:
     return {
       "briefing_outline": self.briefing_outline.model_dump_json(),
-      "prioritized_events": self.prioritized_events.model_dump_json(),
       "schedule": self.schedule.model_dump_json(),
-      "weather_data": self.weather_data.model_dump_json(),
+      "prioritized_events": self.prioritized_events.model_dump_json(),
+      "weather_report": self.weather_report.model_dump_json(),
+      "sunset_prediction": self.sunset_prediction.model_dump_json(),
       "character_pool": self.character_pool.model_dump_json(),
       "previous_scripts": PreviousScripts(self.previous_scripts).model_dump_json(),
     }

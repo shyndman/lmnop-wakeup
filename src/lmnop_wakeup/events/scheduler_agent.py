@@ -11,7 +11,7 @@ from ..llm import (
   ModelName,
 )
 from ..location import routes_api
-from ..location.model import AddressLocation, CoordinateLocation
+from ..location.model import CoordinateLocation
 from ..location.routes_api import (
   RouteDetailsByMode,
   TimeConstraint,
@@ -39,7 +39,7 @@ class SchedulerInput(LangfuseAgentInput):
   hourly_weather: list[HourlyDataItem]
   """Hourly weather forecast data that may impact transportation mode decisions and timing."""
 
-  home_location: AddressLocation | CoordinateLocation
+  home_location: CoordinateLocation
   """The user's home location, used as the origin point for route calculations."""
 
 
@@ -68,8 +68,8 @@ def get_scheduler_agent() -> SchedulerAgent:
 
   @agent.tool_plain()
   async def compute_routes(
-    origin: AddressLocation | CoordinateLocation,
-    destination: AddressLocation | CoordinateLocation,
+    origin: CoordinateLocation,
+    destination: CoordinateLocation,
     time_constraint: TimeConstraint,
     include_cycling: bool,
     include_transit: bool,

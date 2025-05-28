@@ -1,5 +1,8 @@
+import functools
+import inspect
 import os
-from typing import Any
+from collections.abc import Callable, Coroutine
+from typing import Any, ParamSpec, TypeVar
 
 import logfire
 
@@ -113,3 +116,27 @@ def langfuse_span(name: str, tags: list[str] | None = None) -> LangfuseSpanConte
       An instance of LangfuseSpanContext.
   """
   return LangfuseSpanContext(name=name, tags=tags)
+
+
+_P = ParamSpec("_P")
+_R = TypeVar("_R")
+_F = TypeVar("_F", bound=Callable[..., Any])
+
+
+def trace_async(
+  func: Callable[_P, Coroutine[Any, Any, _R]],
+) -> Callable[_P, Coroutine[Any, Any, _R]]:
+  """
+  A decorator that wraps an async function with a Langfuse span.
+  The span will have the same name as the function.
+  """
+
+  @functools.wraps(func)
+  async def wrapper(*args: _P.args, **kwargs: _P.kwargs) -> _R:
+    if not inspect.iscoroutinefunction(func):
+      raise TypeError(f"Function {func.__name__} is not an async function.")
+
+    with langfuse_span(name=func.__name__):
+      return await func(*args, **kwargs)
+
+  return wrapper

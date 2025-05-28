@@ -25,7 +25,9 @@ def initialize_logging():
   )
   # HACK(https://github.com/Delgan/loguru/issues/1252): Someone thinks that it makes sense to
   # optimize for aesthetics over THE ABILITY TO READ EXCEPTIONS.
-  logger._core.handlers[1]._exception_formatter._max_length = 3000  # type: ignore
+  logger._core.handlers[1]._exception_formatter._max_length = 200  # type: ignore
+
+  logging.basicConfig(handlers=[InterceptHandler()], level=0, force=True)
 
 
 class InterceptHandler(logging.Handler):

@@ -16,11 +16,8 @@ class SectionerInput(LangfuseAgentInput):
   """Input for the sectioner agent."""
 
   schedule: Schedule
-
   prioritized_events: PrioritizedEvents
-
   regional_weather_reports: RegionalWeatherReports
-
   yesterday_events: list[CalendarEvent]
 
   @override

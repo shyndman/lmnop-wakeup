@@ -18,7 +18,7 @@ from pydantic import BaseModel, computed_field
 
 from ..core.asyncio import gather_map
 from ..env import ApiKey, get_google_cloud_api_key
-from .model import AddressLocation, CoordinateLocation
+from .model import CoordinateLocation
 
 
 class RouteDetails(BaseModel):
@@ -51,8 +51,8 @@ class DrivingRouteDetails(RouteDetails):
 
 
 class RouteDetailsByMode(BaseModel):
-  origin: AddressLocation | CoordinateLocation
-  destination: AddressLocation | CoordinateLocation
+  origin: CoordinateLocation
+  destination: CoordinateLocation
 
   bike: CyclingRouteDetails | NoRouteFound | None
   drive: DrivingRouteDetails | NoRouteFound
@@ -89,8 +89,8 @@ class DepartAtConstraint(BaseModel):
 
 
 async def compute_route_durations(
-  origin: AddressLocation | CoordinateLocation,
-  destination: AddressLocation | CoordinateLocation,
+  origin: CoordinateLocation,
+  destination: CoordinateLocation,
   time_constraint: TimeConstraint,
   include_cycling: bool,
   include_transit: bool,
@@ -223,8 +223,8 @@ FIELD_MASK_HEADER = (
 
 def create_route_request(
   mode: RouteTravelMode,
-  origin: AddressLocation | CoordinateLocation,
-  destination: AddressLocation | CoordinateLocation,
+  origin: CoordinateLocation,
+  destination: CoordinateLocation,
   departure_time: datetime,
 ) -> ComputeRoutesRequest:
   logger.debug(
