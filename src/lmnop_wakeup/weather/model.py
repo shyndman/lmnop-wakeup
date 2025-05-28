@@ -31,11 +31,14 @@ class WeatherNotAvailable(Exception):
 class RegionalWeatherReports(BaseModel):
   reports_by_latlng: dict[Coordinate, list[WeatherReport]] = {}
 
-  def __add__(self, weather_report: WeatherReport) -> "RegionalWeatherReports":
-    if weather_report.location.latlng not in self.reports_by_latlng:
-      self.reports_by_latlng[weather_report.location.latlng] = []
-    self.reports_by_latlng[weather_report.location.latlng].append(weather_report)
-    return self
+  def __add__(self, weather_report: "RegionalWeatherReports") -> "RegionalWeatherReports":
+    """Merges weather_report with the receiver into a new instance"""
+    new_reports = self.reports_by_latlng.copy()
+    for latlng, reports in weather_report.reports_by_latlng.items():
+      if latlng not in new_reports:
+        new_reports[latlng] = []
+      new_reports[latlng].extend(reports)
+    return RegionalWeatherReports(reports_by_latlng=new_reports)
 
 
 type WeatherResult = WeatherReport | WeatherNotAvailable

@@ -1439,7 +1439,6 @@ source = { editable = "." }
 dependencies = [
     { name = "aiosqlite" },
     { name = "attrs" },
-    { name = "cachetools" },
     { name = "clypi" },
     { name = "email-validator" },
     { name = "geopy" },
@@ -1470,7 +1469,6 @@ dependencies = [
     { name = "random-word-generator" },
     { name = "requests" },
     { name = "rich" },
-    { name = "shelved-cache" },
     { name = "typer" },
     { name = "waze-traffic-api" },
 ]
@@ -1487,7 +1485,6 @@ dev = [
 requires-dist = [
     { name = "aiosqlite", specifier = ">=0.21.0" },
     { name = "attrs", specifier = ">=22.2.0" },
-    { name = "cachetools", specifier = ">=5.5.2" },
     { name = "clypi", specifier = ">=1.2.22" },
     { name = "email-validator", specifier = ">=2.2.0" },
     { name = "geopy", specifier = ">=2.4.1" },
@@ -1518,7 +1515,6 @@ requires-dist = [
     { name = "random-word-generator", specifier = ">=1.3" },
     { name = "requests", specifier = ">=2.32.3" },
     { name = "rich", git = "ssh://git@github.com/shyndman/rich" },
-    { name = "shelved-cache", specifier = ">=0.4.0" },
     { name = "typer", specifier = ">=0.15.4" },
     { name = "waze-traffic-api", git = "https://github.com/hewliyang/waze-traffic-api" },
 ]
@@ -2788,18 +2784,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/58/15/8b3609fd3830ef7b27b655beb4b4e9c62313a4e8da8c676e142cc210d58e/shellingham-1.5.4.tar.gz", hash = "sha256:8dbca0739d487e5bd35ab3ca4b36e11c4078f3a234bfce294b0a0291363404de", size = 10310, upload-time = "2023-10-24T04:13:40.426Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/e0/f9/0595336914c5619e5f28a1fb793285925a8cd4b432c9da0a987836c7f822/shellingham-1.5.4-py2.py3-none-any.whl", hash = "sha256:7ecfff8f2fd72616f7481040475a65b2bf8af90a56c89140852d1120324e8686", size = 9755, upload-time = "2023-10-24T04:13:38.866Z" },
-]
-
-[[package]]
-name = "shelved-cache"
-version = "0.4.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "cachetools" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/35/f8/f305abd2649539a059147df87fbce38ae2aae15fe982010a8f7162a6fe6b/shelved_cache-0.4.0.tar.gz", hash = "sha256:59c003f715d69f7bfadf461b68fae262db39cf6ab71d288dfeb24cc8637abece", size = 6776, upload-time = "2024-10-19T20:09:42.202Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/6c/01/79f4dbc62b3e10293e4b5b3ac3bae39302979c3632e5b89590b1c8f0e864/shelved_cache-0.4.0-py3-none-any.whl", hash = "sha256:37eb48da1b91dee27157a50a045cb433dc6486528279804e6189fd7a2d755a5e", size = 8116, upload-time = "2024-10-19T20:09:40.972Z" },
 ]
 
 [[package]]

@@ -16,8 +16,7 @@ from ..location.routes_api import (
   RouteDetailsByMode,
   TimeConstraint,
 )
-from ..workflow import CalendarsOfInterest
-from .model import Schedule
+from .model import CalendarsOfInterest, Schedule
 
 
 class SchedulerInput(LangfuseAgentInput):

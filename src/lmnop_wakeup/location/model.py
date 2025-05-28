@@ -9,7 +9,7 @@ from google.maps.routing import Location as GLocation
 from google.maps.routing import Waypoint
 from google.type.latlng_pb2 import LatLng as GLatLng
 from haversine import Unit, haversine
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from pydantic_extra_types.coordinate import Coordinate, Latitude, Longitude
 
 from lmnop_wakeup.core.typing import ensure
@@ -116,6 +116,8 @@ class AddressLocation(Location):
   tool will fail, and you will fail to accomplish your task.
   """
 
+  model_config = ConfigDict(frozen=True)
+
   address: str | None = None
   """The street address of the location."""
 
@@ -156,6 +158,8 @@ class NamedLocation(ResolvedLocation):
   An LLM will eventually be able to use a tool to retrieve instances of this class
   based on their name or slug.
   """
+
+  model_config = ConfigDict(frozen=True)
 
   name: str
   """The human-readable name of the location."""

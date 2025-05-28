@@ -1,4 +1,5 @@
 import operator
+from collections.abc import Mapping
 from contextlib import AsyncExitStack
 from dataclasses import dataclass
 from datetime import date, timedelta
@@ -11,10 +12,13 @@ from langgraph.cache.sqlite import SqliteCache
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from langgraph.graph import StateGraph
 from langgraph.store.postgres import AsyncPostgresStore
-from langgraph.types import RetryPolicy
+from langgraph.types import CachePolicy, RetryPolicy
 from langgraph_sdk.schema import Send
 from pydantic import AwareDatetime, BaseModel
 from pydantic_extra_types.coordinate import Coordinate
+
+from lmnop_wakeup.brief.model import BriefingScript
+from lmnop_wakeup.brief.sectioner_agent import BriefingOutline
 
 from . import APP_DIRS
 from .core.date import start_of_local_day
@@ -23,7 +27,7 @@ from .env import get_postgres_connection_string
 from .events.events_api import get_filtered_calendars_with_notes
 from .events.model import CalendarsOfInterest, Schedule, end_of_local_day
 from .events.prioritizer_agent import RegionalWeatherReports, get_event_prioritizer_agent
-from .events.scheduler_agent import get_scheduler_agent
+from .events.scheduler_agent import RouteDetailsByMode, get_scheduler_agent
 from .location.model import (
   NAMED_LOCATIONS,
   AddressLocation,
@@ -36,6 +40,8 @@ from .location.model import (
   location_named,
 )
 from .location.resolver_agent import LocationResolverInput, get_location_resolver_agent
+from .weather.meteorologist_agent import WeatherReportForBrief
+from .weather.sunset_oracle_agent import SunsetPrediction
 from .weather.weather_api import WeatherReport, get_weather_report
 
 type RouteKey = tuple[str, Coordinate]
@@ -55,11 +61,10 @@ class State(BaseModel):
   """Time -1 (last microsecond) on the day of the briefing, in the local timezone. This is useful
   for calculating datetime ranges."""
 
+  # TODO: It would be interesting to be able to build multiple briefings if Scott and Hilary are
+  # apart.
   briefing_day_location: CoordinateLocation
-  """Where Scott and Hilary are at the start of the day.
-  TODO: It would be interesting to be able to build multiple briefings if Scott and Hilary are
-  apart.
-  """
+  """Where Scott and Hilary are at the start of the day."""
 
   event_consideration_range_end: AwareDatetime | None = None
   """The end of the range of events to consider for the briefing."""
@@ -75,15 +80,26 @@ class State(BaseModel):
   """Contains weather reports for all locations the user may occupy, for the dates they would
   occupy them, as determined by the calendars"""
 
-  # route_durations_by_event_origin: Mapping[RouteKey, RouteDetailsByMode] | None = None
-  # """A dictionary mapping event origin (calendar event ID, coordinate of origin) to
-  # route durations. Note that these are not necessary routes that are taken."""
+  route_durations: Mapping[RouteKey, RouteDetailsByMode] | None = None
+  """A dictionary mapping event origin (calendar event ID, coordinate of origin) to
+  route durations. Note that these are not necessary routes that are taken."""
 
-  # weather_analysis: MetereologistOutput
+  sunset_prediction: SunsetPrediction | None = None
+  """A prediction of the sunset beauty for the day, including the best viewing time and
+  overall rating."""
+
+  weather_analysis: WeatherReportForBrief | None = None
+  """A weather report for the day, including temperature, conditions, and air quality."""
 
   schedule: Schedule | None = None
   """A schedule of events for the day, including their start and end times, locations, and
   travel information"""
+
+  briefing_outline: BriefingOutline | None = None
+  """An outline of the briefing, including sections and their content."""
+
+  briefing_script: BriefingScript | None = None
+  """The final script for the briefing, including all sections and their content."""
 
 
 class LocationDataState(BaseModel):
@@ -108,7 +124,7 @@ FUTURE_EVENTS_TIMEDELTA = timedelta(days=16)
 async def populate_raw_inputs(state: State):
   span_end = state.day_end_ts + FUTURE_EVENTS_TIMEDELTA
 
-  regional_weather = state.regional_weather.model_copy() + await get_weather_report(
+  local_weather = await get_weather_report(
     location=state.briefing_day_location,
     report_start_ts=state.day_start_ts,
     report_end_ts=span_end,
@@ -123,6 +139,12 @@ async def populate_raw_inputs(state: State):
     )
   )
 
+  regional_weather = RegionalWeatherReports(
+    reports_by_latlng={
+      state.briefing_day_location.latlng: [local_weather],
+    }
+  )
+
   return {
     "event_consideration_range_end": span_end,
     "calendars": calendars,
@@ -135,13 +157,14 @@ async def send_location_requests(state: State) -> Literal["resolve_location"]:
   # `Send` each of them in turn to resolve_location
   location_data_states = [
     LocationDataState(
-      location=AddressLocation(address=ensure(event.location)),
+      location=AddressLocation(address=event.location),
       event_start_ts=event.start_datetime_aware,
       event_end_ts=event.end_datetime_aware,
       day_start_ts=state.day_start_ts,
       day_end_ts=ensure(state.event_consideration_range_end),
     )
     for event in ensure(state.calendars).all_events_with_location()
+    if event.location is not None and event.location.strip() != ""
   ]
 
   if not location_data_states:
@@ -151,9 +174,9 @@ async def send_location_requests(state: State) -> Literal["resolve_location"]:
   return [
     Send(
       node="resolve_location",
-      input=state.model_dump(),
+      input=loc_state.model_dump(),
     )
-    for state in location_data_states
+    for loc_state in location_data_states
   ]  # type: ignore[return-value]
 
 
@@ -237,6 +260,10 @@ async def analyze_weather(state: State) -> State:
   return state
 
 
+async def predict_sunset_beauty(state: State) -> State:
+  return state
+
+
 async def prioritize_events(state: State) -> State:
   _event_prioritizer = get_event_prioritizer_agent()
   return state
@@ -251,22 +278,37 @@ async def write_briefing_script(state: State) -> State:
 
 
 builder = StateGraph(State)
-builder.add_node(populate_raw_inputs)
+builder.add_node(populate_raw_inputs, cache_policy=CachePolicy(ttl=120 * 60))
 builder.add_node(resolve_location)
 builder.add_node(request_weather, retry=RetryPolicy(max_attempts=3))
 builder.add_node(fork_analysis, defer=True)
 builder.add_node(calculate_schedule)
 builder.add_node(analyze_weather)
+builder.add_node(predict_sunset_beauty)
 builder.add_node(prioritize_events, defer=True)
 builder.add_node(write_briefing_outline)
 builder.add_node(write_briefing_script)
 
 builder.set_entry_point("populate_raw_inputs")
-builder.add_conditional_edges("populate_raw_inputs", send_location_requests)
+builder.add_conditional_edges(
+  "populate_raw_inputs",
+  send_location_requests,
+  {
+    "resolve_location": "resolve_location",
+  },
+)
 builder.add_edge("resolve_location", "request_weather")
 builder.add_edge("request_weather", "fork_analysis")
 builder.add_edge("populate_raw_inputs", "fork_analysis")
-builder.add_conditional_edges("fork_analysis", send_to_analysis_tasks)
+builder.add_conditional_edges(
+  "fork_analysis",
+  send_to_analysis_tasks,
+  {
+    "calculate_schedule": "calculate_schedule",
+    "analyze_weather": "analyze_weather",
+    "predict_sunset_beauty": "predict_sunset_beauty",
+  },
+)
 builder.add_edge("calculate_schedule", "prioritize_events")
 builder.add_edge("analyze_weather", "prioritize_events")
 builder.add_edge("predict_sunset_beauty", "prioritize_events")
@@ -322,8 +364,8 @@ async def run_workflow_command(cmd: WorkflowCommand) -> None:
       store=store,
     )
 
-    rich.print(graph.get_graph().draw_mermaid())
-    raise NotImplementedError("Workflow execution is not implemented yet")
+    # rich.print(graph.get_graph().draw_mermaid())
+    # raise NotImplementedError("Workflow execution is not implemented yet")
 
     match cmd:
       case Run(briefing_date, location):
@@ -345,5 +387,5 @@ async def run_workflow_command(cmd: WorkflowCommand) -> None:
 
       case ListCheckpoints(briefing_date):
         config = config_for_date(briefing_date)
-        saver.list(config=config)
-        pass
+        async for checkpoint in saver.alist(config=config):
+          print(checkpoint.config)

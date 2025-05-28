@@ -2,11 +2,11 @@ from collections.abc import Generator
 from datetime import date
 from typing import Any, NewType
 
+from loguru import logger
 from pydantic import AwareDatetime, BaseModel, EmailStr, Field
 from pydantic_extra_types.timezone_name import TimeZoneName
 
-from lmnop_wakeup.core.date import TimeInfo, end_of_local_day, start_of_local_day
-
+from ..core.date import TimeInfo, end_of_local_day, start_of_local_day
 from ..location.model import AddressLocation, CoordinateLocation
 from ..location.routes_api import CyclingRouteDetails, RouteDetails
 
@@ -136,6 +136,7 @@ class CalendarsOfInterest(BaseModel):
     for cal in self.calendars_by_id.values():
       for event in cal.events:
         if event.location:
+          logger.warning(f"event.location={event.location}")
           yield event
 
   def filter(

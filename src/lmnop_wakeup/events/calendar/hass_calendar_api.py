@@ -53,12 +53,6 @@ async def calendar_events_in_range(
       cal_events = []
       for i, raw_event in enumerate(events_res.json()):
         event_id = f"h{cal_idx}.{i}"
-        logger.warning(
-          "processing calendar event, event_index={i}, event_id={event_id}, raw_event={raw_event}",
-          i=i,
-          event_id=event_id,
-          raw_event=raw_event,
-        )
         cal_event = CalendarEvent.model_validate({**raw_event, "event_id": event_id})
         cal_events.append(cal_event)
       cal.events = cal_events

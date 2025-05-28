@@ -1,6 +1,6 @@
 from typing import override
 
-from pydantic import BaseModel, RootModel
+from pydantic import RootModel
 
 from ..events.model import Schedule
 from ..llm import LangfuseAgent, LangfuseAgentInput, ModelName
@@ -38,11 +38,7 @@ class ScriptWriterInput(LangfuseAgentInput):
     }
 
 
-class ScriptWriterOutput(BaseModel):
-  """Output for the script_writer agent."""
-
-  briefing_script: BriefingScript
-  """The generated briefing script."""
+ScriptWriterOutput = BriefingScript
 
 
 type ScriptWriterAgent = LangfuseAgent[ScriptWriterInput, ScriptWriterOutput]

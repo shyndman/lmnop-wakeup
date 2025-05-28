@@ -1,6 +1,5 @@
 from typing import cast
 
-import cachetools
 import geopy
 from geopy.geocoders import GoogleV3
 from pydantic import BaseModel
@@ -8,7 +7,6 @@ from pydantic_extra_types.coordinate import Coordinate
 
 from lmnop_wakeup.core.typing import assert_not_none
 
-from .. import LARGE_FCACHE
 from ..env import get_google_cloud_api_key
 
 
@@ -47,7 +45,6 @@ class GeocodeSearchResult(BaseModel):
   """
 
 
-@cachetools.cached(LARGE_FCACHE)
 async def geocode_location(address: str) -> list[GeocodeSearchResult]:
   """
   Geocode a location using Google Maps API.

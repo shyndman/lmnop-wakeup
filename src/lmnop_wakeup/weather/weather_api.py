@@ -1,7 +1,6 @@
 import asyncio
 from typing import cast
 
-import cachetools
 import httpx
 from loguru import logger
 from pydantic import AwareDatetime
@@ -13,7 +12,6 @@ from pirate_weather_api_client.models import (
   WeatherResponse200,
 )
 
-from .. import TTL_FCACHE
 from ..core.typing import assert_not_none, ensure
 from ..env import ApiKey, get_pirate_weather_api_key
 from ..location.model import CoordinateLocation
@@ -72,7 +70,7 @@ async def _get_weather_and_air_quality_data(
         "relative_humidity_2m",
       ]
     ),
-    "timezone": assert_not_none(report_start_ts.tzinfo).tzname,
+    "timezone": "auto",
     "start_date": (isodate := report_start_ts.strftime("%Y-%m-%d")),
     "end_date": isodate,
   }
@@ -95,7 +93,8 @@ async def _get_weather_and_air_quality_data(
           "carbon_dioxide",
         ]
       ),
-      "timezone": assert_not_none(report_start_ts.tzinfo).tzname,
+      # TODO This will need to be revisited, for the cases where we're traveling across time zones
+      "timezone": "auto",
       "start_date": (isodate := report_start_ts.strftime("%Y-%m-%d")),
       "end_date": isodate,
     }
@@ -114,7 +113,6 @@ async def _get_weather_and_air_quality_data(
       return weather_res.text, None
 
 
-@cachetools.cached(TTL_FCACHE)
 async def _get_weather_alerts(
   location: CoordinateLocation,
   report_start_ts: AwareDatetime,
@@ -123,15 +121,14 @@ async def _get_weather_alerts(
 ) -> list[AlertsItem]:
   async with Client(base_url=_API_BASE_URL) as async_client:
     try:
-      posix_time = int(report_start_ts.timestamp())
-      spacetime = f"{location.latitude},{location.longitude},{posix_time}"
+      time = f"{location.latitude},{location.longitude}"
 
       alert_res = await weather.asyncio(
-        lat_and_long_or_time=spacetime,
+        lat_and_long_or_time=time,
         client=async_client,
         units="ca",
         version=2,
-        exclude="currently,minutely,hourly,daily",
+        exclude="minutely,hourly,daily",
         api_key=pirate_weather_api_key or get_pirate_weather_api_key(),
       )
 
@@ -145,14 +142,16 @@ async def _get_weather_alerts(
       alert_res = cast(WeatherResponse200, alert_res)
       logger.info("Async Current Temperature: {temp}", temp=ensure(alert_res.currently).temperature)
 
-      if report_end_ts is not None:
-        return [
-          a
-          for a in ensure(alert_res.alerts)
-          if (a.local_expires and a.local_expires > report_start_ts)
-          and (a.local_time and a.local_time < report_end_ts)
-        ]
-      return ensure(alert_res.alerts)
+      alerts = assert_not_none(alert_res.alerts)
+      # Filter alerts to those overlapping with the report time range
+      return [
+        alert
+        for alert in alerts
+        if alert.local_time
+        and alert.local_time <= report_start_ts
+        and (alert.local_expires is None or alert.local_expires >= report_start_ts)
+        and (report_end_ts is None or alert.local_time <= report_end_ts)
+      ]
     except UnexpectedStatus:
       logger.exception("Async API returned an unexpected status")
       raise WeatherNotAvailable()
