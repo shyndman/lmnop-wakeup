@@ -1,15 +1,10 @@
 from datetime import date, datetime, time, timezone
 
+from lmnop_wakeup.core.date import is_timestamp_on_date
 from lmnop_wakeup.core.typing import ensure
 
 # Import the functions and classes to be tested
-from lmnop_wakeup.weather.model import WeatherReport, is_timestamp_on_date
-from pirate_weather_api_client.models import (
-  Currently,
-  Daily,
-  Hourly,
-  HourlyDataItem,
-)
+from pirate_weather_api_client.models import HourlyDataItem
 
 
 # Test cases for is_timestamp_on_date
@@ -35,57 +30,6 @@ def test_is_timestamp_on_date_next_day():
   # Timestamp for 2023-10-28 00:00:00 UTC
   timestamp_next_day = int(datetime(2023, 10, 28, 0, 0, 0, tzinfo=timezone.utc).timestamp())
   assert is_timestamp_on_date(timestamp_next_day, midnight) is False
-
-
-# Test cases for get_hourlies_for_day
-def test_get_hourlies_for_day_filters_correctly():
-  test_date = date(2023, 10, 27)
-  # Timestamps for 2023-10-27 (UTC)
-  ts1 = int(datetime(2023, 10, 27, 0, 0, 0, tzinfo=timezone.utc).timestamp())
-  ts2 = int(datetime(2023, 10, 27, 12, 0, 0, tzinfo=timezone.utc).timestamp())
-  # Timestamp for 2023-10-26 (UTC)
-  ts_prev = int(datetime(2023, 10, 26, 23, 0, 0, tzinfo=timezone.utc).timestamp())
-  # Timestamp for 2023-10-28 (UTC)
-  ts_next = int(datetime(2023, 10, 28, 1, 0, 0, tzinfo=timezone.utc).timestamp())
-
-  # Use actual HourlyDataItem and Hourly models
-  hourly_data_items = [
-    HourlyDataItem(time=ts_prev),
-    HourlyDataItem(time=ts1),
-    HourlyDataItem(time=ts2),
-    HourlyDataItem(time=ts_next),
-  ]
-  # Create a WeatherReport instance with valid mock data for required fields
-  weather_report = WeatherReport(
-    currently=Currently(),  # Provide a valid Currently instance
-    hourly=Hourly(data=hourly_data_items),
-    daily=Daily(),  # Provide a valid BaseModel instance for daily
-    alerts=[],  # Provide a valid list of AlertsItem
-  )
-
-  hourlies_for_day = weather_report.get_hourlies_for_day(test_date, tz=timezone.utc)
-
-  # Expecting only ts1 and ts2 to be included
-  expected_timestamps = {ts1, ts2}
-  actual_timestamps = {ensure(item.time) for item in hourlies_for_day}
-
-  assert actual_timestamps == expected_timestamps
-  assert len(hourlies_for_day) == 2
-
-
-def test_get_hourlies_for_day_empty_data():
-  test_date = date(2023, 10, 27)
-  # Create a WeatherReport instance with empty hourly data and valid mocks
-  weather_report = WeatherReport(
-    currently=Currently(),
-    hourly=Hourly(data=[]),
-    daily=Daily(),
-    alerts=[],
-  )
-
-  hourlies_for_day = weather_report.get_hourlies_for_day(test_date, tz=timezone.utc)
-
-  assert hourlies_for_day == []
 
 
 def test_get_hourlies_for_day_none_data():

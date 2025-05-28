@@ -105,10 +105,10 @@ class AgentContext[Input: LangfuseAgentInput]:
     super().__init__(**kwargs)
 
     client = ChatPromptClient(self.prompt)
-    if set(client.variables) != self.input.prompt_variables_supplied:
+    missing_vars = self.input.prompt_variables_supplied.difference(set(client.variables))
+    if len(missing_vars) > 1:
       raise ValueError(
-        f"Prompt variables {client.variables} do not match input variables "
-        f"{self.input.prompt_variables_supplied}"
+        f"Prompt {self.prompt.name} input variables do not satisfy, missing={missing_vars}"
       )
 
     prompt_messages = client.compile(

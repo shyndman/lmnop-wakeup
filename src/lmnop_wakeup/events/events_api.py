@@ -3,8 +3,7 @@ from datetime import datetime
 from loguru import logger
 
 from ..env import ApiKey, get_hass_api_key
-from ..tools import hass_api
-from .calendar import gcalendar_api
+from .calendar import gcalendar_api, hass_calendar_api
 from .model import Calendar
 
 # Define a constant dictionary mapping calendar entity IDs to instruction strings.
@@ -61,7 +60,7 @@ async def get_filtered_calendars_with_notes(
     start_ts=start_ts,
     end_ts=end_ts,
   )
-  hass_calendars = await hass_api.calendar_events_in_range(
+  hass_calendars = await hass_calendar_api.calendar_events_in_range(
     start_ts, end_ts, hass_api_token or get_hass_api_key()
   )
   logger.info("Fetched {num_hass_cals} Home Assistant Calendars", num_hass_cals=len(hass_calendars))

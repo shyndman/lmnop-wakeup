@@ -12,6 +12,8 @@ from haversine import Unit, haversine
 from pydantic import BaseModel
 from pydantic_extra_types.coordinate import Coordinate, Latitude, Longitude
 
+from lmnop_wakeup.core.typing import ensure
+
 LocationSlug = NewType("LocationSlug", str)
 """A unique identifier for a named location."""
 
@@ -265,3 +267,18 @@ class ReferencedLocations(BaseModel):
 
   def all_locations(self) -> Iterable[Location]:
     return self.adhoc_location_map.values()
+
+  def __add__(self, other: ResolvedLocation) -> "ReferencedLocations":
+    """
+    Adds a resolved location to the referenced locations.
+
+    Args:
+        other (ResolvedLocation): The resolved location to add.
+
+    Returns:
+        ReferencedLocations: The updated instance with the new location added.
+    """
+    if other.address in self.adhoc_location_map:
+      raise ValueError(f"Location {other.address} already exists in the map.")
+    self.adhoc_location_map[ensure(other.address)] = other
+    return self

@@ -1,8 +1,10 @@
+import asyncio
 from typing import cast
 
+import cachetools
 import httpx
 from loguru import logger
-from pydantic import AwareDatetime, BaseModel
+from pydantic import AwareDatetime
 
 from pirate_weather_api_client import Client
 from pirate_weather_api_client.api.weather import weather
@@ -11,89 +13,181 @@ from pirate_weather_api_client.models import (
   WeatherResponse200,
 )
 
+from .. import TTL_FCACHE
 from ..core.typing import assert_not_none, ensure
 from ..env import ApiKey, get_pirate_weather_api_key
 from ..location.model import CoordinateLocation
-from .model import WeatherNotAvailable, WeatherReport
+from .model import AlertsItem, WeatherNotAvailable, WeatherReport
 
 _API_BASE_URL = "https://api.pirateweather.net"
 
-# https://api.open-meteo.com/v1/forecast?latitude=43.69107214185943&longitude=-79.3077542870965&daily=sunset&hourly=cloud_cover_low,cloud_cover_mid,cloud_cover_high,visibility,cloud_cover,precipitation,pressure_msl&timezone=America%2FNew_York&start_date=2025-05-27&end_date=2025-05-27
 
+async def _get_weather_and_air_quality_data(
+  location: CoordinateLocation,
+  report_start_ts: AwareDatetime,
+  report_end_ts: AwareDatetime | None = None,
+  include_air_quality: bool = False,
+) -> tuple[str, str | None]:
+  request_details = []
 
-class SunsetWeatherData(BaseModel):
-  json_blob: str
-
-
-async def get_sunset_weather_data(location: CoordinateLocation, prediction_date: AwareDatetime):
   # Make sure all required weather variables are listed here
   # The order of variables in hourly or daily is important to assign them correctly below
-  url = "https://api.open-meteo.com/v1/forecast"
-  params = {
+  weather_url = "https://api.open-meteo.com/v1/forecast"
+  weather_params = {
     "latitude": location.latitude,
     "longitude": location.longitude,
-    "daily": "sunset",
-    "hourly": ",".join(
+    "daily": ",".join(
       [
-        "cloud_cover_low",
-        "cloud_cover_mid",
-        "cloud_cover_high",
-        "visibility",
-        "cloud_cover",
-        "precipitation",
-        "pressure_msl",
-        "surface_pressure",
+        "sunrise",
+        "sunset",
+        "wind_speed_10m_max",
+        "wind_gusts_10m_max",
+        "apparent_temperature_max",
+        "apparent_temperature_min",
+        "uv_index_max",
+        "uv_index_clear_sky_max",
+        "snowfall_sum",
+        "showers_sum",
+        "rain_sum",
+        "weather_code",
       ]
     ),
-    "timezone": assert_not_none(prediction_date.tzinfo).tzname,
-    "start_date": (isodate := prediction_date.strftime("%Y-%m-%d")),
+    "hourly": ",".join(
+      [
+        "temperature_2m",
+        "cloud_cover_mid",
+        "cloud_cover_low",
+        "cloud_cover_high",
+        "visibility",
+        "snow_depth",
+        "snowfall",
+        "showers",
+        "rain",
+        "surface_pressure",
+        "apparent_temperature",
+        "wind_direction_120m",
+        "wind_speed_120m",
+        "wind_gusts_10m",
+        "precipitation_probability",
+        "relative_humidity_2m",
+      ]
+    ),
+    "timezone": assert_not_none(report_start_ts.tzinfo).tzname,
+    "start_date": (isodate := report_start_ts.strftime("%Y-%m-%d")),
     "end_date": isodate,
   }
+  request_details.append((weather_url, weather_params))
+
+  if include_air_quality:
+    aq_url = "https://air-quality-api.open-meteo.com/v1/air-quality"
+    aq_params = {
+      "latitude": location.latitude,
+      "longitude": location.longitude,
+      "hourly": ",".join(
+        [
+          "pm10",
+          "pm2_5",
+          "us_aqi_pm2_5",
+          "us_aqi_pm10",
+          "us_aqi",
+          "dust",
+          "carbon_monoxide",
+          "carbon_dioxide",
+        ]
+      ),
+      "timezone": assert_not_none(report_start_ts.tzinfo).tzname,
+      "start_date": (isodate := report_start_ts.strftime("%Y-%m-%d")),
+      "end_date": isodate,
+    }
+    request_details.append((aq_url, aq_params))
+
   async with httpx.AsyncClient() as client:
-    response = await client.get(httpx.URL(url), params=params)
-    response.raise_for_status()
-    return SunsetWeatherData(json_blob=response.text)
+    weather_res, *rest = await asyncio.gather(
+      *[client.get(httpx.URL(url), params=params) for url, params in request_details]
+    )
+    aq_res = rest[0] if rest else None
+    weather_res.raise_for_status()
+    if aq_res:
+      aq_res.raise_for_status()
+      return weather_res.text, aq_res.text
+    else:
+      return weather_res.text, None
 
 
-async def get_weather_report(
+@cachetools.cached(TTL_FCACHE)
+async def _get_weather_alerts(
   location: CoordinateLocation,
   report_start_ts: AwareDatetime,
   report_end_ts: AwareDatetime | None = None,
   pirate_weather_api_key: ApiKey | None = None,
-) -> WeatherReport:
+) -> list[AlertsItem]:
   async with Client(base_url=_API_BASE_URL) as async_client:
     try:
       posix_time = int(report_start_ts.timestamp())
       spacetime = f"{location.latitude},{location.longitude},{posix_time}"
 
-      res = await weather.asyncio(
+      alert_res = await weather.asyncio(
         lat_and_long_or_time=spacetime,
         client=async_client,
         units="ca",
         version=2,
-        extend="hourly",
-        exclude="minutely",
+        exclude="currently,minutely,hourly,daily",
         api_key=pirate_weather_api_key or get_pirate_weather_api_key(),
       )
 
-      if not isinstance(res, WeatherResponse200) or res.currently is None:
+      if not isinstance(alert_res, WeatherResponse200) or alert_res.currently is None:
         logger.error(
-          "Failed to retrieve weather data or 'currently' block missing, error={error}", error=res
+          "Failed to retrieve weather data or 'currently' block missing, error={error}",
+          error=alert_res,
         )
         raise WeatherNotAvailable()
 
-      res = cast(WeatherResponse200, res)
-      logger.info("Async Current Temperature: {temp}", temp=ensure(res.currently).temperature)
+      alert_res = cast(WeatherResponse200, alert_res)
+      logger.info("Async Current Temperature: {temp}", temp=ensure(alert_res.currently).temperature)
 
-      return WeatherReport(
-        currently=ensure(res.currently),
-        hourly=ensure(res.hourly),
-        daily=ensure(res.daily),
-        alerts=ensure(res.alerts),
-      )
+      if report_end_ts is not None:
+        return [
+          a
+          for a in ensure(alert_res.alerts)
+          if (a.local_expires and a.local_expires > report_start_ts)
+          and (a.local_time and a.local_time < report_end_ts)
+        ]
+      return ensure(alert_res.alerts)
     except UnexpectedStatus:
       logger.exception("Async API returned an unexpected status")
       raise WeatherNotAvailable()
     except Exception:
       logger.exception("An async error occurred")
       raise WeatherNotAvailable()
+
+
+async def get_weather_report(
+  location: CoordinateLocation,
+  report_start_ts: AwareDatetime,
+  report_end_ts: AwareDatetime | None = None,
+  include_air_quality: bool = False,
+  pirate_weather_api_key: ApiKey | None = None,
+) -> WeatherReport:
+  weather_data, alerts = await asyncio.gather(
+    _get_weather_and_air_quality_data(
+      location,
+      report_start_ts=report_start_ts,
+      report_end_ts=report_end_ts,
+      include_air_quality=include_air_quality,
+    ),
+    _get_weather_alerts(
+      location=location,
+      report_start_ts=report_start_ts,
+      report_end_ts=report_end_ts,
+      pirate_weather_api_key=pirate_weather_api_key,
+    ),
+  )
+  weather_report_api_result, air_quality_api_result = weather_data
+  return WeatherReport(
+    location=location,
+    start_ts=report_start_ts,
+    end_ts=report_end_ts,
+    weather_report_api_result=weather_report_api_result,
+    air_quality_api_result=air_quality_api_result,
+    alerts=alerts,
+  )

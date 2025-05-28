@@ -12,11 +12,15 @@ class SunsetOracleInput(LangfuseAgentInput):
   weather_report: str
   """A weather report received via get_sunset_weather_data"""
 
+  air_quality_report: str
+  """An air quality report received via get_sunset_weather_data"""
+
   @override
   def to_prompt_variable_map(self) -> dict[str, str]:
     """Convert the input to a map of prompt variables."""
     return {
       "weather_report": self.weather_report,
+      "air_quality_report": self.air_quality_report,
     }
 
 

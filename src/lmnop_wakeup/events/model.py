@@ -39,7 +39,7 @@ class CalendarEvent(BaseModel):
   """A brief summary or title of the event."""
   creator: CalendarEmailUser | None = None
   """The creator of the event."""
-  attendees: list[CalendarUser] | None = None
+  attendees: list[CalendarEmailUser] | None = None
   """A list of attendees for the event."""
   start_ts: TimeInfo = Field(alias="start")
   """The start time information of the event."""
@@ -128,9 +128,9 @@ class CalendarsOfInterest(BaseModel):
   """A dictionary mapping calendar entity IDs to Calendar objects."""
 
   def __init__(self, *args, calendars: list[Calendar] | None = None, **kwargs):
+    super().__init__(*args, **kwargs)
     if "calendars_by_id" not in kwargs and calendars is not None:
       self.calendars_by_id = {calendar.entity_id: calendar for calendar in calendars}
-    super().__init__(*args, **kwargs)
 
   def all_events_with_location(self) -> Generator[CalendarEvent, Any, None]:
     for cal in self.calendars_by_id.values():

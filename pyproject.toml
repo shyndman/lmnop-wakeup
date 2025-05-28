@@ -19,6 +19,7 @@ dependencies = [
     "google-maps-routing>=0.6.15",
     "haversine>=2.9.0",
     "httpx>=0.28.1",
+    "langchain>=0.3.25",
     "langfuse>=2.60.4",
     "langgraph>=0.4.5",
     "langgraph-checkpoint-postgres>=2.0.21",

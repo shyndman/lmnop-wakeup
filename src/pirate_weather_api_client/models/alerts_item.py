@@ -1,7 +1,8 @@
 from collections.abc import Mapping
+from datetime import datetime
 from typing import Any, TypeVar, cast
 
-from pydantic import BaseModel
+from pydantic import AwareDatetime, BaseModel, computed_field
 
 T = TypeVar("T", bound="AlertsItem")
 
@@ -42,6 +43,22 @@ class AlertsItem(BaseModel):
   expires: None | int = None
   description: None | str = None
   uri: None | str = None
+
+  @computed_field
+  @property
+  def local_time(self) -> AwareDatetime | None:
+    if self.time is None:
+      return None
+    else:
+      return datetime.fromtimestamp(self.time).astimezone()
+
+  @computed_field
+  @property
+  def local_expires(self) -> AwareDatetime | None:
+    if self.expires is None:
+      return None
+    else:
+      return datetime.fromtimestamp(self.expires).astimezone()
 
   def to_dict(self) -> dict[str, Any]:
     title = self.title

@@ -3,6 +3,43 @@
 **Description:**
 `lmnop:wakeup` is a tool for generating daily schedules and morning briefings, integrating with external services like Home Assistant and a weather API.
 
+```mermaid
+---
+config:
+  flowchart:
+    curve: linear
+---
+graph TD;
+        __start__(<p>__start__</p>)
+        populate_raw_inputs(populate_raw_inputs)
+        resolve_location(resolve_location)
+        request_weather(request_weather)
+        calculate_briefing_day_routes(calculate_briefing_day_routes)
+        fork(fork)
+        calculate_schedule(calculate_schedule)
+        analyze_weather(analyze_weather)
+        prioritize_events(prioritize_events)
+        write_briefing_outline(write_briefing_outline)
+        write_briefing_script(write_briefing_script)
+        __end__(<p>__end__</p>)
+        __start__ --> populate_raw_inputs;
+        populate_raw_inputs --> fork
+        populate_raw_inputs --> resolve_location
+        resolve_location --> request_weather
+        request_weather --> fork
+        fork --> calculate_schedule
+        fork --> analyze_weather
+        calculate_schedule --> prioritize_events
+        analyze_weather --> prioritize_events
+        prioritize_events --> write_briefing_outline;
+        write_briefing_outline --> write_briefing_script;
+        write_briefing_script --> __end__;
+        classDef default fill:#000,line-height:1.2
+        classDef first fill-opacity:.5
+        classDef last fill:#999
+
+```
+
 **Features:**
 Based on the `cli.py` and the `run.py` files in `brief` and `schedule`, the project provides the following functionalities via the `wakeup` command:
 - **Schedule Generation:** Create a daily schedule based on location, date, calendar events, and weather.

@@ -54,9 +54,8 @@ def calendar_events_in_range(start_ts: datetime, end_ts: datetime) -> list[Calen
       logger.debug("No upcoming events found.")
       continue
 
-    calendar.events.extend(list(map(lambda e: CalendarEvent.model_validate(e), events)))
     cal_events = [
-      CalendarEvent.model_validate({"entity_id": f"h{cal_idx}.{i}"}.update(raw_event))
+      CalendarEvent.model_validate({**raw_event, "event_id": f"h{cal_idx}.{i}"})
       for i, raw_event in enumerate(events)
     ]
     calendar.events = cal_events

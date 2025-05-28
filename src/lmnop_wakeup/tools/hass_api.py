@@ -3,11 +3,9 @@ from datetime import datetime as Datetime
 from typing import NewType, TypedDict
 
 import httpx
-from loguru import logger
 from pydantic import BaseModel
 
 from ..env import ApiKey
-from ..events.model import Calendar, CalendarEvent
 
 _HASS_API_BASE = "http://home.don/api"
 
@@ -25,37 +23,6 @@ class RestEndpoints:
       f"{_HASS_API_BASE}/calendars/{calendar_id}"
       f"?start={start.isoformat(timespec='seconds')}&end={end.isoformat(timespec='seconds')}"
     )
-
-
-async def calendar_events_in_range(
-  start_ts: datetime,
-  end_ts: datetime,
-  hass_api_token: ApiKey,
-) -> list[Calendar]:
-  request_headers = {
-    "Authorization": f"Bearer {hass_api_token}",
-    "Content-Type": "application/json",
-  }
-  async with httpx.AsyncClient() as client:
-    cals_res = await client.get(
-      RestEndpoints.calendars_endpoint(),
-      headers=request_headers,
-    )
-
-    logger.info("calendars received. populating", calendars=cals_res.text)
-    calendars = [Calendar.model_validate(raw_cal) for raw_cal in cals_res.json()]
-
-    logger.info("requesting calendar events")
-    for cal in calendars:
-      events_res = await client.get(
-        RestEndpoints.events_endpoint(cal.entity_id, start_ts, end_ts),
-        headers=request_headers,
-      )
-
-      cal_events = [CalendarEvent.model_validate(raw_event) for raw_event in events_res.json()]
-      cal.events = cal_events
-
-    return calendars
 
 
 class EntityState(TypedDict):

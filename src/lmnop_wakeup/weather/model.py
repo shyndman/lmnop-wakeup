@@ -1,36 +1,27 @@
-from datetime import date, datetime, time, tzinfo
-
 from pydantic import AwareDatetime, BaseModel
+from pydantic_extra_types.coordinate import Coordinate
 
-from pirate_weather_api_client.models import AlertsItem, Currently, Daily, Hourly, HourlyDataItem
+from pirate_weather_api_client.models import AlertsItem
 
-from ..core.date import is_timestamp_on_date
+from ..location.model import CoordinateLocation
 
 
 class WeatherReport(BaseModel):
-  currently: Currently
-  hourly: Hourly
-  daily: Daily
+  location: CoordinateLocation
+  start_ts: AwareDatetime
+  end_ts: AwareDatetime | None
+  weather_report_api_result: str
+  air_quality_api_result: str | None = None
   alerts: list[AlertsItem]
 
-  def trim_to_datetime(self, dt: AwareDatetime) -> "WeatherReport":
-    return WeatherReport(
-      currently=self.currently,
-      hourly=self.hourly.trim_to_datetime(dt),
-      daily=self.daily.trim_to_datetime(dt),
-      alerts=self.alerts,
-    )
-
-  def get_hourlies_for_day(self, date: date, tz: tzinfo) -> list[HourlyDataItem]:
-    midnight_on_date = datetime.combine(date, time(0, 0, 0), tzinfo=tz)
-    hourly_data = self.hourly.data if self.hourly and self.hourly.data is not None else []
-
-    return list(
-      filter(
-        lambda hour: hour.time and is_timestamp_on_date(hour.time, midnight_on_date),
-        hourly_data,
-      )
-    )
+  # def trim_to_datetime(self, dt: AwareDatetime) -> "WeatherReport":
+  #   return WeatherReport(
+  #     location=self.location,
+  #     currently=self.currently,
+  #     hourly=self.hourly.trim_to_datetime(dt),
+  #     daily=self.daily.trim_to_datetime(dt),
+  #     alerts=[a for a in self.alerts if a.local_expires and a.local_expires > dt],
+  #   )
 
 
 class WeatherNotAvailable(Exception):
@@ -38,7 +29,13 @@ class WeatherNotAvailable(Exception):
 
 
 class RegionalWeatherReports(BaseModel):
-  reports_by_latlng: dict[tuple[float, float], WeatherReport]
+  reports_by_latlng: dict[Coordinate, list[WeatherReport]] = {}
+
+  def __add__(self, weather_report: WeatherReport) -> "RegionalWeatherReports":
+    if weather_report.location.latlng not in self.reports_by_latlng:
+      self.reports_by_latlng[weather_report.location.latlng] = []
+    self.reports_by_latlng[weather_report.location.latlng].append(weather_report)
+    return self
 
 
 type WeatherResult = WeatherReport | WeatherNotAvailable

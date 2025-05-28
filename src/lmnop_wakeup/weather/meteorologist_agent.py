@@ -4,7 +4,8 @@ from typing import override
 
 from pydantic import BaseModel, Field, RootModel
 
-from pirate_weather_api_client.models import AlertsItem, Currently, Daily, Hourly
+from lmnop_wakeup.weather.model import WeatherReport
+from pirate_weather_api_client.models import AlertsItem
 
 from ..llm import LangfuseAgent, LangfuseAgentInput, ModelName
 
@@ -16,18 +17,14 @@ class AlertList(RootModel[list[AlertsItem]]):
 class MeteorologistInput(LangfuseAgentInput):
   """Input data for the meteorologist agent."""
 
-  alerts: list[AlertsItem]
-  currently: Currently
-  hourly: Hourly
-  daily: Daily
+  weather_report: WeatherReport
 
   @override
   def to_prompt_variable_map(self) -> dict[str, str]:
     return {
-      "alerts": AlertList(self.alerts).model_dump_json(),
-      "currently": self.currently.model_dump_json(),
-      "hourly": self.hourly.model_dump_json(),
-      "daily": self.daily.model_dump_json(),
+      "weather_data": self.weather_report.weather_report_api_result,
+      "air_quality_data": self.weather_report.air_quality_api_result or "",
+      "alerts": AlertList(self.weather_report.alerts).model_dump_json(),
     }
 
 
@@ -143,15 +140,9 @@ type MeteorologistAgent = LangfuseAgent[MeteorologistInput, MeteorologistOutput]
 def create_meteorologist() -> MeteorologistAgent:
   """Get the location resolver agent."""
 
-  agent = LangfuseAgent[MeteorologistInput, MeteorologistOutput].create(
+  return LangfuseAgent[MeteorologistInput, MeteorologistOutput].create(
     "meteorologist",
     model=ModelName.GEMINI_25_FLASH,
     input_type=MeteorologistInput,
     output_type=MeteorologistOutput,
   )
-
-  @agent.tool_plain()
-  def posix_to_local_time(posix: int) -> datetime:
-    return datetime.fromtimestamp(posix).astimezone()
-
-  return agent

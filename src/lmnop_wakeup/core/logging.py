@@ -23,6 +23,9 @@ def initialize_logging():
     sys.stderr,
     format="<green>{time:HH:mm:ss}</green> <dim>[{module}]</dim> <level>{level} {message}</level>",
   )
+  # HACK(https://github.com/Delgan/loguru/issues/1252): Someone thinks that it makes sense to
+  # optimize for aesthetics over THE ABILITY TO READ EXCEPTIONS.
+  logger._core.handlers[1]._exception_formatter._max_length = 300  # type: ignore
 
 
 class InterceptHandler(logging.Handler):
