@@ -21,7 +21,7 @@ from .brief.model import BriefingScript, CharacterPool
 from .brief.script_writer_agent import ScriptWriterInput, get_script_writer_agent
 from .brief.sectioner_agent import BriefingOutline, SectionerInput, get_sectioner_agent
 from .core.date import start_of_local_day
-from .core.tracing import trace_async
+from .core.tracing import trace
 from .core.typing import assert_not_none, ensure
 from .env import get_postgres_connection_string
 from .events.events_api import get_filtered_calendars_with_notes
@@ -158,7 +158,7 @@ class LocationWeatherState(BaseModel):
 FUTURE_EVENTS_TIMEDELTA = timedelta(days=16)
 
 
-@trace_async()
+@trace()
 async def populate_raw_inputs(state: State):
   span_end = state.day_end_ts + FUTURE_EVENTS_TIMEDELTA
 
@@ -191,7 +191,7 @@ async def populate_raw_inputs(state: State):
   }
 
 
-@trace_async()
+@trace()
 async def send_location_requests(state: State):
   # import debugpy
 
@@ -226,7 +226,7 @@ async def send_location_requests(state: State):
   ]  # type: ignore[return-value]
 
 
-@trace_async()
+@trace()
 async def process_location(new_state: LocationDataState):
   loc_state = LocationDataState.model_validate(cast(dict, await location_graph.ainvoke(new_state)))
 
@@ -250,7 +250,7 @@ async def process_location(new_state: LocationDataState):
   return state_delta
 
 
-@trace_async()
+@trace()
 async def resolve_location(state: LocationDataState) -> LocationDataState:
   location_resolver = get_location_resolver_agent()
   input = LocationResolverInput(
@@ -283,7 +283,7 @@ async def resolve_location(state: LocationDataState) -> LocationDataState:
 DISTANCE_WEATHER_THRESHOLD = 40  # km
 
 
-@trace_async()
+@trace()
 async def request_weather(state: LocationDataState):
   # At this point, state.location will have a coordinate
   home = location_named(LocationName.home)
@@ -307,20 +307,20 @@ async def request_weather(state: LocationDataState):
   return state
 
 
-@trace_async()
+@trace()
 async def fork_analysis(state: State) -> State:
   """This node exists to fork via conditional edges, and nothing else"""
   return state
 
 
-@trace_async()
+@trace()
 async def send_to_analysis_tasks(
   state: State,
 ) -> list[Literal["calculate_schedule", "analyze_weather", "predict_sunset_beauty"]]:
   return ["calculate_schedule", "predict_sunset_beauty"]
 
 
-@trace_async()
+@trace()
 async def send_locations_to_analysis_tasks(state: State):
   """Send the weather data from individual locations to the analyze_weather node."""
   return [
@@ -329,7 +329,7 @@ async def send_locations_to_analysis_tasks(state: State):
   ]
 
 
-@trace_async()
+@trace()
 async def calculate_schedule(state: State):
   output = await get_scheduler_agent().run(
     SchedulerInput(
@@ -342,7 +342,7 @@ async def calculate_schedule(state: State):
   return {"schedule": output.schedule}
 
 
-@trace_async()
+@trace()
 async def analyze_weather(state: LocationWeatherState):
   analysis = await get_meteorologist_agent().run(
     MeteorologistInput(
@@ -357,7 +357,7 @@ async def analyze_weather(state: LocationWeatherState):
   }
 
 
-@trace_async()
+@trace()
 async def predict_sunset_beauty(state: State):
   weather_reports = state.regional_weather.reports_for_location(state.briefing_day_location)
   if not weather_reports:
@@ -375,7 +375,7 @@ async def predict_sunset_beauty(state: State):
   return {"sunset_prediction": sunset_prediction}
 
 
-@trace_async()
+@trace()
 async def prioritize_events(state: State):
   prioritized_events = await get_event_prioritizer_agent().run(
     EventPrioritizerInput(
@@ -388,7 +388,7 @@ async def prioritize_events(state: State):
   return {"prioritized_events": prioritized_events}
 
 
-@trace_async()
+@trace()
 async def write_briefing_outline(state: State) -> State:
   sectioner = get_sectioner_agent()
   input = SectionerInput(
@@ -402,7 +402,7 @@ async def write_briefing_outline(state: State) -> State:
   return state.model_copy(update={"briefing_script": out})
 
 
-@trace_async()
+@trace()
 async def write_briefing_script(state: State):
   out = await get_script_writer_agent().run(
     input=ScriptWriterInput(

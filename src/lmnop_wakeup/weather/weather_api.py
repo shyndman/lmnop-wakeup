@@ -5,7 +5,7 @@ import httpx
 from loguru import logger
 from pydantic import AwareDatetime
 
-from lmnop_wakeup.core.tracing import trace_async
+from lmnop_wakeup.core.tracing import trace
 from pirate_weather_api_client import Client
 from pirate_weather_api_client.api.weather import weather
 from pirate_weather_api_client.errors import UnexpectedStatus
@@ -162,7 +162,7 @@ async def _get_weather_alerts(
       raise WeatherNotAvailable()
 
 
-@trace_async(name="tool: get_weather_report")
+@trace(name="api: get_weather_report")
 @cached(ttl=60 * 60 * 4)
 async def get_weather_report(
   location: CoordinateLocation,

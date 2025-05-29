@@ -4,6 +4,7 @@ from typing import NewType
 import httpx
 from loguru import logger
 
+from ...core.tracing import trace
 from ...env import ApiKey
 from ..model import Calendar, CalendarEvent
 
@@ -25,6 +26,7 @@ class RestEndpoints:
     )
 
 
+@trace(name="api: hass.compute_route_durations")
 async def calendar_events_in_range(
   start_ts: Datetime,
   end_ts: Datetime,

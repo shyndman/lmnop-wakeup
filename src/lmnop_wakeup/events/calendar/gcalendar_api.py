@@ -7,6 +7,7 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from loguru import logger
 
+from ...core.tracing import trace_sync
 from ..model import Calendar, CalendarEvent
 
 # If modifying these scopes, delete the file token.json.
@@ -23,6 +24,7 @@ CALENDAR_IDS = [
 ]
 
 
+@trace_sync(name="api: gcal.compute_route_durations")
 def calendar_events_in_range(start_ts: datetime, end_ts: datetime) -> list[Calendar]:
   service = build("calendar", "v3", credentials=authenticate())
   calendars_service = service.calendars()

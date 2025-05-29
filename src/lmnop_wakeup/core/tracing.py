@@ -123,7 +123,7 @@ _R = TypeVar("_R")
 _F = TypeVar("_F", bound=Callable[..., Any])
 
 
-def trace_async(name: str | None = None):
+def trace(name: str | None = None):
   """
   A decorator that wraps an async function with a Langfuse span.
   The span will have the same name as the function, unless name is specified.
@@ -143,3 +143,22 @@ def trace_async(name: str | None = None):
     return wrapper
 
   return trace_async_decorator
+
+
+def trace_sync(name: str | None = None):
+  """
+  A decorator that wraps a synchronous function with a Langfuse span.
+  The span will have the same name as the function, unless name is specified.
+  """
+
+  def trace_sync_decorator(
+    func: Callable[_P, _R],
+  ) -> Callable[_P, _R]:
+    @functools.wraps(func)
+    def wrapper(*args: _P.args, **kwargs: _P.kwargs) -> _R:
+      with langfuse_span(name=name or func.__name__):
+        return func(*args, **kwargs)
+
+    return wrapper
+
+  return trace_sync_decorator

@@ -16,6 +16,8 @@ from google.protobuf.timestamp_pb2 import Timestamp
 from loguru import logger
 from pydantic import BaseModel, computed_field
 
+from lmnop_wakeup.core.tracing import trace
+
 from ..core.asyncio import gather_map
 from ..env import ApiKey, get_google_cloud_api_key
 from .model import CoordinateLocation
@@ -88,6 +90,7 @@ class DepartAtConstraint(BaseModel):
     return (departure_time, arrival_time)
 
 
+@trace(name="api: compute_route_durations")
 async def compute_route_durations(
   origin: CoordinateLocation,
   destination: CoordinateLocation,

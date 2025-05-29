@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from pydantic_extra_types.coordinate import Coordinate
 
 from ..core.cache import cached
-from ..core.tracing import trace_async
+from ..core.tracing import trace
 from ..core.typing import assert_not_none
 from ..env import get_google_cloud_api_key
 
@@ -49,7 +49,7 @@ class GeocodeSearchResult(BaseModel):
   """
 
 
-@trace_async(name="tool: geocode_location")
+@trace(name="api: geocode_location")
 @cached()
 async def geocode_location(
   address: str, include_distance_from: Coordinate | None = None
