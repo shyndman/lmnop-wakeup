@@ -3,13 +3,17 @@
 
 from typing import override
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, RootModel
 
 from ..events.model import CalendarEvent
 from ..events.prioritizer_agent import PrioritizedEvents
 from ..events.scheduler_agent import Schedule
 from ..llm import LangfuseAgent, LangfuseAgentInput, ModelName
 from ..weather.model import RegionalWeatherReports
+
+
+class _CalendarEventList(RootModel[list[CalendarEvent]]):
+  root: list[CalendarEvent]
 
 
 class SectionerInput(LangfuseAgentInput):
@@ -24,13 +28,14 @@ class SectionerInput(LangfuseAgentInput):
   def to_prompt_variable_map(self) -> dict[str, str]:
     """Convert the input to a map of prompt variables."""
     return {
-      k: v.model_dump_json() if v is not None else "null"
-      for k, v in {
-        "schedule": self.schedule,
-        "prioritized_events": self.prioritized_events,
-        "regional_weather_reports": self.regional_weather_reports,
-        "yesterday_events": self.yesterday_events,
-      }.items()
+      "schedule": self.schedule.model_dump_json(),
+      "prioritized_events": self.prioritized_events.model_dump_json(),
+      "regional_weather_reports": self.regional_weather_reports.model_dump_json(
+        exclude={"reports_by_location"}
+      ),
+      "yesterday_events": _CalendarEventList(self.yesterday_events).model_dump_json(indent=2)
+      if self.yesterday_events
+      else "[]",
     }
 
 
@@ -53,7 +58,7 @@ def get_sectioner_agent() -> SectionerAgent:
 
   agent = LangfuseAgent[SectionerInput, SectionerOutput].create(
     "sectioner",
-    model=ModelName.GEMINI_25_PRO,
+    model=ModelName.GEMINI_25_FLASH,
     input_type=SectionerInput,
     output_type=SectionerOutput,
   )

@@ -82,7 +82,7 @@ class LangfuseAgentInput(ABC, BaseModel):
 
   @property
   def prompt_variables_supplied(self) -> set[str]:
-    return set(self.model_dump().keys())
+    return {k for k in self.to_prompt_variable_map().keys()}
 
   @abstractmethod
   def to_prompt_variable_map(self) -> dict[str, str]:
@@ -195,6 +195,7 @@ class LangfuseAgent[Input: LangfuseAgentInput, Output: BaseModel]:
       deps_type=AgentContext[Input],
       output_type=output_type,
       model_settings=ModelSettings(res.config),
+      retries=5,
       instrument=True,
     )
 

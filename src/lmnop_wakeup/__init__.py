@@ -9,8 +9,8 @@ from .core.tracing import initialize_tracing
 # Permit the user of nested asyncio.run calls
 nest_asyncio.apply()
 
-initialize_logging()
 initialize_tracing()
+initialize_logging()
 
 PACKAGE = __name__.split(".")[0]
 __version__ = version(PACKAGE)

@@ -4,9 +4,11 @@ from pydantic import BaseModel, Field, computed_field, model_validator
 class Character(BaseModel):
   slug: str
   name: str
+  pronouns: str
   voice: str
   personality: str
   specialty: str
+  script_writer_instructions: str
 
 
 class CharacterPool(BaseModel):
@@ -51,13 +53,18 @@ class TonalDialogueGroup(BaseModel):
     ..., description="First character participating in this tonal group"
   )
   character_1_style_direction: str = Field(
-    ..., description="Detailed emotional and stylistic direction for character_1", min_length=5
+    ..., description="Detailed emotional and stylistic direction for character_1", min_length=15
   )
-  character_2_slug: str = Field(
-    ..., description="Second character participating in this tonal group"
+  character_2_slug: str | None = Field(
+    ...,
+    description="Second character participating in this tonal group. Can be null if there "
+    "is only one speaker in the tonal group.",
   )
-  character_2_style_direction: str = Field(
-    ..., description="Detailed emotional and stylistic direction for character_2", min_length=5
+  character_2_style_direction: str | None = Field(
+    ...,
+    description="Detailed emotional and stylistic direction for character_2. Can be null if "
+    "there is only one speaker in the tonal group.",
+    min_length=15,
   )
   lines: list[ScriptLine] = Field(
     ..., description="All dialogue lines that share this emotional tone", min_length=1

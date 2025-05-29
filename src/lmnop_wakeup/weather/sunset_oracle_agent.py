@@ -1,3 +1,4 @@
+import textwrap
 from enum import StrEnum, auto
 from typing import override
 
@@ -9,6 +10,9 @@ from ..llm import LangfuseAgent, LangfuseAgentInput, ModelName
 class SunsetOracleInput(LangfuseAgentInput):
   """Input for the location resolver agent."""
 
+  prediction_date: AwareDatetime
+  """The date of prediction, at midnight, in the user's timezone."""
+
   weather_report: str
   """A weather report received via get_sunset_weather_data"""
 
@@ -19,6 +23,10 @@ class SunsetOracleInput(LangfuseAgentInput):
   def to_prompt_variable_map(self) -> dict[str, str]:
     """Convert the input to a map of prompt variables."""
     return {
+      "prediction_date": textwrap.dedent(f"""
+        {self.prediction_date.strftime("%A, %B %d, %Y")}
+        iso8601 format: {self.prediction_date.isoformat()}
+        """).lstrip(),
       "weather_report": self.weather_report,
       "air_quality_report": self.air_quality_report,
     }

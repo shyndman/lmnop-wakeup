@@ -246,7 +246,7 @@ def location_named(name: LocationName) -> NamedLocation:
 
 
 class ReferencedLocations(BaseModel):
-  adhoc_location_map: dict[str, Location] = {}
+  adhoc_location_map: dict[str, ResolvedLocation] = {}
 
   def __add__(self, other: "ReferencedLocations") -> "ReferencedLocations":
     """

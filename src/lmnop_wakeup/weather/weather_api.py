@@ -1,4 +1,5 @@
 import asyncio
+from datetime import datetime, timedelta
 from typing import cast
 
 import httpx
@@ -27,11 +28,17 @@ async def _get_weather_and_air_quality_data(
   report_start_ts: AwareDatetime,
   report_end_ts: AwareDatetime | None = None,
   include_air_quality: bool = False,
-) -> tuple[str, str | None]:
-  request_details = []
+  include_outdoor_comfort_hourly: bool = False,
+) -> tuple[str, str | None, str | None]:
+  # Caculate the span's end date
+  now = datetime.now().astimezone().replace(hour=0, minute=0, second=0, microsecond=0)
+  max_end_ts = now + timedelta(days=13)
+  report_end_ts = min(
+    report_end_ts or now.replace(hour=23, minute=59, second=59, microsecond=999999),
+    max_end_ts,
+  )
 
-  # Make sure all required weather variables are listed here
-  # The order of variables in hourly or daily is important to assign them correctly below
+  request_details = []
   weather_url = "https://api.open-meteo.com/v1/forecast"
   weather_params = {
     "latitude": location.latitude,
@@ -74,7 +81,7 @@ async def _get_weather_and_air_quality_data(
     ),
     "timezone": "auto",
     "start_date": (isodate := report_start_ts.strftime("%Y-%m-%d")),
-    "end_date": isodate,
+    "end_date": report_end_ts.strftime("%Y-%m-%d") if report_end_ts else isodate,
   }
   request_details.append((weather_url, weather_params))
 
@@ -102,17 +109,45 @@ async def _get_weather_and_air_quality_data(
     }
     request_details.append((aq_url, aq_params))
 
+  if include_outdoor_comfort_hourly:
+    outdoor_comfort_url = "https://api.open-meteo.com/v1/forecast"
+    outdoor_comfort_params = {
+      "latitude": location.latitude,
+      "longitude": location.longitude,
+      "daily": "sunrise,sunset",
+      "hourly": ",".join(
+        [
+          "apparent_temperature",
+          "precipitation_probability",
+          "precipitation",
+          "cloud_cover",
+          "cloud_cover_high",
+          "cloud_cover_mid",
+          "cloud_cover_low",
+          "wind_speed_120m",
+        ]
+      ),
+      "timezone": "auto",
+      "start_date": (isodate := report_start_ts.strftime("%Y-%m-%d")),
+      "end_date": isodate,
+    }
+    request_details.append((outdoor_comfort_url, outdoor_comfort_params))
+
   async with httpx.AsyncClient() as client:
-    weather_res, *rest = await asyncio.gather(
+    res = await asyncio.gather(
       *[client.get(httpx.URL(url), params=params) for url, params in request_details]
     )
-    aq_res = rest[0] if rest else None
-    weather_res.raise_for_status()
+    res += [None] * (3 - len(res))
+
+    weather_res, aq_res, comfort_res = res
+    if weather_res:
+      weather_res.raise_for_status()
     if aq_res:
       aq_res.raise_for_status()
-      return weather_res.text, aq_res.text
-    else:
-      return weather_res.text, None
+    if comfort_res:
+      comfort_res.raise_for_status()
+
+    return tuple(map(lambda res: res.text if res else None, res))  # type: ignore
 
 
 async def _get_weather_alerts(
@@ -169,6 +204,7 @@ async def get_weather_report(
   report_start_ts: AwareDatetime,
   report_end_ts: AwareDatetime | None = None,
   include_air_quality: bool = False,
+  include_comfort_hourly: bool = False,
   pirate_weather_api_key: ApiKey | None = None,
 ) -> WeatherReport:
   weather_data, alerts = await asyncio.gather(
@@ -177,6 +213,7 @@ async def get_weather_report(
       report_start_ts=report_start_ts,
       report_end_ts=report_end_ts,
       include_air_quality=include_air_quality,
+      include_outdoor_comfort_hourly=include_comfort_hourly,
     ),
     _get_weather_alerts(
       location=location,
@@ -185,12 +222,13 @@ async def get_weather_report(
       pirate_weather_api_key=pirate_weather_api_key,
     ),
   )
-  weather_report_api_result, air_quality_api_result = weather_data
+  weather_report_api_result, air_quality_api_result, comfort_api_result = weather_data
   return WeatherReport(
     location=location,
     start_ts=report_start_ts,
     end_ts=report_end_ts,
     weather_report_api_result=weather_report_api_result,
     air_quality_api_result=air_quality_api_result,
+    comfort_api_result=comfort_api_result,
     alerts=alerts,
   )

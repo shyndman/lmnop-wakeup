@@ -47,7 +47,7 @@ def get_script_writer_agent() -> ScriptWriterAgent:
 
   agent = LangfuseAgent[ScriptWriterInput, ScriptWriterOutput].create(
     "script_writer",
-    model=ModelName.GEMINI_25_PRO,
+    model=ModelName.GEMINI_25_FLASH,
     input_type=ScriptWriterInput,
     output_type=ScriptWriterOutput,
   )

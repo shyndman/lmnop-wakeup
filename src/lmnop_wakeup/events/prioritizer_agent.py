@@ -2,11 +2,15 @@
 
 from typing import override
 
-from pydantic import BaseModel
+from pydantic import BaseModel, RootModel
 
 from ..llm import LangfuseAgent, LangfuseAgentInput, ModelName
 from ..weather.model import RegionalWeatherReports
 from .model import CalendarEvent, CalendarEventId, CalendarsOfInterest, Schedule
+
+
+class _CalendarEventList(RootModel[list[CalendarEvent]]):
+  root: list[CalendarEvent]
 
 
 class EventPrioritizerInput(LangfuseAgentInput):
@@ -21,13 +25,14 @@ class EventPrioritizerInput(LangfuseAgentInput):
   def to_prompt_variable_map(self) -> dict[str, str]:
     """Convert the input to a map of prompt variables."""
     return {
-      k: v.model_dump_json() if v is not None else "null"
-      for k, v in {
-        "schedule": self.schedule,
-        "calendars_of_interest": self.calendars_of_interest,
-        "regional_weather_reports": self.regional_weather_reports,
-        "yesterday_events": self.yesterday_events,
-      }.items()
+      "schedule": self.schedule.model_dump_json(),
+      "calendars_of_interest": self.calendars_of_interest.model_dump_markdown(),
+      "regional_weather_reports": self.regional_weather_reports.model_dump_json(
+        exclude={"reports_by_location"}
+      ),
+      "yesterday_events": _CalendarEventList(self.yesterday_events).model_dump_json(indent=2)
+      if self.yesterday_events
+      else "[]",
     }
 
 

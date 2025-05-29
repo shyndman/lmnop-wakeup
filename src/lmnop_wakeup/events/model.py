@@ -117,18 +117,12 @@ class CalendarEvent(BaseModel):
       sb.write("  **Description:**\n")
       sb.write(f"  {self.description}\n\n")
 
-    if self.creator:
-      sb.write(f"  **Creator:** {self.creator.email}\n\n")
-
-    if self.attendees:
-      sb.write("  **Attendees:**\n")
-      for attendee in self.attendees:
-        sb.write(f"  - {attendee.email}\n")
-      sb.write("\n")
+    if self.location:
+      sb.write(f"  **Location:** {self.location}\n\n")
 
     creator = self.creator
     if creator:
-      sb.write(f"**Created by:** {creator.email}\n")
+      sb.write(f"\n**Created by:** {creator.email}\n")
 
     if self.attendees:
       attendees_list = ", ".join([f"{attendee.email}" for attendee in self.attendees])
@@ -156,7 +150,7 @@ class Calendar(BaseModel):
   ) -> list[CalendarEvent]:
     """
     Filters the events within this calendar to only include those that
-    have events in the given time range.
+    have events in the given time range, and returns them in a new list.
 
     Args:
       start_ts: The start of the time range to filter by.
@@ -193,11 +187,6 @@ class CalendarsOfInterest(BaseModel):
 
   calendars_by_id: dict[str, Calendar] = {}
   """A dictionary mapping calendar entity IDs to Calendar objects."""
-
-  def __init__(self, *args, calendars: list[Calendar] | None = None, **kwargs):
-    super().__init__(*args, **kwargs)
-    if "calendars_by_id" not in kwargs and calendars is not None:
-      self.calendars_by_id = {calendar.entity_id: calendar for calendar in calendars}
 
   def all_events_with_location(self) -> Generator[CalendarEvent, Any, None]:
     for cal in self.calendars_by_id.values():

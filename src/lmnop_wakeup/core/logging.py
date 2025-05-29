@@ -1,9 +1,11 @@
 import inspect
 import logging
+import logging.config
 import sys
 from io import StringIO
 from typing import override
 
+import logfire
 import rich
 from loguru import logger
 
@@ -26,8 +28,14 @@ def initialize_logging():
   # HACK(https://github.com/Delgan/loguru/issues/1252): Someone thinks that it makes sense to
   # optimize for aesthetics over THE ABILITY TO READ EXCEPTIONS.
   logger._core.handlers[1]._exception_formatter._max_length = 200  # type: ignore
+  logger.opt(exception=True)
 
+  # Intercept log messages from the standard Python logging system
   logging.basicConfig(handlers=[InterceptHandler()], level=0, force=True)
+  logging.config.dictConfig(LOGGING_CONFIG)
+
+  # Intercept Logfire
+  logger.configure(handlers=[logfire.loguru_handler()])
 
 
 class InterceptHandler(logging.Handler):
@@ -38,6 +46,9 @@ class InterceptHandler(logging.Handler):
       level: str | int = logger.level(record.levelname).name
     except ValueError:
       level = record.levelno
+
+    record.created //= 1
+    record.msecs = 0
 
     # Find caller from where originated the logged message.
     frame, depth = inspect.currentframe(), 0
@@ -53,9 +64,6 @@ class InterceptHandler(logging.Handler):
     logger.opt(depth=depth, exception=record.exc_info).log(level, record.getMessage())
 
 
-logging.basicConfig(handlers=[InterceptHandler()], level=0, force=True)
-
-
 LOGGING_CONFIG = {
   "version": 1,
   "handlers": {
@@ -64,18 +72,18 @@ LOGGING_CONFIG = {
   "formatters": {
     "http": {
       "format": "%(levelname)s [%(asctime)s] %(name)s - %(message)s",
-      "datefmt": "%Y-%m-%d %H:%M:%S",
+      "datefmt": "%H:%M:%S",
     }
   },
   "loggers": {
     "httpx": {
       "handlers": ["default"],
-      "level": "DEBUG",
+      "level": "WARNING",
     },
     "httpcore": {
       "handlers": ["default"],
-      "level": "DEBUG",
+      "level": "WARNING",
     },
-    "google.maps": {"handlers": ["default"], "level": "DEBUG"},
+    "google.maps": {"handlers": ["default"], "level": "INFO"},
   },
 }

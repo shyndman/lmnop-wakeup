@@ -23,14 +23,14 @@ def initialize_tracing():
       root_path="/",
     ),
   ).with_settings(
-    console_log=True,
+    console_log=False,
   )
   logfire.instrument_httpx(capture_all=True)
   logfire.instrument_mcp()
-  logfire.instrument_psycopg()
   logfire.instrument_pydantic_ai(event_mode="logs")
   logfire.instrument_pydantic(record="failure")
-  logfire.instrument_sqlite3()
+  # logfire.instrument_psycopg()
+  # logfire.instrument_sqlite3()
 
   from RandomWordGenerator import RandomWord
 

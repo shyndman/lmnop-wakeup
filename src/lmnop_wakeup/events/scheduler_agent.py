@@ -1,5 +1,5 @@
 import textwrap
-from datetime import date
+from datetime import datetime
 from typing import override
 
 from loguru import logger
@@ -27,8 +27,9 @@ class SchedulerInput(LangfuseAgentInput):
   calendar events, weather conditions, work schedule, and location.
   """
 
-  scheduling_date: date
-  """The current date for which the schedule is being computed."""
+  scheduling_date: datetime
+  """Midnight of the current date for which the schedule is being computed. The timezone is
+  associated with this datetime is local time."""
 
   home_location: CoordinateLocation
   """The user's home location, used as the origin point for route calculations."""
@@ -45,7 +46,7 @@ class SchedulerInput(LangfuseAgentInput):
     return {
       "scheduling_date": textwrap.dedent(f"""
         {self.scheduling_date.strftime("%A, %B %d, %Y")}
-        {self.scheduling_date.isoformat()}
+        iso8601 format: {self.scheduling_date.isoformat()}
         """).lstrip(),
       "home_location": self.home_location.model_dump_json(indent=4),
       "calendars_of_interest": self.calendars.model_dump_markdown(),
