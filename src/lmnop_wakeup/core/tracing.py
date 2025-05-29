@@ -123,20 +123,23 @@ _R = TypeVar("_R")
 _F = TypeVar("_F", bound=Callable[..., Any])
 
 
-def trace_async(
-  func: Callable[_P, Coroutine[Any, Any, _R]],
-) -> Callable[_P, Coroutine[Any, Any, _R]]:
+def trace_async(name: str | None = None):
   """
   A decorator that wraps an async function with a Langfuse span.
-  The span will have the same name as the function.
+  The span will have the same name as the function, unless name is specified.
   """
 
-  @functools.wraps(func)
-  async def wrapper(*args: _P.args, **kwargs: _P.kwargs) -> _R:
-    if not inspect.iscoroutinefunction(func):
-      raise TypeError(f"Function {func.__name__} is not an async function.")
+  def trace_async_decorator(
+    func: Callable[_P, Coroutine[Any, Any, _R]],
+  ) -> Callable[_P, Coroutine[Any, Any, _R]]:
+    @functools.wraps(func)
+    async def wrapper(*args: _P.args, **kwargs: _P.kwargs) -> _R:
+      if not inspect.iscoroutinefunction(func):
+        raise TypeError(f"Function {func.__name__} is not an async function.")
 
-    with langfuse_span(name=func.__name__):
-      return await func(*args, **kwargs)
+      with langfuse_span(name=name or func.__name__):
+        return await func(*args, **kwargs)
 
-  return wrapper
+    return wrapper
+
+  return trace_async_decorator

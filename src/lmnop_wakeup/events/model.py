@@ -1,11 +1,13 @@
+import textwrap
 from collections.abc import Generator
 from datetime import date
+from io import StringIO
 from typing import Any, NewType
 
 from pydantic import AwareDatetime, BaseModel, EmailStr, Field
 from pydantic_extra_types.timezone_name import TimeZoneName
 
-from ..core.date import TimeInfo, end_of_local_day, start_of_local_day
+from ..core.date import TimeInfo, end_of_local_day, format_time_info, start_of_local_day
 from ..location.model import CoordinateLocation
 from ..location.routes_api import CyclingRouteDetails, RouteDetails
 
@@ -88,6 +90,52 @@ class CalendarEvent(BaseModel):
     """
     return self.start_datetime_aware < range_end and self.end_datetime_aware > range_start
 
+  def model_dump_markdown(self) -> str:
+    """
+    Dumps the event details in a markdown format.
+
+    Returns:
+      A string containing the event details formatted in markdown.
+    """
+    sb = StringIO()
+    event_time = format_time_info(self.start_ts, "%Y-%m-%d", "%H:%M:%S")
+    if self.end_ts:
+      event_time += " to "
+      event_time += textwrap.dedent(format_time_info(self.end_ts, "%Y-%m-%d", "%H:%M:%S"))
+    event_time += ""
+
+    sb.write(
+      textwrap.dedent(f"""
+      * ### {self.summary}
+
+        {event_time}
+
+      """).lstrip()
+    )
+
+    if self.description:
+      sb.write("  **Description:**\n")
+      sb.write(f"  {self.description}\n\n")
+
+    if self.creator:
+      sb.write(f"  **Creator:** {self.creator.email}\n\n")
+
+    if self.attendees:
+      sb.write("  **Attendees:**\n")
+      for attendee in self.attendees:
+        sb.write(f"  - {attendee.email}\n")
+      sb.write("\n")
+
+    creator = self.creator
+    if creator:
+      sb.write(f"**Created by:** {creator.email}\n")
+
+    if self.attendees:
+      attendees_list = ", ".join([f"{attendee.email}" for attendee in self.attendees])
+      sb.write(f"**Attendees:** {attendees_list}\n")
+
+    return sb.getvalue()
+
 
 class Calendar(BaseModel):
   """Represents a single calendar."""
@@ -118,6 +166,26 @@ class Calendar(BaseModel):
       A list of CalendarEvent objects that overlap with the given time range.
     """
     return [event for event in self.events if event.overlaps_with_range(start_ts, end_ts)]
+
+  def model_dump_markdown(self) -> str:
+    sb = StringIO()
+    sb.write(
+      textwrap.dedent(f"""
+      --------------------------------
+
+      ## {self.name}
+
+      > {self.notes_for_processing}
+
+
+      """).lstrip()
+    )
+
+    for event in self.events:
+      sb.write(event.model_dump_markdown())
+      sb.write("\n\n")
+
+    return sb.getvalue()
 
 
 class CalendarsOfInterest(BaseModel):
@@ -169,6 +237,16 @@ class CalendarsOfInterest(BaseModel):
         filtered_calendars[entity_id] = filtered_calendar
 
     return CalendarsOfInterest(calendars_by_id=filtered_calendars)
+
+  def model_dump_markdown(self) -> str:
+    sb = StringIO()
+    for cal in self.calendars_by_id.values():
+      if not cal.events:
+        continue
+
+      sb.write(cal.model_dump_markdown())
+
+    return sb.getvalue()
 
 
 class ModeRejectionResult(BaseModel):

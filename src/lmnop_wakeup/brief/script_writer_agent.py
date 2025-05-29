@@ -2,11 +2,10 @@ from typing import override
 
 from pydantic import RootModel
 
-from lmnop_wakeup.weather.sunset_oracle_agent import SunsetPrediction
-
 from ..events.model import Schedule
 from ..llm import LangfuseAgent, LangfuseAgentInput, ModelName
-from ..weather.meteorologist_agent import WeatherReportForBrief
+from ..weather.meteorologist_agent import WeatherAnalysis
+from ..weather.sunset_oracle_agent import SunsetPrediction
 from .model import BriefingScript, CharacterPool
 from .sectioner_agent import BriefingOutline, PrioritizedEvents
 
@@ -19,7 +18,7 @@ class ScriptWriterInput(LangfuseAgentInput):
   briefing_outline: BriefingOutline
   prioritized_events: PrioritizedEvents
   schedule: Schedule
-  weather_report: WeatherReportForBrief
+  weather_report: WeatherAnalysis
   sunset_prediction: SunsetPrediction
   character_pool: CharacterPool
   previous_scripts: list[BriefingScript]

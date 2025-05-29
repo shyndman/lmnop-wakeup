@@ -1,10 +1,9 @@
+import asyncio
 import itertools
 import operator
-from collections.abc import Mapping
-from contextlib import AsyncExitStack
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
-from typing import Annotated, Literal, cast
+from typing import Annotated, Any, Literal, cast
 
 import rich
 from langchain_core.runnables import RunnableConfig
@@ -22,16 +21,18 @@ from .brief.model import BriefingScript, CharacterPool
 from .brief.script_writer_agent import ScriptWriterInput, get_script_writer_agent
 from .brief.sectioner_agent import BriefingOutline, SectionerInput, get_sectioner_agent
 from .core.date import start_of_local_day
+from .core.tracing import trace_async
 from .core.typing import assert_not_none, ensure
 from .env import get_postgres_connection_string
 from .events.events_api import get_filtered_calendars_with_notes
 from .events.model import CalendarEvent, CalendarsOfInterest, Schedule, end_of_local_day
 from .events.prioritizer_agent import (
+  EventPrioritizerInput,
   PrioritizedEvents,
   RegionalWeatherReports,
   get_event_prioritizer_agent,
 )
-from .events.scheduler_agent import RouteDetailsByMode, get_scheduler_agent
+from .events.scheduler_agent import SchedulerInput, get_scheduler_agent
 from .location.model import (
   NAMED_LOCATIONS,
   CoordinateLocation,
@@ -41,8 +42,16 @@ from .location.model import (
   location_named,
 )
 from .location.resolver_agent import LocationResolverInput, get_location_resolver_agent
-from .weather.meteorologist_agent import WeatherReportForBrief
-from .weather.sunset_oracle_agent import SunsetPrediction
+from .weather.meteorologist_agent import (
+  MeteorologistInput,
+  WeatherAnalysis,
+  get_meteorologist_agent,
+)
+from .weather.sunset_oracle_agent import (
+  SunsetOracleInput,
+  SunsetPrediction,
+  get_sunset_oracle_agent,
+)
 from .weather.weather_api import WeatherReport, get_weather_report
 
 type RouteKey = tuple[str, Coordinate]
@@ -64,7 +73,7 @@ class State(BaseModel):
 
   # TODO: It would be interesting to be able to build multiple briefings if Scott and Hilary are
   # apart.
-  briefing_day_location: CoordinateLocation
+  briefing_day_location: ResolvedLocation
   """Where Scott and Hilary are at the start of the day."""
 
   event_consideration_range_end: AwareDatetime | None = None
@@ -81,15 +90,11 @@ class State(BaseModel):
   """Contains weather reports for all locations the user may occupy, for the dates they would
   occupy them, as determined by the calendars"""
 
-  route_durations: Mapping[RouteKey, RouteDetailsByMode] | None = None
-  """A dictionary mapping event origin (calendar event ID, coordinate of origin) to
-  route durations. Note that these are not necessary routes that are taken."""
-
   sunset_prediction: SunsetPrediction | None = None
   """A prediction of the sunset beauty for the day, including the best viewing time and
   overall rating."""
 
-  weather_analysis: WeatherReportForBrief | None = None
+  weather_analysis: WeatherAnalysis | None = None
   """A weather report for the day, including temperature, conditions, and air quality."""
 
   schedule: Schedule | None = None
@@ -137,13 +142,23 @@ class LocationDataState(BaseModel):
   event_end_ts: AwareDatetime
 
   address: str
-  resolved_location: CoordinateLocation | None = None
+  resolved_location: ResolvedLocation | None = None
   weather: WeatherReport | None = None
+
+
+class LocationWeatherState(BaseModel):
+  """A model representing the state of weather data for a specific location.
+  This model is used to track the weather data associated with a resolved location.
+  """
+
+  location: ResolvedLocation
+  reports: list[WeatherReport]
 
 
 FUTURE_EVENTS_TIMEDELTA = timedelta(days=16)
 
 
+@trace_async()
 async def populate_raw_inputs(state: State):
   span_end = state.day_end_ts + FUTURE_EVENTS_TIMEDELTA
 
@@ -162,9 +177,10 @@ async def populate_raw_inputs(state: State):
     )
   )
 
+  location = state.briefing_day_location
   regional_weather = RegionalWeatherReports(
-    reports_by_latlng={
-      state.briefing_day_location.latlng: [local_weather],
+    reports_by_location={
+      location: [local_weather],  # type: ignore
     }
   )
 
@@ -175,7 +191,8 @@ async def populate_raw_inputs(state: State):
   }
 
 
-async def send_location_requests(state: State) -> Literal["resolve_location"]:
+@trace_async()
+async def send_location_requests(state: State):
   # import debugpy
 
   # logger.debug("Beginning debugpy session")
@@ -209,6 +226,31 @@ async def send_location_requests(state: State) -> Literal["resolve_location"]:
   ]  # type: ignore[return-value]
 
 
+@trace_async()
+async def process_location(new_state: LocationDataState):
+  loc_state = LocationDataState.model_validate(cast(dict, await location_graph.ainvoke(new_state)))
+
+  state_delta: dict[str, Any] = {
+    "referenced_locations": ReferencedLocations(
+      adhoc_location_map={
+        assert_not_none(loc_state.resolved_location).address: assert_not_none(
+          loc_state.resolved_location
+        )
+      }
+    ),
+  }
+
+  weather = loc_state.weather
+  loc = loc_state.resolved_location
+  if weather is not None and loc is not None:
+    state_delta["regional_weather_reports"] = RegionalWeatherReports(
+      reports_by_location={loc: [weather]}  # type: ignore
+    )
+
+  return state_delta
+
+
+@trace_async()
 async def resolve_location(state: LocationDataState) -> LocationDataState:
   location_resolver = get_location_resolver_agent()
   input = LocationResolverInput(
@@ -241,6 +283,7 @@ async def resolve_location(state: LocationDataState) -> LocationDataState:
 DISTANCE_WEATHER_THRESHOLD = 40  # km
 
 
+@trace_async()
 async def request_weather(state: LocationDataState):
   # At this point, state.location will have a coordinate
   home = location_named(LocationName.home)
@@ -250,53 +293,102 @@ async def request_weather(state: LocationDataState):
     isinstance(destination, CoordinateLocation)
     and home.distance_to(destination) > DISTANCE_WEATHER_THRESHOLD
   ):
-    state.weather = await get_weather_report(
-      location=destination,
-      report_start_ts=state.event_start_ts - timedelta(hours=1),
-      report_end_ts=state.event_end_ts + timedelta(hours=1),
-      include_air_quality=False,
+    return state.model_copy(
+      update={
+        "weather": await get_weather_report(
+          location=destination,
+          report_start_ts=state.event_start_ts - timedelta(hours=1),
+          report_end_ts=state.event_end_ts + timedelta(hours=1),
+          include_air_quality=False,
+        )
+      }
     )
 
-  return {
-    "regional_weather": [state.weather],
-    "referenced_locations": [state.resolved_location],
-  }
-
-
-async def fork_analysis(state: State) -> State:
-  """This node exists to fork via a conditional edge, and nothing else"""
-  raise Exception("Under construction")
   return state
 
 
+@trace_async()
+async def fork_analysis(state: State) -> State:
+  """This node exists to fork via conditional edges, and nothing else"""
+  return state
+
+
+@trace_async()
 async def send_to_analysis_tasks(
   state: State,
 ) -> list[Literal["calculate_schedule", "analyze_weather", "predict_sunset_beauty"]]:
-  return ["calculate_schedule", "analyze_weather", "predict_sunset_beauty"]
+  return ["calculate_schedule", "predict_sunset_beauty"]
 
 
-async def calculate_schedule(state: State) -> State:
-  _scheduler = get_scheduler_agent()
-  return state
+@trace_async()
+async def send_locations_to_analysis_tasks(state: State):
+  """Send the weather data from individual locations to the analyze_weather node."""
+  return [
+    Send("analyze_weather", LocationWeatherState(location=location, reports=reports))
+    for (location, reports) in state.regional_weather.reports_by_location.items()
+  ]
 
 
-async def analyze_weather(state: State) -> State:
-  # TODO This won't realistically work for non-home locations, but I'm going to be
-  # adding support shortly.
-
-  # state.weather = weather_report.trim_to_datetime(state.day_end_ts + timedelta(hours=1))
-  return state
-
-
-async def predict_sunset_beauty(state: State) -> State:
-  return state
-
-
-async def prioritize_events(state: State) -> State:
-  _event_prioritizer = get_event_prioritizer_agent()
-  return state
+@trace_async()
+async def calculate_schedule(state: State):
+  output = await get_scheduler_agent().run(
+    SchedulerInput(
+      scheduling_date=state.day_start_ts.date(),
+      home_location=state.briefing_day_location,
+      calendars=assert_not_none(state.calendars),
+      hourly_weather_api_result="",
+    )
+  )
+  return {"schedule": output.schedule}
 
 
+@trace_async()
+async def analyze_weather(state: LocationWeatherState):
+  analysis = await get_meteorologist_agent().run(
+    MeteorologistInput(
+      weather_report=state.reports,
+    )
+  )
+  return {
+    "weather_analysis": RegionalWeatherReports(
+      reports_by_location={},
+      analysis_by_location={state.location: analysis},
+    )
+  }
+
+
+@trace_async()
+async def predict_sunset_beauty(state: State):
+  weather_reports = state.regional_weather.reports_for_location(state.briefing_day_location)
+  if not weather_reports:
+    raise ValueError(
+      f"No weather reports available for {state.briefing_day_location} on {state.day_start_ts}"
+    )
+
+  weather_report = weather_reports[0]
+  sunset_prediction = await get_sunset_oracle_agent().run(
+    SunsetOracleInput(
+      weather_report=weather_report.weather_report_api_result,
+      air_quality_report=assert_not_none(weather_report.air_quality_api_result),
+    )
+  )
+  return {"sunset_prediction": sunset_prediction}
+
+
+@trace_async()
+async def prioritize_events(state: State):
+  prioritized_events = await get_event_prioritizer_agent().run(
+    EventPrioritizerInput(
+      schedule=assert_not_none(state.schedule),
+      calendars_of_interest=assert_not_none(state.calendars),
+      regional_weather_reports=assert_not_none(state.regional_weather),
+      yesterday_events=assert_not_none(state.yesterday_events),
+    )
+  )
+  return {"prioritized_events": prioritized_events}
+
+
+@trace_async()
 async def write_briefing_outline(state: State) -> State:
   sectioner = get_sectioner_agent()
   input = SectionerInput(
@@ -310,26 +402,35 @@ async def write_briefing_outline(state: State) -> State:
   return state.model_copy(update={"briefing_script": out})
 
 
-async def write_briefing_script(state: State) -> State:
-  script_writer = get_script_writer_agent()
-  input = ScriptWriterInput(
-    briefing_outline=assert_not_none(state.briefing_outline),
-    prioritized_events=assert_not_none(state.prioritized_events),
-    schedule=assert_not_none(state.schedule),
-    weather_report=assert_not_none(state.weather_analysis),
-    sunset_prediction=assert_not_none(state.sunset_prediction),
-    character_pool=CharacterPool(),
-    previous_scripts=[],
+@trace_async()
+async def write_briefing_script(state: State):
+  out = await get_script_writer_agent().run(
+    input=ScriptWriterInput(
+      briefing_outline=assert_not_none(state.briefing_outline),
+      prioritized_events=assert_not_none(state.prioritized_events),
+      schedule=assert_not_none(state.schedule),
+      weather_report=assert_not_none(state.weather_analysis),
+      sunset_prediction=assert_not_none(state.sunset_prediction),
+      character_pool=CharacterPool(),
+      previous_scripts=[],
+    )
   )
-  out = await script_writer.run(input=input)
-  state.model_copy(update={"briefing_script": out})
-  return state.model_copy(update={"briefing_script": out})
+  return {"briefing_script": out}
 
+
+location_graph_builder = StateGraph(LocationDataState)
+location_graph_builder.add_node(resolve_location)
+location_graph_builder.add_node(request_weather, retry=RetryPolicy(max_attempts=3))
+
+location_graph_builder.set_entry_point("resolve_location")
+location_graph_builder.add_edge("resolve_location", "request_weather")
+location_graph_builder.set_finish_point("request_weather")
+
+location_graph = location_graph_builder.compile()
 
 builder = StateGraph(State)
 builder.add_node(populate_raw_inputs, cache_policy=CachePolicy(ttl=120 * 60))
-builder.add_node(resolve_location)
-builder.add_node(request_weather, retry=RetryPolicy(max_attempts=3))
+builder.add_node(process_location)
 builder.add_node(fork_analysis, defer=True)
 builder.add_node(calculate_schedule)
 builder.add_node(analyze_weather)
@@ -350,9 +451,13 @@ builder.add_conditional_edges(
   send_to_analysis_tasks,
   {
     "calculate_schedule": "calculate_schedule",
-    "analyze_weather": "analyze_weather",
     "predict_sunset_beauty": "predict_sunset_beauty",
   },
+)
+builder.add_conditional_edges(
+  "fork_analysis",
+  send_locations_to_analysis_tasks,
+  {"analyze_weather": "analyze_weather"},
 )
 builder.add_edge("calculate_schedule", "prioritize_events")
 builder.add_edge("analyze_weather", "prioritize_events")
@@ -373,7 +478,12 @@ class ListCheckpoints:
   briefing_date: date
 
 
-type WorkflowCommand = Run | ListCheckpoints
+@dataclass
+class PrintMermaid:
+  pass
+
+
+type WorkflowCommand = Run | ListCheckpoints | PrintMermaid
 
 
 def config_for_date(briefing_date: date) -> RunnableConfig:
@@ -394,24 +504,17 @@ async def run_workflow_command(cmd: WorkflowCommand) -> None:
   """
 
   pg_connection_string = get_postgres_connection_string()
-  async with AsyncExitStack() as stack:
-    store = await stack.enter_async_context(
-      AsyncPostgresStore.from_conn_string(pg_connection_string)
-    )
-    await store.setup()
-    saver = await stack.enter_async_context(
-      AsyncPostgresSaver.from_conn_string(pg_connection_string)
-    )
-    await saver.setup()
+  async with (
+    AsyncPostgresStore.from_conn_string(pg_connection_string) as store,
+    AsyncPostgresSaver.from_conn_string(pg_connection_string) as saver,
+  ):
+    await asyncio.gather(store.setup(), saver.setup())
 
     graph = builder.compile(
       cache=SqliteCache(path=str(APP_DIRS.user_cache_path / "cache.db")),
       checkpointer=saver,
       store=store,
     )
-
-    # rich.print(graph.get_graph().draw_mermaid())
-    # raise NotImplementedError("Workflow execution is not implemented yet")
 
     match cmd:
       case Run(briefing_date, location):
@@ -424,7 +527,7 @@ async def run_workflow_command(cmd: WorkflowCommand) -> None:
             input=State(
               day_start_ts=day_start_ts,
               day_end_ts=end_of_local_day(day_start_ts),
-              briefing_day_location=location,
+              briefing_day_location=cast(ResolvedLocation, location),
             ),
             config=config,
             stream_mode="updates",
@@ -435,3 +538,6 @@ async def run_workflow_command(cmd: WorkflowCommand) -> None:
         config = config_for_date(briefing_date)
         async for checkpoint in saver.alist(config=config):
           print(checkpoint.config)
+
+      case PrintMermaid():
+        rich.print(graph.get_graph().draw_mermaid())

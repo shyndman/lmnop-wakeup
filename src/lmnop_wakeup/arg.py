@@ -7,7 +7,7 @@ from typing import ClassVar
 from pydantic import PositiveInt
 from pydantic.dataclasses import dataclass
 
-from lmnop_wakeup.location.model import CoordinateLocation, LocationName, location_named
+from .location.model import CoordinateLocation, LocationName, location_named
 
 
 def parse_location(raw: str | list[str]) -> CoordinateLocation:

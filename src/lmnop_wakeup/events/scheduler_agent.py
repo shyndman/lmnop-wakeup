@@ -1,9 +1,9 @@
+import textwrap
 from datetime import date
+from typing import override
 
 from loguru import logger
 from pydantic import BaseModel
-
-from pirate_weather_api_client.models import HourlyDataItem
 
 from ..llm import (
   LangfuseAgent,
@@ -27,20 +27,30 @@ class SchedulerInput(LangfuseAgentInput):
   calendar events, weather conditions, work schedule, and location.
   """
 
-  todays_date: date
+  scheduling_date: date
   """The current date for which the schedule is being computed."""
-
-  calendars: CalendarsOfInterest
-  """Collection of calendar events from various sources that may influence the schedule."""
-
-  is_today_workday: bool
-  """Whether today is considered a work day, affecting default wake-up time calculations."""
-
-  hourly_weather: list[HourlyDataItem]
-  """Hourly weather forecast data that may impact transportation mode decisions and timing."""
 
   home_location: CoordinateLocation
   """The user's home location, used as the origin point for route calculations."""
+
+  calendars: CalendarsOfInterest
+  """Collection of calendar events on the briefing day from various sources that may influence the
+  schedule."""
+
+  hourly_weather_api_result: str
+  """Hourly weather forecast data that may impact transportation mode decisions and timing."""
+
+  @override
+  def to_prompt_variable_map(self) -> dict[str, str]:
+    return {
+      "scheduling_date": textwrap.dedent(f"""
+        {self.scheduling_date.strftime("%A, %B %d, %Y")}
+        {self.scheduling_date.isoformat()}
+        """).lstrip(),
+      "home_location": self.home_location.model_dump_json(indent=4),
+      "calendars_of_interest": self.calendars.model_dump_markdown(),
+      "hourly_weather": self.hourly_weather_api_result,
+    }
 
 
 class SchedulerOutput(BaseModel):

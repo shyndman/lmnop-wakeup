@@ -1,7 +1,7 @@
 import abc
 from enum import StrEnum
 from types import MappingProxyType
-from typing import NewType, override
+from typing import TYPE_CHECKING, NewType, override
 
 # from google.maps.routing import LatLng as GLatLng
 from google.maps.routing import Location as GLocation
@@ -10,8 +10,6 @@ from google.type.latlng_pb2 import LatLng as GLatLng
 from haversine import Unit, haversine
 from pydantic import BaseModel, ConfigDict
 from pydantic_extra_types.coordinate import Coordinate, Latitude, Longitude
-
-from lmnop_wakeup.core.typing import ensure
 
 LocationSlug = NewType("LocationSlug", str)
 """A unique identifier for a named location."""
@@ -25,6 +23,8 @@ class Location(BaseModel, abc.ABC):
   An LLM will typically instantiate either an `AddressLocation` or a `CoordinateLocation`.
   """
 
+  model_config = ConfigDict(frozen=True)
+
   @abc.abstractmethod
   def as_waypoint(self) -> Waypoint:
     """
@@ -34,6 +34,11 @@ class Location(BaseModel, abc.ABC):
         Waypoint: The Google Maps Waypoint representation of the location.
     """
     pass
+
+  if TYPE_CHECKING:
+
+    @override
+    def __hash__(self) -> int: ...
 
 
 Kilometers = NewType("Kilometers", float)
@@ -45,6 +50,8 @@ class CoordinateLocation(Location):
 
   An LLM may instantiate this class when a location is provided as a pair of coordinates.
   """
+
+  model_config = ConfigDict(frozen=True)
 
   latlng: Coordinate
   """The latitude and longitude of the location."""
@@ -91,6 +98,11 @@ class CoordinateLocation(Location):
       )
     )
 
+  if TYPE_CHECKING:
+
+    @override
+    def __hash__(self) -> int: ...
+
 
 class ResolvedLocation(CoordinateLocation):
   """
@@ -98,6 +110,8 @@ class ResolvedLocation(CoordinateLocation):
 
   This class is typically used internally after a location (like an address) has been geocoded.
   """
+
+  model_config = ConfigDict(frozen=True)
 
   address: str
 
@@ -108,6 +122,15 @@ class ResolvedLocation(CoordinateLocation):
     **kwargs,
   ):
     super().__init__(*args, **kwargs, latlng=latlng)
+
+  @property
+  def label(self) -> str:
+    return self.address
+
+  if TYPE_CHECKING:
+
+    @override
+    def __hash__(self) -> int: ...
 
 
 class NamedLocation(ResolvedLocation):
@@ -134,6 +157,16 @@ class NamedLocation(ResolvedLocation):
     **kwargs,
   ):
     super().__init__(*args, **kwargs, latlng=latlng)
+
+  @property
+  @override
+  def label(self) -> str:
+    return self.name
+
+  if TYPE_CHECKING:
+
+    @override
+    def __hash__(self) -> int: ...
 
 
 class LocationName(StrEnum):
@@ -215,26 +248,10 @@ def location_named(name: LocationName) -> NamedLocation:
 class ReferencedLocations(BaseModel):
   adhoc_location_map: dict[str, Location] = {}
 
-  def __init__(self):
-    # for name, loc in _NAMED_LOCATIONS.items():
-    #   self.adhoc_location_map[name.value] = loc
-    pass
-
-    # TODO: Figure out how we can integrate the persistence layer
-
-  # def add_event_location(self, possible_address: str) -> AddressLocation:
-  #   # TODO: We have to be able to handle this, but I want to see how it happens
-  #   if possible_address in self.adhoc_location_map:
-  #     raise ValueError(f"Location {possible_address} already exists in the map.")
-  #   loc = self.adhoc_location_map[possible_address] = AddressLocation(address=possible_address)
-  #   return loc
-
-  # def all_locations(self) -> Iterable[Location]:
-  #   return self.adhoc_location_map.values()
-
-  def __add__(self, other: ResolvedLocation) -> "ReferencedLocations":
+  def __add__(self, other: "ReferencedLocations") -> "ReferencedLocations":
     """
-    Adds a resolved location to the referenced locations.
+    Merge a referenced locations with the receiver, and returns a new referenced locations as
+    the result.
 
     Args:
         other (ResolvedLocation): The resolved location to add.
@@ -242,7 +259,9 @@ class ReferencedLocations(BaseModel):
     Returns:
         ReferencedLocations: The updated instance with the new location added.
     """
-    if other.address in self.adhoc_location_map:
-      raise ValueError(f"Location {other.address} already exists in the map.")
-    self.adhoc_location_map[ensure(other.address)] = other
-    return self
+    if not isinstance(other, ReferencedLocations):
+      raise TypeError("Can only add another ReferencedLocations instance.")
+
+    new_map = self.adhoc_location_map.copy()
+    new_map.update(other.adhoc_location_map)
+    return ReferencedLocations(adhoc_location_map=new_map)

@@ -5,6 +5,8 @@ from clypi import Command, arg
 from loguru import logger
 
 from .arg import parse_date_arg, parse_location
+from .core.cache import get_cache
+from .env import assert_env
 from .location.model import CoordinateLocation, LocationName, location_named
 from .workflow import ListCheckpoints, Run, run_workflow_command
 
@@ -28,12 +30,14 @@ class Wakeup(Command):
 
   @override
   async def run(self):
-    cmd = None
-    if self.list_checkpoints:
-      cmd = ListCheckpoints(briefing_date=self.briefing_date)
-    else:
-      cmd = Run(briefing_date=self.briefing_date, briefing_location=self.current_location)
-    await run_workflow_command(cmd)
+    async with get_cache():
+      assert_env()
+      cmd = None
+      if self.list_checkpoints:
+        cmd = ListCheckpoints(briefing_date=self.briefing_date)
+      else:
+        cmd = Run(briefing_date=self.briefing_date, briefing_location=self.current_location)
+      await run_workflow_command(cmd)
 
 
 def main():

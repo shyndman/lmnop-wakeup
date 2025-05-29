@@ -1,13 +1,15 @@
+import itertools
 from datetime import datetime
 from math import floor
 from typing import override
 
+import lazy_object_proxy
 from pydantic import BaseModel, Field, RootModel
 
-from lmnop_wakeup.weather.model import WeatherReport
 from pirate_weather_api_client.models import AlertsItem
 
 from ..llm import LangfuseAgent, LangfuseAgentInput, ModelName
+from .model import WeatherReport
 
 
 class AlertList(RootModel[list[AlertsItem]]):
@@ -17,14 +19,24 @@ class AlertList(RootModel[list[AlertsItem]]):
 class MeteorologistInput(LangfuseAgentInput):
   """Input data for the meteorologist agent."""
 
-  weather_report: WeatherReport
+  weather_report: list[WeatherReport]
 
   @override
   def to_prompt_variable_map(self) -> dict[str, str]:
     return {
-      "weather_data": self.weather_report.weather_report_api_result,
-      "air_quality_data": self.weather_report.air_quality_api_result or "",
-      "alerts": AlertList(self.weather_report.alerts).model_dump_json(),
+      "weather_data": "\n".join(
+        [report.weather_report_api_result for report in self.weather_report]
+      ),
+      "air_quality_data": "\n".join(
+        [
+          report.air_quality_api_result
+          for report in self.weather_report
+          if report.air_quality_api_result
+        ]
+      ),
+      "alerts": AlertList(
+        list(itertools.chain(*[report.alerts for report in self.weather_report]))
+      ).model_dump_json(),
     }
 
 
@@ -132,12 +144,12 @@ class MeteorologistOutput(BaseModel):
     """
 
 
-type WeatherReportForBrief = MeteorologistOutput
+type WeatherAnalysis = MeteorologistOutput
 
 type MeteorologistAgent = LangfuseAgent[MeteorologistInput, MeteorologistOutput]
 
 
-def create_meteorologist() -> MeteorologistAgent:
+def _get_meteorologist_agent() -> MeteorologistAgent:
   """Get the location resolver agent."""
 
   return LangfuseAgent[MeteorologistInput, MeteorologistOutput].create(
@@ -146,3 +158,11 @@ def create_meteorologist() -> MeteorologistAgent:
     input_type=MeteorologistInput,
     output_type=MeteorologistOutput,
   )
+
+
+_meteorologist_agent: MeteorologistAgent = lazy_object_proxy.Proxy(_get_meteorologist_agent)
+
+
+def get_meteorologist_agent() -> MeteorologistAgent:
+  """Get the location resolver agent."""
+  return _meteorologist_agent

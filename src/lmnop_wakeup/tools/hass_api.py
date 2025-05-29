@@ -5,7 +5,7 @@ from typing import NewType, TypedDict
 import httpx
 from pydantic import BaseModel
 
-from ..env import ApiKey
+from ..env import ApiKey, get_hass_api_key
 
 _HASS_API_BASE = "http://home.don/api"
 
@@ -38,12 +38,12 @@ class GeneralInfo(BaseModel):
 
 
 async def get_general_information(
-  hass_api_token: ApiKey,
   todays_date: date = datetime.now().astimezone().date(),
-):
+  hass_api_token: ApiKey | None = None,
+) -> GeneralInfo:
   workday_entity = await get_entity_state(
     HassEntityId("binary_sensor.is_today_a_workday"),
-    hass_api_token,
+    hass_api_token or get_hass_api_key(),
   )
   return GeneralInfo(
     todays_date=todays_date,

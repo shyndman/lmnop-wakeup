@@ -11,26 +11,28 @@ ApiKey = NewType("ApiKey", str)
 class EnvName(StrEnum):
   """Represents the names of required environment variables."""
 
+  LANGFUSE_HOST = "LANGFUSE_HOST"
+  """The environment variable name for the Langfuse host."""
+  LANGFUSE_PUBLIC_KEY = "LANGFUSE_PUBLIC_KEY"
+  """The environment variable name for the Langfuse public key."""
+  LANGFUSE_SECRET_KEY = "LANGFUSE_SECRET_KEY"
+  """The environment variable name for the Langfuse secret key."""
   LITELLM_API_URL = "LITELLM_API_URL"
   """The base url used for communicating through LiteLLM"""
   LITELLM_API_KEY = "LITELLM_API_KEY"
   """The environment variable name for the LiteLLM API token."""
   GEMINI_API_KEY = "GEMINI_API_KEY"
   """The environment variable name for the Gemini API key."""
+  GOOGLE_ROUTES_API_KEY = "GOOGLE_ROUTES_API_KEY"
+  """The environment variable name for the Google Routes API key."""
   HASS_API_TOKEN = "HASS_API_TOKEN"
   """The environment variable name for the Home Assistant API token."""
   PIRATE_WEATHER_API_KEY = "PIRATE_WEATHER_API_KEY"
   """The environment variable name for the Pirate Weather API key."""
-  GOOGLE_ROUTES_API_KEY = "GOOGLE_ROUTES_API_KEY"
-  """The environment variable name for the Google Routes API key."""
-  LANGFUSE_PUBLIC_KEY = "LANGFUSE_PUBLIC_KEY"
-  """The environment variable name for the Langfuse public key."""
-  LANGFUSE_SECRET_KEY = "LANGFUSE_SECRET_KEY"
-  """The environment variable name for the Langfuse secret key."""
-  LANGFUSE_HOST = "LANGFUSE_HOST"
-  """The environment variable name for the Langfuse host."""
   POSTGRES_CONNECTION_STRING = "POSTGRES_CONNECTION_STRING"
   """The environment variable name for the Postgres database URL."""
+  REDIS_CACHE_URL = "REDIS_CACHE_URL"
+  """The environment variable name for the Redis cache URL."""
 
 
 def get_postgres_connection_string() -> str:
@@ -96,6 +98,19 @@ def get_google_cloud_api_key() -> ApiKey:
     EnvironmentError: If the GOOGLE_ROUTES_API_KEY environment variable is not set.
   """
   return ApiKey(assert_not_none(os.getenv(EnvName.GOOGLE_ROUTES_API_KEY)))
+
+
+def get_redis_cache_url() -> str:
+  """
+  Retrieves the Redis cache URL from environment variables.
+
+  Returns:
+    The Redis cache URL.
+
+  Raises:
+    EnvironmentError: If the REDIS_CACHE_URL environment variable is not set.
+  """
+  return assert_not_none(os.getenv(EnvName.REDIS_CACHE_URL))
 
 
 def assert_env():

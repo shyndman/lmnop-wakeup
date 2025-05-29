@@ -6,14 +6,13 @@ from pydantic import BaseModel
 
 from ..llm import LangfuseAgent, LangfuseAgentInput, ModelName
 from ..weather.model import RegionalWeatherReports
-from .model import CalendarEvent, CalendarEventId, CalendarsOfInterest
-from .scheduler_agent import SchedulerOutput
+from .model import CalendarEvent, CalendarEventId, CalendarsOfInterest, Schedule
 
 
 class EventPrioritizerInput(LangfuseAgentInput):
   """Input for the event prioritizer agent."""
 
-  schedule: SchedulerOutput
+  schedule: Schedule
   calendars_of_interest: CalendarsOfInterest
   regional_weather_reports: RegionalWeatherReports
   yesterday_events: list[CalendarEvent] | None

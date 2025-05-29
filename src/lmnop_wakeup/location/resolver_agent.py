@@ -4,6 +4,7 @@ import lazy_object_proxy
 from loguru import logger
 from pydantic import BaseModel
 
+from ..core.tracing import trace_async
 from ..core.typing import ensure
 from ..llm import LangfuseAgent, LangfuseAgentInput, ModelName
 from .geocode_api import GeocodeSearchResult, geocode_location
@@ -27,7 +28,8 @@ class LocationResolverInput(LangfuseAgentInput):
     return {
       "event_location": ensure(self.address),
       "home_location": self.home_location.model_dump_json(),
-      "named_locations": "\n".join([f" * {location.name}" for location in self.named_locations]),
+      "named_locations": "\n".join([f" * {location.name}" for location in self.named_locations])
+      + "\n",
     }
 
 
@@ -60,6 +62,7 @@ def _get_location_resolver_agent() -> LocationResolverAgent:
     output_type=LocationResolverOutput,
   )
 
+  @trace_async(name="tool: geocode")
   @agent.tool_plain
   async def geocode(location: str) -> list[GeocodeSearchResult]:
     """

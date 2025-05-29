@@ -3,7 +3,7 @@ from typing import override
 
 from pydantic import AwareDatetime, BaseModel
 
-from lmnop_wakeup.llm import LangfuseAgent, LangfuseAgentInput, ModelName
+from ..llm import LangfuseAgent, LangfuseAgentInput, ModelName
 
 
 class SunsetOracleInput(LangfuseAgentInput):
