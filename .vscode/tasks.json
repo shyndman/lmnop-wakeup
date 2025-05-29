@@ -1,0 +1,50 @@
+{
+  // See https://go.microsoft.com/fwlink/?LinkId=733558
+  // for the documentation about the tasks.json format
+  "version": "2.0.0",
+  "options": {
+    "shell": {
+      "executable": "/usr/bin/zsh",
+      "args": [
+        "-l",
+        "-c"
+      ]
+    }
+  },
+  "tasks": [
+    {
+      "label": "check env",
+      "type": "shell",
+      "command": "env",
+      "problemMatcher": []
+    },
+    {
+      "label": "check ruby version",
+      "type": "shell",
+      "command": "echo `ruby -v`",
+      "problemMatcher": []
+    },
+    {
+      "label": "1pass inject",
+      "type": "shell",
+      "command": "cat .env | op inject > .env.res",
+      "problemMatcher": [],
+      "group": "test",
+      "presentation": {
+        "reveal": "always",
+        "focus": true
+      }
+    },
+    {
+      "label": "1pass cleanup",
+      "type": "shell",
+      "command": "rm .env.res",
+      "problemMatcher": [],
+      "group": "test",
+      "presentation": {
+        "reveal": "always",
+        "focus": true
+      }
+    },
+  ]
+}
