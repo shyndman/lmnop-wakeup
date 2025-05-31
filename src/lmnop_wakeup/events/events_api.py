@@ -1,3 +1,5 @@
+import re
+from collections.abc import Callable
 from datetime import datetime
 from enum import StrEnum, auto
 
@@ -18,6 +20,17 @@ class CalendarEventFilter(StrEnum):
 class CalendarInfo(BaseModel):
   notes: str
   event_filter: CalendarEventFilter = CalendarEventFilter.no_filter
+  event_summary_mapper: Callable[[str], str] | None = None
+
+
+series_pattern_1 = re.compile(r"[sS](\d+)[eE](\d+)")
+series_pattern_2 = re.compile(r"(\d+)x(\d+)")
+
+
+def expand_sonarr_series(summary: str) -> str:
+  summary = series_pattern_1.sub(r"Season \1 Episode \2", summary)
+  summary = series_pattern_2.sub(r"Season \1 Episode \2", summary)
+  return summary
 
 
 # Define a constant dictionary mapping calendar entity IDs to instruction strings.
@@ -41,15 +54,16 @@ CALENDAR_INSTRUCTIONS = {
   ),
   # Hilary's work calendar
   "calendar.hilary_s_work": CalendarInfo(
-    notes="This is Hilary's work calendar. While the events are private, they are all high "
-    "priority, and should result in wakeups and reminders. Refer to the events as meetings, not "
-    '"busy" event.',
+    notes="This is Hilary's work calendar. While the events are private, they are higher "
+    "priority IN THE MORNING and should result in wakeups and reminders. Refer to the events as "
+    'meetings, not "busy" event, and NEVER mention them as being high priority.',
     event_filter=CalendarEventFilter.today_only,
   ),
   # Ontario statuatory holidays
   "calendar.ontario_holidays": CalendarInfo(
     notes="These are Ontario statuatory holidays, and indicate that Hilary's work calendar can "
-    "be ignored, and we can use our later wakeup time."
+    "be ignored, and we can use our later wakeup time. They're also important to remind people "
+    "about."
   ),
   # Radarr
   "calendar.radarr": CalendarInfo(
@@ -60,14 +74,16 @@ CALENDAR_INSTRUCTIONS = {
   # Sonarr
   "calendar.sonarr": CalendarInfo(
     notes="Television shows coming to our media center. Low priority, but when we get into a show"
-    "we love hearing about every upcoming episode."
+    "we love hearing about every upcoming episode.",
+    event_summary_mapper=expand_sonarr_series,
   ),
   # Waste collection schedule
   "calendar.toronto_on": CalendarInfo(
     notes="This is Toronto's waste collection schedule. It is important that we're told the day "
     "before so we can have the bins out when the trucks come around, in the early morning. These "
     "are high-ish priority. We should at least get a sentence reminder. "
-    "Legend: GreenBin=Organics YardWaste=Leaves, yard clippings, etc. BlueBin=Recycling",
+    "Language-wise, GreenBin also goes by organics, YardWaste=leaves and twig collection, "
+    "yard clippings, etc. BlueBin=Recycling, cardboard",
   ),
 }
 
@@ -116,7 +132,6 @@ async def get_filtered_calendars_with_notes(
     calendar.notes_for_processing = instructions.notes
     if instructions.event_filter == CalendarEventFilter.today_only:
       # Filter to only include today's events
-
       calendar.events = calendar.filter_events_by_range(
         start_of_local_day(briefing_date),
         end_of_local_day(briefing_date),

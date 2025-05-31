@@ -5,6 +5,8 @@ from typing import override
 
 from pydantic import BaseModel, Field, RootModel
 
+from lmnop_wakeup.weather.sunset_oracle_agent import SunsetPrediction
+
 from ..events.model import CalendarEvent
 from ..events.prioritizer_agent import PrioritizedEvents
 from ..events.scheduler_agent import Schedule
@@ -22,7 +24,8 @@ class SectionerInput(LangfuseAgentInput):
   schedule: Schedule
   prioritized_events: PrioritizedEvents
   regional_weather_reports: RegionalWeatherReports
-  yesterday_events: list[CalendarEvent]
+  sunset_predication: SunsetPrediction
+  yesterdays_events: list[CalendarEvent]
 
   @override
   def to_prompt_variable_map(self) -> dict[str, str]:
@@ -33,8 +36,9 @@ class SectionerInput(LangfuseAgentInput):
       "regional_weather_reports": self.regional_weather_reports.model_dump_json(
         exclude={"reports_by_location"}
       ),
-      "yesterday_events": _CalendarEventList(self.yesterday_events).model_dump_json(indent=2)
-      if self.yesterday_events
+      "sunset_predication": self.sunset_predication.model_dump_json(),
+      "yesterdays_events": _CalendarEventList(self.yesterdays_events).model_dump_json(indent=2)
+      if self.yesterdays_events
       else "[]",
     }
 

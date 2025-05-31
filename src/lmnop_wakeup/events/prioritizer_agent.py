@@ -19,7 +19,7 @@ class EventPrioritizerInput(LangfuseAgentInput):
   schedule: Schedule
   calendars_of_interest: CalendarsOfInterest
   regional_weather_reports: RegionalWeatherReports
-  yesterday_events: list[CalendarEvent] | None
+  yesterdays_events: list[CalendarEvent] | None
 
   @override
   def to_prompt_variable_map(self) -> dict[str, str]:
@@ -30,8 +30,8 @@ class EventPrioritizerInput(LangfuseAgentInput):
       "regional_weather_reports": self.regional_weather_reports.model_dump_json(
         exclude={"reports_by_location"}
       ),
-      "yesterday_events": _CalendarEventList(self.yesterday_events).model_dump_json(indent=2)
-      if self.yesterday_events
+      "yesterdays_events": _CalendarEventList(self.yesterdays_events).model_dump_json(indent=2)
+      if self.yesterdays_events
       else "[]",
     }
 

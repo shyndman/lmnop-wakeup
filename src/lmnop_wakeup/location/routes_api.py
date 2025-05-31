@@ -13,12 +13,15 @@ from google.maps.routing import (
   RoutingPreference,
 )
 from google.protobuf.timestamp_pb2 import Timestamp
+from haversine import Unit
+from haversine.haversine import haversine
 from loguru import logger
 from pydantic import BaseModel, computed_field
 
 from lmnop_wakeup.core.tracing import trace
 
 from ..core.asyncio import gather_map
+from ..core.cache import cached
 from ..env import ApiKey, get_google_cloud_api_key
 from .model import CoordinateLocation
 
@@ -41,6 +44,12 @@ class NoRouteFound(BaseModel):
   pass
 
 
+class ZeroDistanceRoute(BaseModel):
+  """Returned when the origin location is equal to the destination"""
+
+  pass
+
+
 class CyclingRouteDetails(RouteDetails):
   @property
   def calories_consumed(self):
@@ -56,11 +65,12 @@ class RouteDetailsByMode(BaseModel):
   origin: CoordinateLocation
   destination: CoordinateLocation
 
-  bike: CyclingRouteDetails | NoRouteFound | None
-  drive: DrivingRouteDetails | NoRouteFound
+  bike: CyclingRouteDetails | ZeroDistanceRoute | NoRouteFound | None
+  drive: DrivingRouteDetails | ZeroDistanceRoute | NoRouteFound
   """We will always have a driving route, and if we don't, the tool will fail"""
-  transit: RouteDetails | NoRouteFound | None
-  walk: RouteDetails | NoRouteFound | None
+
+  transit: RouteDetails | ZeroDistanceRoute | NoRouteFound | None
+  walk: RouteDetails | ZeroDistanceRoute | NoRouteFound | None
 
 
 type TimeConstraint = ArriveByConstraint | DepartAtConstraint
@@ -91,6 +101,7 @@ class DepartAtConstraint(BaseModel):
 
 
 @trace(name="api: compute_route_durations")
+@cached(ttl=60 * 60 * 4)
 async def compute_route_durations(
   origin: CoordinateLocation,
   destination: CoordinateLocation,
@@ -111,6 +122,18 @@ async def compute_route_durations(
     include_transit=include_transit,
     include_walking=include_walking,
   )
+
+  # Do a quick check for (near-)equality of the origin and destination
+  if haversine(origin.latlng_tuple, destination.latlng_tuple, unit=Unit.METERS) < 0.1:
+    return RouteDetailsByMode(
+      origin=origin,
+      destination=destination,
+      bike=ZeroDistanceRoute(),
+      drive=ZeroDistanceRoute(),
+      transit=ZeroDistanceRoute(),
+      walk=ZeroDistanceRoute(),
+    )
+
   # Create a client
   client = routing_v2.RoutesAsyncClient(
     credentials=Credentials(

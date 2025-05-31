@@ -4,6 +4,7 @@ import geopy
 from geopy.adapters import AioHTTPAdapter
 from geopy.geocoders import GoogleV3
 from haversine import Unit, haversine
+from loguru import logger
 from pydantic import BaseModel
 from pydantic_extra_types.coordinate import Coordinate
 
@@ -63,6 +64,8 @@ async def geocode_location(
   Returns:
       list[GeocodeSearchResult]: A list of geocoding results for the address.
   """
+  logger.info(f"Geocoding address: {address}")
+
   async with GoogleV3(
     api_key=get_google_cloud_api_key(), adapter_factory=AioHTTPAdapter
   ) as geolocator:

@@ -68,6 +68,10 @@ class CoordinateLocation(Location):
     return self.latlng.longitude
 
   @property
+  def latlng_tuple(self) -> tuple[float, float]:
+    return self.latitude, self.longitude
+
+  @property
   def coordinate_tuple(self) -> tuple[float, float]:
     return self.latitude, self.longitude
 

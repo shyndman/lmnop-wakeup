@@ -18,6 +18,8 @@ from langgraph.types import CachePolicy, RetryPolicy, Send
 from pydantic import AwareDatetime, BaseModel, computed_field
 from pydantic_extra_types.coordinate import Coordinate
 
+from lmnop_wakeup.weather.model import WeatherKey, weather_key_for_location
+
 from . import APP_DIRS
 from .brief.actors import CHARACTER_POOL
 from .brief.script_writer_agent import BriefingScript, ScriptWriterInput, get_script_writer_agent
@@ -112,7 +114,7 @@ class State(BaseModel):
 
   @computed_field
   @property
-  def yesterday_events(self) -> list[CalendarEvent]:
+  def yesterdays_events(self) -> list[CalendarEvent]:
     if self.calendars is None:
       return []
 
@@ -151,7 +153,7 @@ class LocationWeatherState(BaseModel):
   """
 
   day_start_ts: AwareDatetime
-  location: ResolvedLocation
+  weather_key: WeatherKey
   reports: list[WeatherReport]
 
 
@@ -183,9 +185,10 @@ async def populate_raw_inputs(state: State):
   )
 
   location = state.briefing_day_location
+  key = weather_key_for_location(location)
   regional_weather = RegionalWeatherReports(
     reports_by_location={
-      location: [local_weather],  # type: ignore
+      key: [local_weather],  # type: ignore
     }
   )
 
@@ -333,11 +336,11 @@ async def send_locations_to_analysis_tasks(state: State):
       "analyze_weather",
       LocationWeatherState(
         day_start_ts=state.day_start_ts,
-        location=location,
+        weather_key=key,
         reports=reports,
       ),
     )
-    for (location, reports) in state.regional_weather.reports_by_location.items()
+    for (key, reports) in state.regional_weather.reports_by_location.items()
   ]
 
 
@@ -365,7 +368,7 @@ async def analyze_weather(state: LocationWeatherState):
   )
   return {
     "regional_weather": RegionalWeatherReports(
-      analysis_by_location={state.location: analysis},
+      analysis_by_location={state.weather_key: analysis},
     )
   }
 
@@ -396,7 +399,7 @@ async def prioritize_events(state: State):
       schedule=assert_not_none(state.schedule),
       calendars_of_interest=assert_not_none(state.calendars),
       regional_weather_reports=assert_not_none(state.regional_weather),
-      yesterday_events=assert_not_none(state.yesterday_events),
+      yesterdays_events=assert_not_none(state.yesterdays_events),
     )
   )
   return {"prioritized_events": prioritized_events}
@@ -409,7 +412,8 @@ async def write_briefing_outline(state: State):
     schedule=assert_not_none(state.schedule),
     prioritized_events=assert_not_none(state.prioritized_events),
     regional_weather_reports=assert_not_none(state.regional_weather),
-    yesterday_events=assert_not_none(state.yesterday_events),
+    sunset_predication=assert_not_none(state.sunset_prediction),
+    yesterdays_events=assert_not_none(state.yesterdays_events),
   )
   out = await sectioner.run(input=input)
   return {"briefing_outline": out}
@@ -423,17 +427,16 @@ async def write_briefing_script(state: State):
       briefing_outline=assert_not_none(state.briefing_outline),
       prioritized_events=assert_not_none(state.prioritized_events),
       schedule=assert_not_none(state.schedule),
-      weather_report=assert_not_none(weather_analysis[state.briefing_day_location]),
+      weather_report=assert_not_none(
+        weather_analysis[weather_key_for_location(state.briefing_day_location)]
+      ),
       sunset_prediction=assert_not_none(state.sunset_prediction),
       character_pool=CHARACTER_POOL,
       previous_scripts=[],
     )
   )
 
-  return {
-    "regional_weather": None,
-    "briefing_script": out.model_dump(),
-  }
+  return {"briefing_script": out}
 
 
 standard_retry = RetryPolicy(max_attempts=3)
@@ -557,17 +560,17 @@ async def run_workflow_command(cmd: WorkflowCommand) -> None:
         #   config["configurable"]["checkpoint_id"] = checkpoint_id
 
         with langfuse_span("graph"):
-          rich.print(
-            await graph.ainvoke(
-              input=State(
-                day_start_ts=day_start_ts,
-                day_end_ts=end_of_local_day(day_start_ts),
-                briefing_day_location=cast(ResolvedLocation, location),
-              ),
-              config=config,
-              stream_mode="updates",
-            )
+          state_dict = await graph.ainvoke(
+            input=State(
+              day_start_ts=day_start_ts,
+              day_end_ts=end_of_local_day(day_start_ts),
+              briefing_day_location=cast(ResolvedLocation, location),
+            ),
+            config=config,
+            stream_mode="updates",
           )
+          script = BriefingScript.model_validate(state_dict["briefing_script"])
+          rich.print(script)
 
       case ListCheckpoints(briefing_date):
         config = config_for_date(briefing_date)

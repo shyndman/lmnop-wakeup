@@ -1,4 +1,8 @@
+from io import StringIO
+
 from pydantic import BaseModel, Field, computed_field, model_validator
+
+from lmnop_wakeup.core.typing import assert_not_none
 
 
 class Character(BaseModel):
@@ -70,6 +74,34 @@ class TonalDialogueGroup(BaseModel):
     ..., description="All dialogue lines that share this emotional tone", min_length=1
   )
 
+  @property
+  def character_slugs(self) -> set[str]:
+    return {line.character_slug for line in self.lines}
+
+  @property
+  def character_count(self) -> int:
+    return len(self.character_slugs)
+
+  def remove_unused_character_direction(self):
+    if self.character_count > 1:
+      return
+
+    slugs = self.character_slugs
+    expecting_use_of_2 = False
+    if self.character_1_slug not in slugs:
+      self.character_1_slug = assert_not_none(self.character_2_slug)
+      self.character_1_style_direction = assert_not_none(self.character_2_style_direction)
+      expecting_use_of_2 = True
+
+    if (self.character_2_slug in slugs) != expecting_use_of_2:
+      if expecting_use_of_2:
+        raise ValueError("Expected character_2_slug to be used, but it was not found in lines.")
+      else:
+        raise ValueError("Expected character_2_slug to be unused, but it was found in lines.")
+
+    self.character_2_slug = None
+    self.character_2_style_direction = None
+
   @model_validator(mode="after")
   def validate_characters_in_lines(self) -> "TonalDialogueGroup":
     """Ensure all lines use only the two specified characters."""
@@ -80,6 +112,21 @@ class TonalDialogueGroup(BaseModel):
           f"Line character '{line.character_slug}' not in group characters {valid_characters}"
         )
     return self
+
+  def build_prompt(self) -> str:
+    sb = StringIO()
+    if self.character_count == 1:
+      # character = character_for_slug(self.character_1_slug)
+      sb.write(f"{self.character_1_slug} is {self.character_1_style_direction}: ")
+      for line in self.lines:
+        sb.write(f"{line.text}\n\n")
+    elif self.character_count == 2:
+      sb.write(f"{self.character_1_slug} is {self.character_1_style_direction}")
+      sb.write(f", and {self.character_2_slug} is {self.character_2_style_direction}:\n\n")
+      for line in self.lines:
+        sb.write(f"{line.character_slug}: {line.text}\n\n")
+
+    return sb.getvalue()
 
 
 class ScriptSection(BaseModel):
@@ -128,7 +175,7 @@ class BriefingScript(BaseModel):
     default=[], description="Ordered list of briefing sections", min_length=1
   )
   character_count: int = Field(
-    ..., description="Total number of unique characters used in this script", ge=3, le=5
+    ..., description="Total number of unique characters used in this script", ge=4, le=6
   )
 
   @computed_field
@@ -162,3 +209,8 @@ class BriefingScript(BaseModel):
         f"Character count mismatch: declared {self.character_count}, actual {actual_count}"
       )
     return self
+
+  def dialogue_groups(self):
+    for section in self.sections:
+      for group in section.dialogue_groups:
+        yield group

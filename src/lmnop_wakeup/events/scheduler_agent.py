@@ -113,7 +113,7 @@ def get_scheduler_agent() -> SchedulerAgent:
       and optionally for cycling, transit, and walking if requested.
     """
 
-    logger.debug(
+    logger.info(
       "Timekeeper tool called: compute_routes with origin={origin}, "
       "destination={destination}, "
       "time_constraint={time_constraint}, include_cycling={include_cycling}, "

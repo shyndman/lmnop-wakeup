@@ -61,6 +61,19 @@ def get_litellm_api_key() -> ApiKey:
   return ApiKey(assert_not_none(os.getenv(EnvName.LITELLM_API_KEY)))
 
 
+def get_litellm_base_url() -> str:
+  """
+  Retrieves the LiteLLM base URL from environment variables.
+
+  Returns:
+    The LiteLLM base URL.
+
+  Raises:
+    EnvironmentError: If the LITELLM_API_URL environment variable is not set.
+  """
+  return assert_not_none(os.getenv(EnvName.LITELLM_API_URL))
+
+
 def get_hass_api_key() -> ApiKey:
   """
   Retrieves the Home Assistant API key from environment variables.

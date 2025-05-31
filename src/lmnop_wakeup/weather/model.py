@@ -126,32 +126,81 @@ class WeatherAnalysis(BaseModel):
     should aim for about a minute of speaking time, or 100-200 words.
     """
 
+  current_conditions_analysis: str | None = None
+  """
+    *** CONDITIONAL FIELD - ONLY POPULATE IF REPORT_DATE FALLS WITHIN WEATHER_DATA TIMEFRAME ***
+
+    This field should ONLY be populated when the report_date provided in the input falls within
+    the date range of the weather_data. If the report_date is outside the weather data timeframe,
+    this field should remain None.
+
+    When applicable, provide a detailed analysis focused specifically on the report_date. This
+    analysis should complement the other sections by zooming in on that specific day and its
+    immediate progression (the day itself plus next 6-12 hours).
+
+    Focus areas:
+    - Weather conditions expected for the report_date specifically
+    - Hour-by-hour progression expected throughout that day
+    - Actionable guidance for activities planned for the report_date
+    - Any notable changes or developments expected during or shortly after that day
+    - Detailed day-specific outlook that readers can reference when that date arrives
+    - Specific timing for weather changes happening on the report_date
+
+    Writing style:
+    - Write as if the reader will be consulting this on the report_date itself
+    - Use "today" language as if being read on that specific date
+    - Be specific about timing within that day ("this morning", "this afternoon", "this evening")
+    - Focus on what people can expect throughout that specific day
+    - Provide actionable intelligence for planning decisions on that date
+    - Write with the assumption this will be read when that date becomes "today"
+
+    Example: "Today starts with partly cloudy skies and temperatures around 18°C this morning, but
+    conditions will change significantly this afternoon. Cloud cover will increase rapidly around
+    noon as that weather system approaches from the southwest. Rain will begin around 2 PM,
+    starting light but becoming moderate to heavy by 4 PM - timing that could impact the evening
+    commute. If you're planning outdoor activities today, wrap them up by 1:30 PM. This evening
+    will remain unsettled with on-and-off showers continuing through about 9 PM before conditions
+    gradually improve overnight into tomorrow."
+
+    Remember: This field provides day-specific analysis when the report_date is within the
+    forecast data. Write it as if someone will read it ON that specific day. It's NOT a summary
+    of the expert_analysis - it's a detailed dive into that one particular day's progression.
+    """
+
+
+type WeatherKey = str
+
+
+def weather_key_for_location(location: ResolvedLocation) -> WeatherKey:
+  """Generates a unique key for the given location."""
+  return f"{location.latitude},{location.longitude}"
+
 
 class RegionalWeatherReports(BaseModel):
-  reports_by_location: dict[ResolvedLocation, list[WeatherReport]] = {}
-  analysis_by_location: dict[ResolvedLocation, WeatherAnalysis] = {}
+  reports_by_location: dict[WeatherKey, list[WeatherReport]] = {}
+  analysis_by_location: dict[WeatherKey, WeatherAnalysis] = {}
 
   def reports_for_location(self, location: ResolvedLocation) -> list[WeatherReport]:
     """Returns the weather reports for the given location."""
-    return self.reports_by_location.get(location, [])
+    key = weather_key_for_location(location)
+    return self.reports_by_location.get(key, [])
 
   def __add__(self, weather_report: "RegionalWeatherReports") -> "RegionalWeatherReports":
     """Merges weather_report with the receiver into a new instance"""
     new_reports = self.reports_by_location.copy()
     new_analysis = self.analysis_by_location.copy()
 
-    for loc, analysis in weather_report.reports_by_location.items():
-      if loc not in new_reports:
-        new_reports[loc] = []
-      if analysis in new_reports[loc]:
-        logger.warning(f"Duplicate weather report for location {loc} found, skipping addition.")
-        continue
-      new_reports[loc].extend(analysis)
+    for key, analysis in weather_report.reports_by_location.items():
+      if key not in new_reports:
+        new_reports[key] = []
+      if analysis in new_reports[key]:
+        logger.warning(f"Duplicate weather report for location {key} found, overwriting.")
+      new_reports[key].extend(analysis)
 
-    for loc, analysis in weather_report.analysis_by_location.items():
-      if loc in new_analysis:
-        raise ValueError(f"Location {loc} already has reports, cannot overwrite with analysis.")
-      new_analysis[loc] = analysis
+    for key, analysis in weather_report.analysis_by_location.items():
+      if key in new_analysis:
+        logger.warning(f"Duplicate weather analysis for location {key} found, overwriting.")
+      new_analysis[key] = analysis
 
     return RegionalWeatherReports(
       reports_by_location=new_reports, analysis_by_location=new_analysis
