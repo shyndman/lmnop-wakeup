@@ -3,7 +3,13 @@ from typing import override
 from pydantic import RootModel
 
 from ..events.model import Schedule
-from ..llm import LangfuseAgent, LangfuseAgentInput, ModelName
+from ..llm import (
+  LangfuseAgent,
+  LangfuseAgentInput,
+  ModelName,
+  RunnableConfig,
+  extract_pydantic_ai_callback,
+)
 from ..weather.meteorologist_agent import WeatherAnalysis
 from ..weather.sunset_oracle_agent import SunsetPrediction
 from .model import BriefingScript, CharacterPool
@@ -42,14 +48,15 @@ ScriptWriterOutput = BriefingScript
 type ScriptWriterAgent = LangfuseAgent[ScriptWriterInput, ScriptWriterOutput]
 
 
-def get_script_writer_agent() -> ScriptWriterAgent:
+def get_script_writer_agent(config: RunnableConfig) -> ScriptWriterAgent:
   """Get the script_writer agent."""
 
   agent = LangfuseAgent[ScriptWriterInput, ScriptWriterOutput].create(
     "script_writer",
-    model=ModelName.GEMINI_25_FLASH,
+    model_name=ModelName.GEMINI_25_FLASH,
     input_type=ScriptWriterInput,
     output_type=ScriptWriterOutput,
+    callback=extract_pydantic_ai_callback(config),
   )
 
   return agent

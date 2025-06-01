@@ -3,6 +3,7 @@
 
 from typing import override
 
+from langchain_core.runnables import RunnableConfig
 from pydantic import BaseModel, Field, RootModel
 
 from lmnop_wakeup.weather.sunset_oracle_agent import SunsetPrediction
@@ -10,7 +11,7 @@ from lmnop_wakeup.weather.sunset_oracle_agent import SunsetPrediction
 from ..events.model import CalendarEvent
 from ..events.prioritizer_agent import PrioritizedEvents
 from ..events.scheduler_agent import Schedule
-from ..llm import LangfuseAgent, LangfuseAgentInput, ModelName
+from ..llm import LangfuseAgent, LangfuseAgentInput, ModelName, extract_pydantic_ai_callback
 from ..weather.model import RegionalWeatherReports
 
 
@@ -57,14 +58,15 @@ type BriefingOutline = SectionerOutput
 type SectionerAgent = LangfuseAgent[SectionerInput, SectionerOutput]
 
 
-def get_sectioner_agent() -> SectionerAgent:
+def get_sectioner_agent(config: RunnableConfig) -> SectionerAgent:
   """Get the sectioner agent."""
 
   agent = LangfuseAgent[SectionerInput, SectionerOutput].create(
     "sectioner",
-    model=ModelName.GEMINI_25_FLASH,
+    model_name=ModelName.GEMINI_25_FLASH,
     input_type=SectionerInput,
     output_type=SectionerOutput,
+    callback=extract_pydantic_ai_callback(config),
   )
 
   return agent

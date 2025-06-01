@@ -3,11 +3,12 @@ import textwrap
 from typing import override
 
 import lazy_object_proxy
+from langchain_core.runnables import RunnableConfig
 from pydantic import AwareDatetime, RootModel
 
 from pirate_weather_api_client.models import AlertsItem
 
-from ..llm import LangfuseAgent, LangfuseAgentInput, ModelName
+from ..llm import LangfuseAgent, LangfuseAgentInput, ModelName, extract_pydantic_ai_callback
 from .model import WeatherAnalysis, WeatherReport
 
 
@@ -52,14 +53,15 @@ MeteorologistOutput = WeatherAnalysis
 type MeteorologistAgent = LangfuseAgent[MeteorologistInput, MeteorologistOutput]
 
 
-def _get_meteorologist_agent() -> MeteorologistAgent:
+def _get_meteorologist_agent(config: RunnableConfig) -> MeteorologistAgent:
   """Get the location resolver agent."""
 
   return LangfuseAgent[MeteorologistInput, MeteorologistOutput].create(
     "meteorologist",
-    model=ModelName.GEMINI_25_FLASH,
+    model_name=ModelName.GEMINI_25_FLASH,
     input_type=MeteorologistInput,
     output_type=MeteorologistOutput,
+    callback=extract_pydantic_ai_callback(config),
   )
 
 

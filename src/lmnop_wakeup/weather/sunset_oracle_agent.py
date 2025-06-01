@@ -2,9 +2,10 @@ import textwrap
 from enum import StrEnum, auto
 from typing import override
 
+from langchain_core.runnables import RunnableConfig
 from pydantic import AwareDatetime, BaseModel
 
-from ..llm import LangfuseAgent, LangfuseAgentInput, ModelName
+from ..llm import LangfuseAgent, LangfuseAgentInput, ModelName, extract_pydantic_ai_callback
 
 
 class SunsetOracleInput(LangfuseAgentInput):
@@ -80,14 +81,15 @@ class SunsetOracleOutput(BaseModel):
 type SunsetOracleAgent = LangfuseAgent[SunsetOracleInput, SunsetOracleOutput]
 
 
-def get_sunset_oracle_agent() -> SunsetOracleAgent:
+def get_sunset_oracle_agent(config: RunnableConfig) -> SunsetOracleAgent:
   """Get the location resolver agent."""
 
   agent = LangfuseAgent[SunsetOracleInput, SunsetOracleOutput].create(
     "sunset_oracle",
-    model=ModelName.GEMINI_25_FLASH,
+    model_name=ModelName.GEMINI_25_FLASH,
     input_type=SunsetOracleInput,
     output_type=SunsetOracleOutput,
+    callback=extract_pydantic_ai_callback(config),
   )
 
   return agent

@@ -1,4 +1,6 @@
+import json
 import os
+import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import StrEnum
@@ -6,6 +8,9 @@ from typing import Any, cast
 
 from google import genai
 from google.genai.types import HttpOptions
+from langchain.callbacks.base import AsyncCallbackHandler, BaseCallbackHandler
+from langchain_core.outputs import Generation, LLMResult
+from langchain_core.runnables import RunnableConfig
 from langfuse import Langfuse
 from langfuse.api import Prompt_Chat
 from langfuse.api.core import RequestOptions
@@ -70,9 +75,6 @@ class LangfusePromptBundle:
   model_settings: ModelSettings
 
 
-HORIZONTAL_RULE = "\n---------\n"
-
-
 class LangfuseAgentInput(ABC, BaseModel):
   """Protocol for Langfuse input data.
 
@@ -96,37 +98,57 @@ class AgentContext[Input: LangfuseAgentInput]:
   Contains the system and user prompts for the agent, as supplied by langfuse.
   """
 
-  prompt: Prompt_Chat
-  input: Input
-  instructions_prompt: str
-  user_prompt: str
-
-  def __init__(self, prompt: Prompt_Chat, input: Input):
-    self.prompt = prompt
+  def __init__(self, input: Input, instructions_prompt: str, user_prompt: str):
     self.input = input
+    self.instructions_prompt = instructions_prompt
+    self.user_prompt = user_prompt
 
-    client = ChatPromptClient(self.prompt)
-    missing_vars = set(client.variables).difference(self.input.prompt_variables_supplied)
-    if len(missing_vars) > 1:
-      raise ValueError(
-        f"Prompt {self.prompt.name} input variables do not satisfy, missing={missing_vars}"
-      )
 
-    prompt_messages = client.compile(
-      **self.input.to_prompt_variable_map(),
+class PydanticAiCallback(AsyncCallbackHandler):
+  """Custom callback handler for Pydantic-AI LLM calls"""
+
+  def __init__(self):
+    super().__init__()
+
+  async def before_run(self, model_name: str, prompt: str, **kwargs) -> uuid.UUID:
+    """Call this when starting a Pydantic-AI LLM call"""
+    run_id = uuid.uuid4()
+
+    # Simulate LangChain's on_llm_start callback
+    await self.on_llm_start(
+      serialized={"name": model_name, "provider": "pydantic-ai"},
+      prompts=[prompt],
+      run_id=run_id,
+      **kwargs,
     )
-    if not (
-      len(prompt_messages) == 2
-      and prompt_messages[0]["role"] == "system"
-      and prompt_messages[1]["role"] == "user"
-    ):
-      raise ValueError(
-        "Prompt must contain exactly two messages: system instructions and user prompt"
-      )
+    return run_id
 
-    system, user = prompt_messages
-    self.instructions_prompt = system["content"]
-    self.user_prompt = user["content"]
+  async def after_run(self, run_id: uuid.UUID, response: str, **kwargs):
+    """Call this when Pydantic-AI LLM call completes"""
+    # Simulate LangChain's on_llm_end callback
+    llm_result = LLMResult(
+      generations=[
+        [Generation(text=response)],
+      ]
+    )
+    await self.on_llm_end(llm_result, run_id=run_id, **kwargs)
+
+  async def error_encountered(self, run_id: uuid.UUID, error: Exception, **kwargs):
+    """Call this when Pydantic-AI LLM call fails"""
+    await self.on_llm_error(error, run_id=run_id, **kwargs)
+
+
+def extract_pydantic_ai_callback(config: RunnableConfig) -> PydanticAiCallback:
+  callbacks = cast(list[BaseCallbackHandler], config.get("callbacks", []))
+  for cb in callbacks:
+    if isinstance(cb, PydanticAiCallback):
+      return cb
+
+  """Extract the Pydantic-AI callback from the config."""
+  raise EnvironmentError(
+    "Pydantic-AI callback not found in RunnableConfig. "
+    "Ensure you are using a PydanticAiCallback instance in your config."
+  )
 
 
 class LangfuseAgent[Input: LangfuseAgentInput, Output: BaseModel]:
@@ -142,7 +164,12 @@ class LangfuseAgent[Input: LangfuseAgentInput, Output: BaseModel]:
   """
 
   def __init__(
-    self, agent: Agent[AgentContext[Input], Output], prompt_name: str, raw_prompt: Prompt_Chat
+    self,
+    agent: Agent[AgentContext[Input], Output],
+    prompt_name: str,
+    raw_prompt: Prompt_Chat,
+    model_name: ModelName,
+    callback: PydanticAiCallback,
   ):
     """Initialize with a configured pydantic-ai Agent and Langfuse prompt.
 
@@ -154,14 +181,17 @@ class LangfuseAgent[Input: LangfuseAgentInput, Output: BaseModel]:
     self._agent = agent
     self.prompt_name = prompt_name
     self._raw_prompt = raw_prompt
+    self._model_name = model_name
+    self._callback = callback
 
   @classmethod
   def create(
     cls,
     prompt_name: str,
-    model: ModelName,
+    model_name: ModelName,
     input_type: type[Input],
     output_type: type[Output],
+    callback: PydanticAiCallback,
   ) -> "LangfuseAgent[Input, Output]":
     """Create a new LangfuseAgent by fetching a prompt from Langfuse.
 
@@ -186,12 +216,12 @@ class LangfuseAgent[Input: LangfuseAgentInput, Output: BaseModel]:
 
     raw_prompt = cast(Prompt_Chat, res)
     model_settings: dict[str, Any] = res.config
-    if model != ModelName.GEMINI_25_FLASH and model != ModelName.GEMINI_25_PRO:
+    if model_name != ModelName.GEMINI_25_FLASH and model_name != ModelName.GEMINI_25_PRO:
       del model_settings["google_thinking_config"]
 
     # Create agent without instructions (will be set via decorator)
     agent = Agent(
-      model=create_litellm_model(model),
+      model=create_litellm_model(model_name),
       deps_type=AgentContext[Input],
       output_type=output_type,
       model_settings=ModelSettings(res.config),
@@ -204,7 +234,7 @@ class LangfuseAgent[Input: LangfuseAgentInput, Output: BaseModel]:
     def rendered_instructions(ctx: RunContext[AgentContext[Input]]) -> str:
       return ctx.deps.instructions_prompt
 
-    return cls(agent, prompt_name, raw_prompt)
+    return cls(agent, prompt_name, raw_prompt, model_name, callback)
 
   async def run(self, input: Input) -> Output:
     """Run the agent with the given inputs, wrapped in a tracing span.
@@ -220,13 +250,24 @@ class LangfuseAgent[Input: LangfuseAgentInput, Output: BaseModel]:
       span.set_attribute("input.value", input)
 
       # Create context and run agent
-      ctx = AgentContext(prompt=self._raw_prompt, input=input)
-      result = await self._agent.run(user_prompt=ctx.user_prompt, deps=ctx)
+      system_prompt, user_prompt = self._prepare_prompts(input)
+      run_id = await self._callback.before_run(str(self._model_name), system_prompt)
+      ctx = AgentContext(input=input, instructions_prompt=system_prompt, user_prompt=user_prompt)
+      result = await self._run_internal(ctx, run_id)
+      await self._callback.after_run(run_id, json.dumps(result))
 
       # Set output attribute on span
       span.set_attribute("output.value", result.output)
 
       return result.output
+
+  async def _run_internal(self, ctx: AgentContext, run_id: uuid.UUID):
+    try:
+      return await self._agent.run(user_prompt=ctx.user_prompt, deps=ctx)
+    except Exception as error:
+      # If an error occurs, call the callback's error handler
+      await self._callback.error_encountered(run_id=run_id, error=error)
+      raise
 
   # Expose agent decorators for tool registration
   def tool_plain(self, *args, **kwargs):
@@ -236,3 +277,27 @@ class LangfuseAgent[Input: LangfuseAgentInput, Output: BaseModel]:
   def tool(self, *args, **kwargs):
     """Expose the underlying agent's tool decorator."""
     return self._agent.tool(*args, **kwargs)
+
+  def _prepare_prompts(self, input: Input) -> tuple[str, str]:
+    """Prepare the system and user prompts from the version downloaded from Langfuse."""
+    client = ChatPromptClient(self._raw_prompt)
+    missing_vars = set(client.variables).difference(input.prompt_variables_supplied)
+    if len(missing_vars) > 1:
+      raise ValueError(
+        f"Prompt {self._raw_prompt.name} input variables do not satisfy, missing={missing_vars}"
+      )
+
+    prompt_messages = client.compile(
+      **input.to_prompt_variable_map(),
+    )
+    if not (
+      len(prompt_messages) == 2
+      and prompt_messages[0]["role"] == "system"
+      and prompt_messages[1]["role"] == "user"
+    ):
+      raise ValueError(
+        "Prompt must contain exactly two messages: system instructions and user prompt"
+      )
+
+    system, user = prompt_messages
+    return system["content"], user["content"]

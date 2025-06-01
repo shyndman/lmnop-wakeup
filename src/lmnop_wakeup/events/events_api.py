@@ -3,6 +3,7 @@ from collections.abc import Callable
 from datetime import datetime
 from enum import StrEnum, auto
 
+from langgraph.func import task
 from loguru import logger
 from pydantic import BaseModel
 
@@ -88,6 +89,7 @@ CALENDAR_INSTRUCTIONS = {
 }
 
 
+@task()
 async def get_filtered_calendars_with_notes(
   briefing_date: datetime,
   start_ts: datetime,

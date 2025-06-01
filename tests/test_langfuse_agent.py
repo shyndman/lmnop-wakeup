@@ -54,12 +54,15 @@ class TestLangfuseAgent:
     mock_agent_instance = MagicMock()
     mock_agent_class.return_value = mock_agent_instance
 
+    mock_callback_instance = MagicMock()
+
     # Create agent
     agent = LangfuseAgent[MockInput, MockOutput].create(
       prompt_name="test_prompt",
-      model=ModelName.GEMINI_25_FLASH,
+      model_name=ModelName.GEMINI_25_FLASH,
       input_type=MockInput,
       output_type=MockOutput,
+      callback=mock_callback_instance,
     )
 
     # Verify Langfuse API call
@@ -94,9 +97,16 @@ class TestLangfuseAgent:
     mock_agent.run = AsyncMock(return_value=mock_result)
 
     mock_prompt = MagicMock(spec=Prompt_Chat)
+    mock_callback_instance = MagicMock()
 
     # Create agent instance
-    agent = LangfuseAgent(mock_agent, "test_prompt", mock_prompt)
+    agent = LangfuseAgent(
+      mock_agent,
+      "test_prompt",
+      mock_prompt,
+      model_name=ModelName.GEMINI_25_FLASH,
+      callback=mock_callback_instance,
+    )
 
     # Run agent
     inputs = MockInput(name="John", age=30)
@@ -121,12 +131,8 @@ class TestLangfuseAgent:
 
   async def test_agent_context_creation(self):
     """Test AgentContext dataclass creation."""
-    mock_prompt = MagicMock(spec=Prompt_Chat)
     inputs = MockInput(name="Alice", age=25)
-
-    context = AgentContext(prompt=mock_prompt, input=inputs)
-
-    assert context.prompt == mock_prompt
+    context = AgentContext(input=inputs, instructions_prompt="", user_prompt="")
     assert context.input == inputs
 
   @patch("lmnop_wakeup.llm.langfuse_span")
@@ -141,9 +147,15 @@ class TestLangfuseAgent:
     mock_result = MagicMock()
     mock_result.output = MockOutput(message="Processed", processed=True)
     mock_agent.run = AsyncMock(return_value=mock_result)
-
+    mock_callback_instance = MagicMock()
     mock_prompt = MagicMock(spec=Prompt_Chat)
-    agent = LangfuseAgent(mock_agent, "test_prompt", mock_prompt)
+    agent = LangfuseAgent(
+      mock_agent,
+      "test_prompt",
+      mock_prompt,
+      model_name=ModelName.GEMINI_25_FLASH,
+      callback=mock_callback_instance,
+    )
 
     inputs = MockInput(name="Test", age=20)
     result = await agent.run(inputs)
@@ -173,8 +185,15 @@ class TestLangfuseAgent:
     """Test that agent tool decorators are properly exposed."""
     mock_agent = MagicMock()
     mock_prompt = MagicMock(spec=Prompt_Chat)
+    mock_callback_instance = MagicMock()
 
-    agent = LangfuseAgent(mock_agent, "test_prompt", mock_prompt)
+    agent = LangfuseAgent(
+      mock_agent,
+      "test_prompt",
+      mock_prompt,
+      model_name=ModelName.GEMINI_25_FLASH,
+      callback=mock_callback_instance,
+    )
 
     # Test tool_plain exposure
     agent.tool_plain("arg1", kwarg1="value1")
@@ -203,9 +222,15 @@ class TestLangfuseAgent:
     mock_agent.run = AsyncMock(
       return_value=MagicMock(output=MockOutput(message="test", processed=True))
     )
-
+    mock_callback_instance = MagicMock()
     mock_prompt = MagicMock(spec=Prompt_Chat)
-    agent = LangfuseAgent(mock_agent, prompt_name, mock_prompt)
+    agent = LangfuseAgent(
+      mock_agent,
+      prompt_name,
+      mock_prompt,
+      model_name=ModelName.GEMINI_25_FLASH,
+      callback=mock_callback_instance,
+    )
 
     with patch("lmnop_wakeup.llm.ChatPromptClient"):
       await agent.run(MockInput(name="test", age=1))

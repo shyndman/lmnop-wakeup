@@ -2,9 +2,10 @@
 
 from typing import override
 
+from langchain_core.runnables import RunnableConfig
 from pydantic import BaseModel, RootModel
 
-from ..llm import LangfuseAgent, LangfuseAgentInput, ModelName
+from ..llm import LangfuseAgent, LangfuseAgentInput, ModelName, extract_pydantic_ai_callback
 from ..weather.model import RegionalWeatherReports
 from .model import CalendarEvent, CalendarEventId, CalendarsOfInterest, Schedule
 
@@ -77,14 +78,15 @@ type PrioritizedEvents = EventPrioritizerOutput
 type EventPrioritizerAgent = LangfuseAgent[EventPrioritizerInput, EventPrioritizerOutput]
 
 
-def get_event_prioritizer_agent() -> EventPrioritizerAgent:
+def get_event_prioritizer_agent(config: RunnableConfig) -> EventPrioritizerAgent:
   """Get the event prioritizer agent."""
 
   agent = LangfuseAgent[EventPrioritizerInput, EventPrioritizerOutput].create(
     "event_prioritizer",
-    model=ModelName.GEMINI_25_FLASH,
+    model_name=ModelName.GEMINI_25_FLASH,
     input_type=EventPrioritizerInput,
     output_type=EventPrioritizerOutput,
+    callback=extract_pydantic_ai_callback(config),
   )
 
   return agent

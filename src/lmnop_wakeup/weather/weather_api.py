@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from typing import cast
 
 import httpx
+from langgraph.func import task
 from loguru import logger
 from pydantic import AwareDatetime
 
@@ -197,7 +198,8 @@ async def _get_weather_alerts(
 
 
 @trace(name="api: get_weather_report")
-@cached(ttl=60 * 60 * 4)
+@cached(ttl=60 * 60 * 2)
+@task()
 async def get_weather_report(
   location: CoordinateLocation,
   report_start_ts: AwareDatetime,

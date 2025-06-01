@@ -15,6 +15,7 @@ from google.maps.routing import (
 from google.protobuf.timestamp_pb2 import Timestamp
 from haversine import Unit
 from haversine.haversine import haversine
+from langgraph.func import task
 from loguru import logger
 from pydantic import BaseModel, computed_field
 
@@ -102,6 +103,7 @@ class DepartAtConstraint(BaseModel):
 
 @trace(name="api: compute_route_durations")
 @cached(ttl=60 * 60 * 4)
+@task()
 async def compute_route_durations(
   origin: CoordinateLocation,
   destination: CoordinateLocation,

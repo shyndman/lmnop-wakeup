@@ -2,6 +2,7 @@ import textwrap
 from datetime import datetime
 from typing import override
 
+from langchain_core.runnables import RunnableConfig
 from loguru import logger
 from pydantic import BaseModel
 
@@ -9,6 +10,7 @@ from ..llm import (
   LangfuseAgent,
   LangfuseAgentInput,
   ModelName,
+  extract_pydantic_ai_callback,
 )
 from ..location import routes_api
 from ..location.model import CoordinateLocation
@@ -67,14 +69,15 @@ class SchedulerOutput(BaseModel):
 type SchedulerAgent = LangfuseAgent[SchedulerInput, SchedulerOutput]
 
 
-def get_scheduler_agent() -> SchedulerAgent:
+def get_scheduler_agent(config: RunnableConfig) -> SchedulerAgent:
   """Get the location resolver agent."""
 
   agent = LangfuseAgent[SchedulerInput, SchedulerOutput].create(
     "scheduler",
-    model=ModelName.GEMINI_25_FLASH,
+    model_name=ModelName.GEMINI_25_FLASH,
     input_type=SchedulerInput,
     output_type=SchedulerOutput,
+    callback=extract_pydantic_ai_callback(config),
   )
 
   @agent.tool_plain()

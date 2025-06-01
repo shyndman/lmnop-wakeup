@@ -18,6 +18,7 @@ from langgraph.types import CachePolicy, RetryPolicy, Send
 from pydantic import AwareDatetime, BaseModel, computed_field
 from pydantic_extra_types.coordinate import Coordinate
 
+from lmnop_wakeup.llm import PydanticAiCallback
 from lmnop_wakeup.weather.model import WeatherKey, weather_key_for_location
 
 from . import APP_DIRS
@@ -265,8 +266,8 @@ async def process_location(new_state: LocationDataState):
 
 
 @trace()
-async def resolve_location(state: LocationDataState):
-  location_resolver = get_location_resolver_agent()
+async def resolve_location(state: LocationDataState, config: RunnableConfig):
+  location_resolver = get_location_resolver_agent(config)
   input = LocationResolverInput(
     address=state.address,
     home_location=location_named(LocationName.home),
@@ -345,9 +346,9 @@ async def send_locations_to_analysis_tasks(state: State):
 
 
 @trace()
-async def calculate_schedule(state: State):
+async def calculate_schedule(state: State, config: RunnableConfig):
   weather_report = state.regional_weather.reports_for_location(state.briefing_day_location)[0]
-  output = await get_scheduler_agent().run(
+  output = await get_scheduler_agent(config).run(
     SchedulerInput(
       scheduling_date=state.day_start_ts,
       home_location=state.briefing_day_location,
@@ -374,7 +375,7 @@ async def analyze_weather(state: LocationWeatherState):
 
 
 @trace()
-async def predict_sunset_beauty(state: State):
+async def predict_sunset_beauty(state: State, config: RunnableConfig):
   weather_reports = state.regional_weather.reports_for_location(state.briefing_day_location)
   if not weather_reports:
     raise ValueError(
@@ -382,7 +383,7 @@ async def predict_sunset_beauty(state: State):
     )
 
   weather_report = weather_reports[0]
-  sunset_prediction = await get_sunset_oracle_agent().run(
+  sunset_prediction = await get_sunset_oracle_agent(config).run(
     SunsetOracleInput(
       prediction_date=state.day_start_ts,
       weather_report=weather_report.weather_report_api_result,
@@ -393,8 +394,8 @@ async def predict_sunset_beauty(state: State):
 
 
 @trace()
-async def prioritize_events(state: State):
-  prioritized_events = await get_event_prioritizer_agent().run(
+async def prioritize_events(state: State, config: RunnableConfig):
+  prioritized_events = await get_event_prioritizer_agent(config).run(
     EventPrioritizerInput(
       schedule=assert_not_none(state.schedule),
       calendars_of_interest=assert_not_none(state.calendars),
@@ -406,8 +407,8 @@ async def prioritize_events(state: State):
 
 
 @trace()
-async def write_briefing_outline(state: State):
-  sectioner = get_sectioner_agent()
+async def write_briefing_outline(state: State, config: RunnableConfig):
+  sectioner = get_sectioner_agent(config)
   input = SectionerInput(
     schedule=assert_not_none(state.schedule),
     prioritized_events=assert_not_none(state.prioritized_events),
@@ -420,9 +421,9 @@ async def write_briefing_outline(state: State):
 
 
 @trace()
-async def write_briefing_script(state: State):
+async def write_briefing_script(state: State, config: RunnableConfig):
   weather_analysis = state.regional_weather.analysis_by_location
-  out = await get_script_writer_agent().run(
+  out = await get_script_writer_agent(config).run(
     input=ScriptWriterInput(
       briefing_outline=assert_not_none(state.briefing_outline),
       prioritized_events=assert_not_none(state.prioritized_events),
@@ -545,7 +546,7 @@ async def run_workflow_command(cmd: WorkflowCommand) -> None:
     match cmd:
       case Run(briefing_date, location):
         config: RunnableConfig = config_for_date(briefing_date)
-        config["callbacks"] = [CallbackHandler()]
+        config["callbacks"] = [CallbackHandler(), PydanticAiCallback()]
 
         day_start_ts = start_of_local_day(briefing_date)
         # Run the workflow with a state update
@@ -560,19 +561,18 @@ async def run_workflow_command(cmd: WorkflowCommand) -> None:
         #   config["configurable"]["checkpoint_id"] = checkpoint_id
 
         with langfuse_span("graph"):
-          state_dict = await graph.ainvoke(
+          async for state_dict in graph.astream(
             input=State(
               day_start_ts=day_start_ts,
               day_end_ts=end_of_local_day(day_start_ts),
               briefing_day_location=cast(ResolvedLocation, location),
             ),
             config=config,
-            stream_mode="updates",
-          )
-
-          briefing = state_dict[-1]["write_briefing_script"]["briefing_script"]  # type: ignore
-          rich.print(briefing)
-          rich.print(BriefingScript.model_validate(briefing).model_dump_json(indent=2))  # type: ignore
+            stream_mode="debug",
+            checkpoint_during=True,
+            debug=True,
+          ):
+            rich.print(state_dict)
 
       case ListCheckpoints(briefing_date):
         config = config_for_date(briefing_date)

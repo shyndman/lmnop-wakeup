@@ -1,12 +1,13 @@
 from typing import override
 
 import lazy_object_proxy
+from langchain_core.runnables import RunnableConfig
 from loguru import logger
 from pydantic import BaseModel
 
 from ..core.tracing import trace
 from ..core.typing import ensure
-from ..llm import LangfuseAgent, LangfuseAgentInput, ModelName
+from ..llm import LangfuseAgent, LangfuseAgentInput, ModelName, extract_pydantic_ai_callback
 from .geocode_api import GeocodeSearchResult, geocode_location
 from .model import NamedLocation, ResolvedLocation
 
@@ -52,14 +53,15 @@ class LocationResolverOutput(BaseModel):
 type LocationResolverAgent = LangfuseAgent[LocationResolverInput, LocationResolverOutput]
 
 
-def _get_location_resolver_agent() -> LocationResolverAgent:
+def _get_location_resolver_agent(config: RunnableConfig) -> LocationResolverAgent:
   """Get the location resolver agent."""
 
   agent = LangfuseAgent[LocationResolverInput, LocationResolverOutput].create(
     "location_resolver",
-    model=ModelName.GEMINI_20_FLASH,
+    model_name=ModelName.GEMINI_20_FLASH,
     input_type=LocationResolverInput,
     output_type=LocationResolverOutput,
+    callback=extract_pydantic_ai_callback(config),
   )
 
   @trace(name="tool: geocode")
@@ -110,6 +112,6 @@ _location_resolver_agent: LocationResolverAgent = lazy_object_proxy.Proxy(
 )
 
 
-def get_location_resolver_agent() -> LocationResolverAgent:
+def get_location_resolver_agent(config: RunnableConfig) -> LocationResolverAgent:
   """Get the location resolver agent."""
   return _location_resolver_agent
