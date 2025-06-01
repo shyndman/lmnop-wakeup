@@ -9,8 +9,8 @@ from pydantic import BaseModel
 from lmnop_wakeup.llm import (
   PRODUCTION_PROMPT_LABEL,
   AgentContext,
-  LangfuseAgent,
   LangfuseAgentInput,
+  LmnopAgent,
   ModelName,
 )
 
@@ -57,7 +57,7 @@ class TestLangfuseAgent:
     mock_callback_instance = MagicMock()
 
     # Create agent
-    agent = LangfuseAgent[MockInput, MockOutput].create(
+    agent = LmnopAgent[MockInput, MockOutput].create(
       prompt_name="test_prompt",
       model_name=ModelName.GEMINI_25_FLASH,
       input_type=MockInput,
@@ -100,7 +100,7 @@ class TestLangfuseAgent:
     mock_callback_instance = MagicMock()
 
     # Create agent instance
-    agent = LangfuseAgent(
+    agent = LmnopAgent(
       mock_agent,
       "test_prompt",
       mock_prompt,
@@ -149,7 +149,7 @@ class TestLangfuseAgent:
     mock_agent.run = AsyncMock(return_value=mock_result)
     mock_callback_instance = MagicMock()
     mock_prompt = MagicMock(spec=Prompt_Chat)
-    agent = LangfuseAgent(
+    agent = LmnopAgent(
       mock_agent,
       "test_prompt",
       mock_prompt,
@@ -187,7 +187,7 @@ class TestLangfuseAgent:
     mock_prompt = MagicMock(spec=Prompt_Chat)
     mock_callback_instance = MagicMock()
 
-    agent = LangfuseAgent(
+    agent = LmnopAgent(
       mock_agent,
       "test_prompt",
       mock_prompt,
@@ -224,7 +224,7 @@ class TestLangfuseAgent:
     )
     mock_callback_instance = MagicMock()
     mock_prompt = MagicMock(spec=Prompt_Chat)
-    agent = LangfuseAgent(
+    agent = LmnopAgent(
       mock_agent,
       prompt_name,
       mock_prompt,

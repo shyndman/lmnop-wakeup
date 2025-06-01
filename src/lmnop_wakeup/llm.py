@@ -149,7 +149,7 @@ def extract_pydantic_ai_callback(config: RunnableConfig) -> PydanticAiCallback:
   )
 
 
-class LangfuseAgent[Input: LangfuseAgentInput, Output: BaseModel]:
+class LmnopAgent[Input: LangfuseAgentInput, Output: BaseModel]:
   """A pydantic-ai Agent wrapper that integrates with Langfuse prompts and tracing.
 
   This class provides a standardized way to create agents that:
@@ -167,7 +167,7 @@ class LangfuseAgent[Input: LangfuseAgentInput, Output: BaseModel]:
     prompt_name: str,
     raw_prompt: Prompt_Chat,
     model_name: ModelName,
-    callback: PydanticAiCallback,
+    callback: PydanticAiCallback | None = None,
   ):
     """Initialize with a configured pydantic-ai Agent and Langfuse prompt.
 
@@ -189,8 +189,8 @@ class LangfuseAgent[Input: LangfuseAgentInput, Output: BaseModel]:
     model_name: ModelName,
     input_type: type[Input],
     output_type: type[Output],
-    callback: PydanticAiCallback,
-  ) -> "LangfuseAgent[Input, Output]":
+    callback: PydanticAiCallback | None = None,
+  ) -> "LmnopAgent[Input, Output]":
     """Create a new LangfuseAgent by fetching a prompt from Langfuse.
 
     Args:
@@ -214,7 +214,11 @@ class LangfuseAgent[Input: LangfuseAgentInput, Output: BaseModel]:
 
     raw_prompt = cast(Prompt_Chat, res)
     model_settings: dict[str, Any] = res.config
-    if model_name != ModelName.GEMINI_25_FLASH and model_name != ModelName.GEMINI_25_PRO:
+    if (
+      model_name != ModelName.GEMINI_25_FLASH
+      and model_name != ModelName.GEMINI_25_PRO
+      and "google_thinking_config" in model_settings
+    ):
       del model_settings["google_thinking_config"]
 
     # Create agent without instructions (will be set via decorator)
@@ -249,22 +253,28 @@ class LangfuseAgent[Input: LangfuseAgentInput, Output: BaseModel]:
 
       # Create context and run agent
       system_prompt, user_prompt = self._prepare_prompts(input)
-      run_id = await self._callback.before_run(str(self._model_name), system_prompt)
+      if self._callback is not None:
+        run_id = await self._callback.before_run(str(self._model_name), system_prompt)
+      else:
+        run_id = None
+
       ctx = AgentContext(input=input, instructions_prompt=system_prompt, user_prompt=user_prompt)
       result = await self._run_internal(ctx, run_id)
-      await self._callback.after_run(run_id, str(result.all_messages_json(), encoding="utf-8"))
+      if self._callback is not None and run_id is not None:
+        await self._callback.after_run(run_id, str(result.all_messages_json(), encoding="utf-8"))
 
       # Set output attribute on span
       span.set_attribute("output.value", result.output)
 
       return result.output
 
-  async def _run_internal(self, ctx: AgentContext, run_id: uuid.UUID):
+  async def _run_internal(self, ctx: AgentContext, run_id: uuid.UUID | None = None):
     try:
       return await self._agent.run(user_prompt=ctx.user_prompt, deps=ctx)
     except Exception as error:
       # If an error occurs, call the callback's error handler
-      await self._callback.error_encountered(run_id=run_id, error=error)
+      if self._callback is not None and run_id is not None:
+        await self._callback.error_encountered(run_id=run_id, error=error)
       raise
 
   # Expose agent decorators for tool registration

@@ -4,8 +4,8 @@ from pydantic import RootModel
 
 from ..events.model import Schedule
 from ..llm import (
-  LangfuseAgent,
   LangfuseAgentInput,
+  LmnopAgent,
   ModelName,
   RunnableConfig,
   extract_pydantic_ai_callback,
@@ -45,13 +45,13 @@ class ScriptWriterInput(LangfuseAgentInput):
 ScriptWriterOutput = BriefingScript
 
 
-type ScriptWriterAgent = LangfuseAgent[ScriptWriterInput, ScriptWriterOutput]
+type ScriptWriterAgent = LmnopAgent[ScriptWriterInput, ScriptWriterOutput]
 
 
 def get_script_writer_agent(config: RunnableConfig) -> ScriptWriterAgent:
   """Get the script_writer agent."""
 
-  agent = LangfuseAgent[ScriptWriterInput, ScriptWriterOutput].create(
+  agent = LmnopAgent[ScriptWriterInput, ScriptWriterOutput].create(
     "script_writer",
     model_name=ModelName.GEMINI_25_FLASH,
     input_type=ScriptWriterInput,

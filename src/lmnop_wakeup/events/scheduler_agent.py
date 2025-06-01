@@ -7,8 +7,8 @@ from loguru import logger
 from pydantic import BaseModel
 
 from ..llm import (
-  LangfuseAgent,
   LangfuseAgentInput,
+  LmnopAgent,
   ModelName,
   extract_pydantic_ai_callback,
 )
@@ -66,13 +66,13 @@ class SchedulerOutput(BaseModel):
   schedule: Schedule
 
 
-type SchedulerAgent = LangfuseAgent[SchedulerInput, SchedulerOutput]
+type SchedulerAgent = LmnopAgent[SchedulerInput, SchedulerOutput]
 
 
 def get_scheduler_agent(config: RunnableConfig) -> SchedulerAgent:
   """Get the location resolver agent."""
 
-  agent = LangfuseAgent[SchedulerInput, SchedulerOutput].create(
+  agent = LmnopAgent[SchedulerInput, SchedulerOutput].create(
     "scheduler",
     model_name=ModelName.GEMINI_25_FLASH,
     input_type=SchedulerInput,

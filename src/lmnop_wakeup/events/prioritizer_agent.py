@@ -6,7 +6,7 @@ from langchain_core.runnables import RunnableConfig
 from pydantic import BaseModel, RootModel
 from pydantic.dataclasses import dataclass
 
-from ..llm import LangfuseAgent, LangfuseAgentInput, ModelName, extract_pydantic_ai_callback
+from ..llm import LangfuseAgentInput, LmnopAgent, ModelName, extract_pydantic_ai_callback
 from ..weather.model import RegionalWeatherReports
 from .model import CalendarEvent, CalendarEventId, CalendarsOfInterest, Schedule
 
@@ -44,6 +44,10 @@ class PrioritizedEvent:
 
   event_id: CalendarEventId
   """The CalendarEvent's event_id field """
+
+  summary: str
+  """The CalendarEvent's summary field"""
+
   reason: str
   """
   Reason for prioritization:
@@ -103,13 +107,13 @@ class EventPrioritizerOutput(BaseModel):
 
 type PrioritizedEvents = EventPrioritizerOutput
 
-type EventPrioritizerAgent = LangfuseAgent[EventPrioritizerInput, EventPrioritizerOutput]
+type EventPrioritizerAgent = LmnopAgent[EventPrioritizerInput, EventPrioritizerOutput]
 
 
 def get_event_prioritizer_agent(config: RunnableConfig) -> EventPrioritizerAgent:
   """Get the event prioritizer agent."""
 
-  agent = LangfuseAgent[EventPrioritizerInput, EventPrioritizerOutput].create(
+  agent = LmnopAgent[EventPrioritizerInput, EventPrioritizerOutput].create(
     "event_prioritizer",
     model_name=ModelName.GEMINI_25_FLASH,
     input_type=EventPrioritizerInput,

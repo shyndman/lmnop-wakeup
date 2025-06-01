@@ -7,7 +7,7 @@ from pydantic import AwareDatetime, RootModel
 
 from pirate_weather_api_client.models import AlertsItem
 
-from ..llm import LangfuseAgent, LangfuseAgentInput, ModelName, extract_pydantic_ai_callback
+from ..llm import LangfuseAgentInput, LmnopAgent, ModelName, extract_pydantic_ai_callback
 from .model import WeatherAnalysis, WeatherReport
 
 
@@ -49,13 +49,13 @@ class MeteorologistInput(LangfuseAgentInput):
 
 MeteorologistOutput = WeatherAnalysis
 
-type MeteorologistAgent = LangfuseAgent[MeteorologistInput, MeteorologistOutput]
+type MeteorologistAgent = LmnopAgent[MeteorologistInput, MeteorologistOutput]
 
 
 def _get_meteorologist_agent(config: RunnableConfig) -> MeteorologistAgent:
   """Get the location resolver agent."""
 
-  return LangfuseAgent[MeteorologistInput, MeteorologistOutput].create(
+  return LmnopAgent[MeteorologistInput, MeteorologistOutput].create(
     "meteorologist",
     model_name=ModelName.GEMINI_25_FLASH,
     input_type=MeteorologistInput,

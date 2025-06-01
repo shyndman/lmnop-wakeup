@@ -77,8 +77,21 @@ class Scratch(Command):
     master_briefing_audio(path)
 
 
+class LoadData(Command):
+  """Loads data for the wakeup command"""
+
+  @override
+  async def run(self):
+    from .events.blogto_api import add_upcoming_blogto_events
+
+    assert_env()
+
+    async with get_cache():
+      await add_upcoming_blogto_events()
+
+
 class Wakeup(Command):
-  subcommand: Script | Voiceover | Scratch
+  subcommand: Script | Voiceover | Scratch | LoadData
 
   briefing_date: date = arg(
     default=date.today() + timedelta(days=1),

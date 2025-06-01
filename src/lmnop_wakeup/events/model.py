@@ -2,7 +2,7 @@ import textwrap
 from collections.abc import Generator
 from datetime import date
 from io import StringIO
-from typing import Any, NewType
+from typing import Any, NewType, TypedDict
 
 from pydantic import AwareDatetime, BaseModel, EmailStr, Field
 from pydantic_extra_types.timezone_name import TimeZoneName
@@ -31,29 +31,46 @@ class CalendarUser(CalendarEmailUser):
 CalendarEventId = NewType("CalendarEventId", str)
 
 
+class ExtendedPropertiesDict(TypedDict, total=False):
+  private: dict[str, Any] | None
+  shared: dict[str, Any] | None
+
+
 class CalendarEvent(BaseModel):
   """Represents a single calendar event."""
 
-  event_id: CalendarEventId
+  id: str
   """Uniquely identifies the event in its calendar"""
+
   summary: str
   """A brief summary or title of the event."""
-  creator: CalendarEmailUser | None = None
-  """The creator of the event."""
-  attendees: list[CalendarEmailUser] | None = None
-  """A list of attendees for the event."""
-  start_ts: TimeInfo = Field(alias="start")
-  """The start time information of the event."""
-  end_ts: TimeInfo | None = Field(None, alias="end")
-  """The end time information of the event. None for all-day events."""
+
   description: str | None = None
   """A detailed description of the event."""
+
+  creator: CalendarEmailUser | None = None
+  """The creator of the event."""
+
+  attendees: list[CalendarEmailUser] | None = None
+  """A list of attendees for the event."""
+
   location: str | None = None
   """The physical location of the event."""
 
+  source_url: str | None = Field(default=None, serialization_alias="source.url")
+  """A URL related to the event, such as a meeting link or additional information."""
+
+  start: TimeInfo
+  """The start time information of the event."""
+
+  end: TimeInfo | None = None
+  """The end time information of the event. None for all-day events."""
+
+  extended_properties: ExtendedPropertiesDict | None = None
+
   def is_all_day(self) -> bool:
     """Checks if the event is an all-day event."""
-    return self.end_ts is None
+    return self.end is None
 
   @property
   def start_datetime_aware(self) -> AwareDatetime:
@@ -62,8 +79,8 @@ class CalendarEvent(BaseModel):
     For all-day events, this is the start of the day.
     """
     if self.is_all_day():
-      return start_of_local_day(self.start_ts.to_aware_datetime())
-    return self.start_ts.to_aware_datetime()
+      return start_of_local_day(self.start.to_aware_datetime())
+    return self.start.to_aware_datetime()
 
   @property
   def end_datetime_aware(self) -> AwareDatetime:
@@ -72,10 +89,10 @@ class CalendarEvent(BaseModel):
     For all-day events, this is the end of the day.
     """
     if self.is_all_day():
-      return end_of_local_day(self.start_ts.to_aware_datetime())
-    if self.end_ts is None:
+      return end_of_local_day(self.start.to_aware_datetime())
+    if self.end is None:
       raise ValueError("End time is not set for this event, and it is not an all-day event.")
-    return self.end_ts.to_aware_datetime()
+    return self.end.to_aware_datetime()
 
   def overlaps_with_range(self, range_start: AwareDatetime, range_end: AwareDatetime) -> bool:
     """
@@ -98,10 +115,10 @@ class CalendarEvent(BaseModel):
       A string containing the event details formatted in markdown.
     """
     sb = StringIO()
-    event_time = format_time_info(self.start_ts, "%Y-%m-%d", "%H:%M:%S")
-    if self.end_ts:
+    event_time = format_time_info(self.start, "%Y-%m-%d", "%H:%M:%S")
+    if self.end:
       event_time += " to "
-      event_time += textwrap.dedent(format_time_info(self.end_ts, "%Y-%m-%d", "%H:%M:%S"))
+      event_time += textwrap.dedent(format_time_info(self.end, "%Y-%m-%d", "%H:%M:%S"))
     event_time += ""
 
     sb.write(

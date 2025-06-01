@@ -4,7 +4,7 @@ from datetime import datetime as Datetime
 from typing import overload, override
 from zoneinfo import ZoneInfo
 
-from pydantic import AwareDatetime, BaseModel
+from pydantic import AwareDatetime, BaseModel, field_serializer
 
 
 def is_timestamp_on_date(ts: int, midnight_on_date: datetime) -> bool:
@@ -17,10 +17,20 @@ class TimeInfo(BaseModel):
 
   date: Date | None = None
   """The date."""
+
   dateTime: Datetime | None = None
   """The datetime."""
+
   timeZone: str | None = None
   """The timezone."""
+
+  @field_serializer("date")
+  def serialize_date(self, v: Date, _info):
+    return v.isoformat() if v else None
+
+  @field_serializer("dateTime")
+  def serialize_dateTime(self, v: Datetime, _info):
+    return v.isoformat() if v else None
 
   def to_aware_datetime(self) -> AwareDatetime:
     if self.dateTime is not None:

@@ -72,7 +72,7 @@ async def geocode_location(
     res = await assert_not_none(geolocator.geocode(query=address, exactly_one=False))
 
   if res is None:
-    raise ValueError(f"Could not geocode address: {address}")
+    return []
 
   if not isinstance(res, list):
     raise TypeError(f"Expected a list of geocoding results, got {type(res)}")

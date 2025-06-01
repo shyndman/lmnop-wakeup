@@ -5,7 +5,7 @@ from typing import override
 from langchain_core.runnables import RunnableConfig
 from pydantic import AwareDatetime, BaseModel
 
-from ..llm import LangfuseAgent, LangfuseAgentInput, ModelName, extract_pydantic_ai_callback
+from ..llm import LangfuseAgentInput, LmnopAgent, ModelName, extract_pydantic_ai_callback
 
 
 class SunsetOracleInput(LangfuseAgentInput):
@@ -78,13 +78,13 @@ class SunsetOracleOutput(BaseModel):
   """Hour-by-hour breakdown, weather patterns, and optimal viewing window justification."""
 
 
-type SunsetOracleAgent = LangfuseAgent[SunsetOracleInput, SunsetOracleOutput]
+type SunsetOracleAgent = LmnopAgent[SunsetOracleInput, SunsetOracleOutput]
 
 
 def get_sunset_oracle_agent(config: RunnableConfig) -> SunsetOracleAgent:
   """Get the location resolver agent."""
 
-  agent = LangfuseAgent[SunsetOracleInput, SunsetOracleOutput].create(
+  agent = LmnopAgent[SunsetOracleInput, SunsetOracleOutput].create(
     "sunset_oracle",
     model_name=ModelName.GEMINI_25_FLASH,
     input_type=SunsetOracleInput,

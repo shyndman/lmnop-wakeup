@@ -24,6 +24,8 @@ def initialize_logging():
   logger.add(
     sys.stderr,
     format="<green>{time:HH:mm:ss}</green> <dim>[{module}]</dim> <level>{level} {message}</level>",
+    backtrace=True,
+    diagnose=True,
   )
   # HACK(https://github.com/Delgan/loguru/issues/1252): Someone thinks that it makes sense to
   # optimize for aesthetics over THE ABILITY TO READ EXCEPTIONS.

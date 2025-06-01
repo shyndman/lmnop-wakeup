@@ -11,7 +11,7 @@ from lmnop_wakeup.weather.sunset_oracle_agent import SunsetPrediction
 from ..events.model import CalendarEvent
 from ..events.prioritizer_agent import PrioritizedEvents
 from ..events.scheduler_agent import Schedule
-from ..llm import LangfuseAgent, LangfuseAgentInput, ModelName, extract_pydantic_ai_callback
+from ..llm import LangfuseAgentInput, LmnopAgent, ModelName, extract_pydantic_ai_callback
 from ..weather.model import RegionalWeatherReports
 
 
@@ -55,13 +55,13 @@ class SectionerOutput(BaseModel):
 
 type BriefingOutline = SectionerOutput
 
-type SectionerAgent = LangfuseAgent[SectionerInput, SectionerOutput]
+type SectionerAgent = LmnopAgent[SectionerInput, SectionerOutput]
 
 
 def get_sectioner_agent(config: RunnableConfig) -> SectionerAgent:
   """Get the sectioner agent."""
 
-  agent = LangfuseAgent[SectionerInput, SectionerOutput].create(
+  agent = LmnopAgent[SectionerInput, SectionerOutput].create(
     "sectioner",
     model_name=ModelName.GEMINI_25_FLASH,
     input_type=SectionerInput,

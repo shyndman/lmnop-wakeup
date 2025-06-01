@@ -7,7 +7,7 @@ from pydantic import BaseModel
 
 from ..core.tracing import trace
 from ..core.typing import ensure
-from ..llm import LangfuseAgent, LangfuseAgentInput, ModelName, extract_pydantic_ai_callback
+from ..llm import LangfuseAgentInput, LmnopAgent, ModelName, extract_pydantic_ai_callback
 from .geocode_api import GeocodeSearchResult, geocode_location
 from .model import NamedLocation, ResolvedLocation
 
@@ -50,13 +50,13 @@ class LocationResolverOutput(BaseModel):
   the problem. Otherwise leave unset."""
 
 
-type LocationResolverAgent = LangfuseAgent[LocationResolverInput, LocationResolverOutput]
+type LocationResolverAgent = LmnopAgent[LocationResolverInput, LocationResolverOutput]
 
 
 def _get_location_resolver_agent(config: RunnableConfig) -> LocationResolverAgent:
   """Get the location resolver agent."""
   rich.print(config)
-  agent = LangfuseAgent[LocationResolverInput, LocationResolverOutput].create(
+  agent = LmnopAgent[LocationResolverInput, LocationResolverOutput].create(
     "location_resolver",
     model_name=ModelName.GEMINI_20_FLASH,
     input_type=LocationResolverInput,
