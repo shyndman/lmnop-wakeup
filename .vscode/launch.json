@@ -15,8 +15,10 @@
         "python"
       ],
       "args": [
+        "script",
         "--briefing-date",
-        "2025-05-29"
+        "2025-06-01",
+        "--review-events"
       ],
       "justMyCode": false,
       "envFile": "${workspaceFolder}/.env.res",
