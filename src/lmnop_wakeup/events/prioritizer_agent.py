@@ -8,7 +8,7 @@ from pydantic.dataclasses import dataclass
 
 from ..llm import LangfuseAgentInput, LmnopAgent, ModelName, extract_pydantic_ai_callback
 from ..weather.model import RegionalWeatherReports
-from .model import CalendarEvent, CalendarEventId, CalendarsOfInterest, Schedule
+from .model import CalendarEvent, CalendarsOfInterest, Schedule
 
 
 class _CalendarEventList(RootModel[list[CalendarEvent]]):
@@ -42,8 +42,8 @@ class EventPrioritizerInput(LangfuseAgentInput):
 class PrioritizedEvent:
   """Represents a prioritized event with its ID and reason for prioritization."""
 
-  event_id: CalendarEventId
-  """The CalendarEvent's event_id field """
+  id: str
+  """The CalendarEvent's id field """
 
   summary: str
   """The CalendarEvent's summary field"""
@@ -51,9 +51,9 @@ class PrioritizedEvent:
   reason: str
   """
   Reason for prioritization:
-  - Critical wake-up events
-  - High-priority events
-  - Upcoming personal important events (within reminder window)
+  - Wake-up events
+  - Prioritized events
+  - Upcoming personal events (within reminder window)
   - Interesting or relevant events worth mentioning
   - Weather conditions affecting travel or local patterns
   """
@@ -67,9 +67,9 @@ class EventPrioritizerOutput(BaseModel):
   must_mention: list[PrioritizedEvent]
   """
   Events that absolutely need to be included in the briefing:
-  - Today's critical wake-up event
-  - Today's high-priority events
-  - Upcoming personal important events (within reminder window)
+  - Today's wake-up event
+  - Today's prioritized events
+  - Upcoming personal events (within reminder window)
   """
 
   could_mention: list[PrioritizedEvent]

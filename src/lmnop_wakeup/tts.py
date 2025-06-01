@@ -2,10 +2,12 @@ import asyncio
 import wave
 from pathlib import Path
 
+import rich
 from google import genai
 from google.genai import types
 from loguru import logger
 
+from lmnop_wakeup.audio.master import master_briefing_audio
 from lmnop_wakeup.brief.actors import voice_for_speaker
 from lmnop_wakeup.brief.model import BriefingScript
 from lmnop_wakeup.core.logging import rich_sprint
@@ -57,7 +59,7 @@ async def run_tts(
     config=types.GenerateContentConfig(
       response_modalities=["AUDIO"],
       speech_config=speech_config,
-      temperature=1.2,
+      temperature=0.95,
       top_p=0.95,
     ),
   )
@@ -100,4 +102,8 @@ async def run_voiceover(script: BriefingScript, print_script: bool, output_path:
           output_path=output_path,
         ),
       )
+
+  rich.print(tasks)
   await asyncio.gather(*tasks)
+
+  master_briefing_audio(output_path)

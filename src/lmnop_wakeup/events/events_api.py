@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from ..core.date import end_of_local_day, start_of_local_day
 from ..env import ApiKey, get_hass_api_key
 from .calendar import gcalendar_api, hass_calendar_api
-from .model import Calendar
+from .model import Calendar, CalendarEvent
 
 
 class CalendarEventFilter(StrEnum):
@@ -21,17 +21,17 @@ class CalendarEventFilter(StrEnum):
 class CalendarInfo(BaseModel):
   notes: str
   event_filter: CalendarEventFilter = CalendarEventFilter.no_filter
-  event_summary_mapper: Callable[[str], str] | None = None
+  event_mapper: Callable[[CalendarEvent], CalendarEvent] | None = None
 
 
-series_pattern_1 = re.compile(r"[sS](\d+)[eE](\d+)")
-series_pattern_2 = re.compile(r"(\d+)x(\d+)")
+series_pattern_1 = re.compile(r"[sS]0*(\d+)[eE]0*(\d+)")
+series_pattern_2 = re.compile(r"0*(\d+)x0*(\d+)")
 
 
-def expand_sonarr_series(summary: str) -> str:
-  summary = series_pattern_1.sub(r"Season \1 Episode \2", summary)
-  summary = series_pattern_2.sub(r"Season \1 Episode \2", summary)
-  return summary
+def expand_sonarr_series(e: CalendarEvent) -> CalendarEvent:
+  e.summary = series_pattern_1.sub(r"Season \1 Episode \2", e.summary)
+  e.summary = series_pattern_2.sub(r"Season \1 Episode \2", e.summary)
+  return e
 
 
 # Define a constant dictionary mapping calendar entity IDs to instruction strings.
@@ -44,7 +44,7 @@ CALENDAR_INSTRUCTIONS = {
   # Scott's birthday calendar
   "md3ntu1lbq9vqc59fs75svbusg@group.calendar.google.com": CalendarInfo(
     notes="This is a birthday calendar. Short reminders for these can start a couple weeks before "
-    "the event, but they are not high priority unless they are for immediate family."
+    "the event, but they are not elevated priority unless they are for immediate family."
   ),
   # Doncaster calendar
   "family16125668672800183011@group.calendar.google.com": CalendarInfo(
@@ -68,15 +68,20 @@ CALENDAR_INSTRUCTIONS = {
   ),
   # Radarr
   "calendar.radarr": CalendarInfo(
-    notes="Upcoming movies. Low priority, but because Hilary and Scott like movies so much, it "
-    "might be good to surface something coming up. Also worth mentioning, are dense groupings of "
-    "upcoming movies."
+    notes="Upcoming movies. Standard priority. These are movies coming to Scott and Hilary's "
+    "streaming services. But just because a movie is on this calendar doesn't mean they "
+    "will be interested in hearing about it, so if corroborating evidence is availble (whether "
+    "that's signals of Scott and Hilary's preferences, or a movie's high review scores), use "
+    "those when determining whether or not to surface an upcoming feature. Events from this "
+    "calendar should never appear in any lists of a previous day's notable events."
   ),
   # Sonarr
   "calendar.sonarr": CalendarInfo(
-    notes="Television shows coming to our media center. Low priority, but when we get into a show"
-    "we love hearing about every upcoming episode.",
-    event_summary_mapper=expand_sonarr_series,
+    notes="Upcoming television show episodes. Television shows coming to our media center. "
+    "Standard priority, but when we get into a show we love hearing about every upcoming "
+    "episode. Events from this calendar should never appear in any lists of a previous day's "
+    "notable events.",
+    event_mapper=expand_sonarr_series,
   ),
   # Waste collection schedule
   "calendar.toronto_on": CalendarInfo(
@@ -138,6 +143,8 @@ async def get_filtered_calendars_with_notes(
         start_of_local_day(briefing_date),
         end_of_local_day(briefing_date),
       )
+    if instructions.event_mapper is not None:
+      calendar.events = list(map(instructions.event_mapper, calendar.events))
 
     filtered_calendars.append(calendar)
 

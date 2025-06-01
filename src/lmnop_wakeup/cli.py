@@ -5,7 +5,7 @@ from typing import override
 from clypi import Command, arg
 from loguru import logger
 
-from lmnop_wakeup.audio.master import master_briefing_audio
+from lmnop_wakeup import APP_DIRS
 from lmnop_wakeup.brief.model import BriefingScript
 
 from .arg import parse_date_arg, parse_location
@@ -60,21 +60,12 @@ class Voiceover(Command):
     assert_env()
     script = self.script_path.open("r").read()
 
-    path = Path("tmp", self.briefing_date.isoformat())
+    path = APP_DIRS.user_state_path / self.briefing_date.isoformat()
     path.mkdir(parents=True, exist_ok=True)
 
     await run_voiceover(
       BriefingScript.model_validate_json(script), print_script=self.print_script, output_path=path
     )
-
-
-class Scratch(Command):
-  briefing_date: date = arg(inherited=True)
-
-  @override
-  async def run(self):
-    path = Path("tmp", self.briefing_date.isoformat())
-    master_briefing_audio(path)
 
 
 class LoadData(Command):
@@ -91,7 +82,7 @@ class LoadData(Command):
 
 
 class Wakeup(Command):
-  subcommand: Script | Voiceover | Scratch | LoadData
+  subcommand: Script | Voiceover | LoadData
 
   briefing_date: date = arg(
     default=date.today() + timedelta(days=1),

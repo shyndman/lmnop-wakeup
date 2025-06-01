@@ -90,6 +90,7 @@ def get_sunset_oracle_agent(config: RunnableConfig) -> SunsetOracleAgent:
     input_type=SunsetOracleInput,
     output_type=SunsetOracleOutput,
     callback=extract_pydantic_ai_callback(config),
+    # mcp_servers=[sandboxed_python_mcp_server()],
   )
 
   return agent

@@ -31,9 +31,15 @@ class CalendarUser(CalendarEmailUser):
 CalendarEventId = NewType("CalendarEventId", str)
 
 
-class ExtendedPropertiesDict(TypedDict, total=False):
-  private: dict[str, Any] | None
-  shared: dict[str, Any] | None
+class PrivateExtendedPropertiesDict(TypedDict, total=True):
+  blogto_event: str
+  intended_audience: str
+  is_top_pick: str
+  category: str
+
+
+class ExtendedPropertiesDict(TypedDict, total=True):
+  private: PrivateExtendedPropertiesDict | None
 
 
 class CalendarEvent(BaseModel):
@@ -124,6 +130,7 @@ class CalendarEvent(BaseModel):
     sb.write(
       textwrap.dedent(f"""
       * ### {self.summary}
+        id: {self.id}
 
         {event_time}
 

@@ -1,10 +1,7 @@
 import asyncio
 import itertools
-import json
 import operator
 import random
-import subprocess
-import tempfile
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from typing import Annotated, Any, Literal, cast
@@ -17,7 +14,7 @@ from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
 from langgraph.graph import StateGraph
 from langgraph.store.postgres import AsyncPostgresStore
-from langgraph.types import CachePolicy, Command, RetryPolicy, Send, interrupt
+from langgraph.types import CachePolicy, RetryPolicy, Send
 from loguru import logger
 from pydantic import AwareDatetime, BaseModel, computed_field
 from pydantic_extra_types.coordinate import Coordinate
@@ -37,7 +34,6 @@ from .events.events_api import get_filtered_calendars_with_notes
 from .events.model import CalendarEvent, CalendarsOfInterest, Schedule
 from .events.prioritizer_agent import (
   EventPrioritizerInput,
-  EventPrioritizerOutput,
   PrioritizedEvents,
   RegionalWeatherReports,
   get_event_prioritizer_agent,
@@ -412,46 +408,6 @@ async def prioritize_events(state: State, config: RunnableConfig):
 
 
 @trace()
-async def review_prioritized_events(state: State, config: RunnableConfig):
-  """Allow human review and editing of prioritized events using external editor."""
-
-  # Create temp file with prioritized events
-  with tempfile.NamedTemporaryFile(
-    mode="w", suffix=".json", prefix="wakeup_prioritized_events_", delete=False
-  ) as f:
-    events_data = state.prioritized_events.model_dump() if state.prioritized_events else {}
-    json.dump(events_data, f, indent=2)
-    temp_path = f.name
-
-  try:
-    # Interrupt and launch editor (blocks until editing complete)
-    updated_events = cast(
-      EventPrioritizerOutput,
-      interrupt(
-        {
-          "task": "Review and edit prioritized events",
-          "file_path": temp_path,
-          "events_count": len(state.prioritized_events.must_mention)
-          + len(state.prioritized_events.could_mention)
-          + len(state.prioritized_events.deprioritized)
-          if state.prioritized_events
-          else 0,
-        }
-      ),
-    )
-
-    logger.info("Events updated successfully from editor")
-    return {"prioritized_events": updated_events}
-
-  except subprocess.CalledProcessError as e:
-    logger.error(f"Editor exited with non-zero status: {e}")
-    raise ValueError(f"Editor failed: {e}")
-  except json.JSONDecodeError as e:
-    logger.error(f"Invalid JSON after editing: {e}")
-    raise ValueError(f"Invalid JSON in edited file: {e}")
-
-
-@trace()
 async def write_briefing_outline(state: State, config: RunnableConfig):
   sectioner = get_sectioner_agent(config)
   input = SectionerInput(
@@ -459,7 +415,6 @@ async def write_briefing_outline(state: State, config: RunnableConfig):
     prioritized_events=assert_not_none(state.prioritized_events),
     regional_weather_reports=assert_not_none(state.regional_weather),
     sunset_predication=assert_not_none(state.sunset_prediction),
-    yesterdays_events=state.yesterdays_events or [],
   )
   out = await sectioner.run(input=input)
   return {"briefing_outline": out}
@@ -541,10 +496,6 @@ def build_graph(review_events: bool = False):
   graph_builder.add_node(analyze_weather, retry=standard_retry)
   graph_builder.add_node(predict_sunset_beauty, retry=standard_retry)
   graph_builder.add_node(prioritize_events, defer=True)
-
-  if review_events:
-    graph_builder.add_node(review_prioritized_events)
-
   graph_builder.add_node(write_briefing_outline)
   graph_builder.add_node(write_briefing_script)
 
@@ -570,13 +521,7 @@ def build_graph(review_events: bool = False):
   graph_builder.add_edge("calculate_schedule", "prioritize_events")
   graph_builder.add_edge("analyze_weather", "prioritize_events")
   graph_builder.add_edge("predict_sunset_beauty", "prioritize_events")
-
-  if review_events:
-    graph_builder.add_edge("prioritize_events", "review_prioritized_events")
-    graph_builder.add_edge("review_prioritized_events", "write_briefing_outline")
-  else:
-    graph_builder.add_edge("prioritize_events", "write_briefing_outline")
-
+  graph_builder.add_edge("prioritize_events", "write_briefing_outline")
   graph_builder.add_edge("write_briefing_outline", "write_briefing_script")
   graph_builder.set_finish_point("write_briefing_script")
 
@@ -632,23 +577,20 @@ async def run_workflow_command(cmd: WorkflowCommand) -> None:
             checkpoint_during=True,
             debug=True,
           )
+          final_state = State.model_validate(result)
 
-          logger.info("🚨🛑 LEAVING?!?! 🛑🚨")
-          snapshot = await graph.aget_state(config)
-          logger.info("snapshot={snapshot}", snapshot=snapshot)
+          rich.print(final_state.model_dump())
+          out_path = state_path = APP_DIRS.user_state_path / briefing_date.isoformat()
+          state_path = out_path / "workflow_state.json"
+          briefing_path = out_path / "brief.json"
+          state_path.parent.mkdir(parents=True, exist_ok=True)
 
-          rich.print(result)
-          if "__interrupt__" not in result:
-            return
+          logger.info("Saving state to {state_path}", state_path=state_path)
+          with open(state_path, "w") as f:
+            f.write(final_state.model_dump_json())
+          with open(briefing_path, "w") as f:
+            f.write(final_state.briefing_script.model_dump_json())  # type: ignore
 
-          # Give user opportunity to edit
-          file_path = result["__interrupt__"][0].value["file_path"]
-          subprocess.run(f"/usr/bin/code --wait {file_path}", shell=True, check=True)
-
-          # Resume
-          with open(file_path, "r") as f:
-            updated_events = EventPrioritizerOutput.model_validate_json(f.read())
-            await graph.ainvoke(Command(resume=updated_events), config)
       case ListCheckpoints(briefing_date):
         # Use basic graph for checkpoint listing
         graph_builder = build_graph(review_events=False)

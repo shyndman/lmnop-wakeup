@@ -17,6 +17,7 @@ from langfuse.api.core import RequestOptions
 from langfuse.model import ChatPromptClient
 from pydantic import BaseModel
 from pydantic_ai import Agent, RunContext
+from pydantic_ai.mcp import MCPServer
 from pydantic_ai.models import Model
 from pydantic_ai.models.google import GoogleModel
 from pydantic_ai.providers.google import GoogleProvider
@@ -190,6 +191,7 @@ class LmnopAgent[Input: LangfuseAgentInput, Output: BaseModel]:
     input_type: type[Input],
     output_type: type[Output],
     callback: PydanticAiCallback | None = None,
+    mcp_servers: list[MCPServer] = [],
   ) -> "LmnopAgent[Input, Output]":
     """Create a new LangfuseAgent by fetching a prompt from Langfuse.
 
@@ -229,6 +231,7 @@ class LmnopAgent[Input: LangfuseAgentInput, Output: BaseModel]:
       model_settings={"timeout": 60, **ModelSettings(res.config)},
       retries=5,
       instrument=True,
+      mcp_servers=mcp_servers,
     )
 
     # Set up the instructions decorator function
@@ -248,25 +251,26 @@ class LmnopAgent[Input: LangfuseAgentInput, Output: BaseModel]:
       Agent output matching the Output BaseModel type
     """
     with langfuse_span(name=f"run {self.prompt_name}") as span:
-      # Set input attribute on span
-      span.set_attribute("input.value", input)
+      async with self._agent.run_mcp_servers():
+        # Set input attribute on span
+        span.set_attribute("input.value", input)
 
-      # Create context and run agent
-      system_prompt, user_prompt = self._prepare_prompts(input)
-      if self._callback is not None:
-        run_id = await self._callback.before_run(str(self._model_name), system_prompt)
-      else:
-        run_id = None
+        # Create context and run agent
+        system_prompt, user_prompt = self._prepare_prompts(input)
+        if self._callback is not None:
+          run_id = await self._callback.before_run(str(self._model_name), system_prompt)
+        else:
+          run_id = None
 
-      ctx = AgentContext(input=input, instructions_prompt=system_prompt, user_prompt=user_prompt)
-      result = await self._run_internal(ctx, run_id)
-      if self._callback is not None and run_id is not None:
-        await self._callback.after_run(run_id, str(result.all_messages_json(), encoding="utf-8"))
+        ctx = AgentContext(input=input, instructions_prompt=system_prompt, user_prompt=user_prompt)
+        result = await self._run_internal(ctx, run_id)
+        if self._callback is not None and run_id is not None:
+          await self._callback.after_run(run_id, str(result.all_messages_json(), encoding="utf-8"))
 
-      # Set output attribute on span
-      span.set_attribute("output.value", result.output)
+        # Set output attribute on span
+        span.set_attribute("output.value", result.output)
 
-      return result.output
+        return result.output
 
   async def _run_internal(self, ctx: AgentContext, run_id: uuid.UUID | None = None):
     try:

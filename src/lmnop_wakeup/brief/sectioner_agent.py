@@ -26,7 +26,6 @@ class SectionerInput(LangfuseAgentInput):
   prioritized_events: PrioritizedEvents
   regional_weather_reports: RegionalWeatherReports
   sunset_predication: SunsetPrediction
-  yesterdays_events: list[CalendarEvent]
 
   @override
   def to_prompt_variable_map(self) -> dict[str, str]:
@@ -38,9 +37,6 @@ class SectionerInput(LangfuseAgentInput):
         exclude={"reports_by_location"}
       ),
       "sunset_predication": self.sunset_predication.model_dump_json(),
-      "yesterdays_events": _CalendarEventList(self.yesterdays_events).model_dump_json(indent=2)
-      if self.yesterdays_events
-      else "[]",
     }
 
 
