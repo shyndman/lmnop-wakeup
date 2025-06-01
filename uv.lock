@@ -520,6 +520,20 @@ wheels = [
 ]
 
 [[package]]
+name = "docker"
+version = "7.1.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pywin32", marker = "sys_platform == 'win32'" },
+    { name = "requests" },
+    { name = "urllib3" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/91/9b/4a2ea29aeba62471211598dac5d96825bb49348fa07e906ea930394a83ce/docker-7.1.0.tar.gz", hash = "sha256:ad8c70e6e3f8926cb8a92619b832b4ea5299e2831c14284663184e200546fa6c", size = 117834, upload-time = "2024-05-23T11:13:57.216Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e3/26/57c6fb270950d476074c087527a558ccb6f4436657314bfb6cdf484114c4/docker-7.1.0-py3-none-any.whl", hash = "sha256:c96b93b7f0a746f9e77d325bcfb87422a3d8bd4f03136ae8a85b37f1898d5fc0", size = 147774, upload-time = "2024-05-23T11:13:55.01Z" },
+]
+
+[[package]]
 name = "email-validator"
 version = "2.2.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1586,6 +1600,23 @@ wheels = [
 ]
 
 [[package]]
+name = "llm-sandbox"
+version = "0.3.4"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pydantic" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/e6/7f/aeb7dca62d9c041938efd6d3be642e199fe693a7ffe316e41b6e4166616e/llm_sandbox-0.3.4.tar.gz", hash = "sha256:a6647a155e31f67868f7f7a4dc4fd78b80e956f1cbd6ce56de3ae036ee82fed9", size = 388162, upload-time = "2025-05-29T15:59:12.684Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a5/7e/1e7f422be4e3ded434d1ec754a407fa068eb51ee419cfd6f258145095c9c/llm_sandbox-0.3.4-py3-none-any.whl", hash = "sha256:f077b2611036336873b8856d3bf6aae167007f4604f1f36185bb8943f11f105e", size = 55763, upload-time = "2025-05-29T15:59:11.38Z" },
+]
+
+[package.optional-dependencies]
+docker = [
+    { name = "docker" },
+]
+
+[[package]]
 name = "lmnop-wakeup"
 version = "0.0.0"
 source = { editable = "." }
@@ -1610,6 +1641,7 @@ dependencies = [
     { name = "langgraph-checkpoint-postgres" },
     { name = "langgraph-checkpoint-sqlite" },
     { name = "lazy-object-proxy" },
+    { name = "llm-sandbox", extra = ["docker"] },
     { name = "logfire", extra = ["psycopg"] },
     { name = "loguru" },
     { name = "nest-asyncio" },
@@ -1661,6 +1693,7 @@ requires-dist = [
     { name = "langgraph-checkpoint-postgres", specifier = ">=2.0.21" },
     { name = "langgraph-checkpoint-sqlite", specifier = ">=2.0.10" },
     { name = "lazy-object-proxy", specifier = ">=1.11.0" },
+    { name = "llm-sandbox", extras = ["docker"], specifier = ">=0.3.4" },
     { name = "logfire", extras = ["psycopg"], specifier = ">=3.15.1" },
     { name = "loguru", specifier = ">=0.7.3" },
     { name = "nest-asyncio", specifier = ">=1.6.0" },
