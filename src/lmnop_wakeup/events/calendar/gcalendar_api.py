@@ -82,10 +82,15 @@ def authenticate():
 
   # No valid credentials available, let the user log in.
   if not credentials or not credentials.valid:
-    if credentials and credentials.expired and credentials.refresh_token:
-      logger.debug("Refreshing expired credentials")
-      credentials.refresh(Request())
-    else:
+    try:
+      if credentials and credentials.expired and credentials.refresh_token:
+        logger.debug("Refreshing expired credentials")
+        credentials.refresh(Request())
+    except Exception:
+      credentials = None
+      logger.exception("Failed to refresh credentials, requesting new ones")
+
+    if not credentials or not credentials.valid:
       logger.debug("No valid credentials, requesting new ones")
       flow = InstalledAppFlow.from_client_secrets_file(".google/credentials.json", SCOPES)
       credentials = flow.run_local_server(port=0)

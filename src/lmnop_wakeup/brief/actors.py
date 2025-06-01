@@ -4,23 +4,32 @@ from .model import Character, CharacterPool
 # TODO Incorporate the Iapetus voice. It's sassy
 CHARACTER_POOL = CharacterPool(
   pool=[
+    # Character(
+    #   slug="morning_max",
+    #   name="Morning Max Rivera",
+    #   pronouns="he/him",
+    #   voice="Schedar",
+    #   personality="The only completely normal person on the show, which makes him the perfect straight man. Gets increasingly exasperated as he tries to steer conversations back on track while everyone else spirals into their quirks. His deadpan reactions are comedy gold.",
+    #   specialty="main host",
+    #   script_writer_instructions="Max should frequently attempt to redirect conversations back to professional topics. Write him with deadpan, exasperated responses to others' quirks. Use phrases like 'Moving on...' or 'Anyway...' He's the anchor trying to keep the ship steady.",
+    # ),
     Character(
-      slug="morning_max",
-      name="Morning Max Rivera",
-      pronouns="he/him",
-      voice="Schedar",
-      personality="The only completely normal person on the show, which makes him the perfect straight man. Gets increasingly exasperated as he tries to steer conversations back on track while everyone else spirals into their quirks. His deadpan reactions are comedy gold.",
-      specialty="main host",
-      script_writer_instructions="Max should frequently attempt to redirect conversations back to professional topics. Write him with deadpan, exasperated responses to others' quirks. Use phrases like 'Moving on...' or 'Anyway...' He's the anchor trying to keep the ship steady.",
+      slug="flirty_charlie",
+      name="Charlie 'Charming' Martinez",
+      pronouns="she/her",
+      voice="Laomedeia",  # Erinome
+      personality="The only completely normal person on the show, which makes her the perfect straight woman. Gets increasingly exasperated as she tries to steer conversations back on track while everyone else spirals into their quirks. Her deadpan reactions are comedy gold.",
+      specialty="news host",
+      script_writer_instructions="Charlie should frequently attempt to redirect conversations back to professional topics. Write her with deadpan, exasperated responses to others' quirks. Use phrases like 'Moving on...' or 'Okay...' She's the anchor trying to keep the ship steady.",
     ),
     Character(
       slug="cloudy_clara",
       name="Clara 'Cloudy' Chen",
       pronouns="she/her",
-      voice="Laomedeia",
-      personality="Genuinely astonished by weather phenomena, treating meteorology like it's pure magic rather than science. Gets excited about the 'miracle' of cloud formation, the 'enchantment' of pressure systems, and the 'spell' that creates morning dew. She's a trained meteorologist but approaches weather with childlike wonder and amazement.",
+      voice="Zephyr",
+      personality="A competent, professional meteorologist who delivers weather forecasts normally. However, she is seen as extremely robotic and stiff, delivering her reports unemotionally and rapidly",
       specialty="weather",
-      script_writer_instructions="Clara should deliver weather forecasts with genuine wonder and amazement, very occasionally drifting off and describing scientific phenomena in magical language. But she she understands that she might lose her job and works to keep it under wraps.",
+      script_writer_instructions="Clara should be completely professional and competent at all times. And extremely robotic. She is a human weather machine.",
     ),
     Character(
       slug="spoiler_sam",
@@ -38,7 +47,7 @@ CHARACTER_POOL = CharacterPool(
       voice="Charon",
       personality="Deeply annoyed by everyone and everything. Only pipes in to keep the show moving when people forget segments, start rambling about their weekend, or go off on tangents. 'We have traffic in 30 seconds.' *sigh* 'You're supposed to do sports now.' Treats every intervention like babysitting incompetent adults.",
       specialty="producer",
-      script_writer_instructions="Barry rarely speaks, but when he does it's brief, annoyed interruptions to keep the show on schedule. Always include stage directions for sighs. He cuts off rambling stories and reminds people of upcoming segments. Keep his lines short and exasperated.",
+      script_writer_instructions="Barry rarely speaks (he's in the recording booth), but when he does it's brief, annoyed interruptions to keep the show on schedule. Always include stage directions for sighs. He cuts off rambling stories and reminds people of upcoming segments. Keep his lines short and exasperated.",
     ),
     # Character(
     #   slug="wandering_walt",
@@ -58,15 +67,6 @@ CHARACTER_POOL = CharacterPool(
     #   specialty="news co-host",
     #   script_writer_instructions="Charlie should be completely professional throughout most segments. Only once per episode, she should have a brief moment where something strikes her as odd - deliver a thoughtful 'Hmm, that's odd...' then if others ask what she means, she should deflect professionally with 'Oh, nothing, just thinking out loud' or similar and immediately return to normal news delivery.",
     # ),
-    Character(
-      slug="flirty_charlie",
-      name="Charlie 'Charming' Martinez",
-      pronouns="she/her",
-      voice="Erinome",
-      personality="Completely misinterprets Max's professional interactions as flirtation. When he asks her to read the news or makes any normal work request, she responds flirtatiously and plays hard to get. Max is perpetually confused and exasperated by her behavior, which she takes as him being 'shy' or 'playing hard to get' right back.",
-      specialty="news co-host",
-      script_writer_instructions="Once or twice a briefing, Charlie should respond to Max's normal professional requests with flirty banter, as if he's hitting on her. When Max tries to redirect to work topics, she should tease him playfully or act coy. Max's confusion and professional attempts to stay on track should only make her think he's being adorably shy. It can get inappropriate.",
-    ),
   ]
 )
 

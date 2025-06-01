@@ -569,8 +569,10 @@ async def run_workflow_command(cmd: WorkflowCommand) -> None:
             config=config,
             stream_mode="updates",
           )
-          script = BriefingScript.model_validate(state_dict["briefing_script"])
-          rich.print(script)
+
+          briefing = state_dict[-1]["write_briefing_script"]["briefing_script"]  # type: ignore
+          rich.print(briefing)
+          rich.print(BriefingScript.model_validate(briefing).model_dump_json(indent=2))  # type: ignore
 
       case ListCheckpoints(briefing_date):
         config = config_for_date(briefing_date)
