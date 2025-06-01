@@ -181,15 +181,14 @@ class BriefingScript(BaseModel):
   @computed_field
   @property
   def estimated_duration_minutes(self) -> float:
-    """Estimate duration based on total character count and average speaking pace."""
-    total_chars = sum(
-      len(line.text)
+    """Estimate duration based on total word count and average speaking pace."""
+    total_words = sum(
+      len(line.text.split())
       for section in self.sections
       for group in section.dialogue_groups
       for line in group.lines
     )
-    # Rough estimate: ~150 words per minute, ~5 chars per word
-    return total_chars / (150 * 5)
+    return total_words / 150
 
   def get_all_characters(self) -> set[str]:
     """Extract all unique character slugs used in the script."""
@@ -214,3 +213,62 @@ class BriefingScript(BaseModel):
     for section in self.sections:
       for group in section.dialogue_groups:
         yield group
+
+  def _merge_single_character_groups(
+    self, group1: TonalDialogueGroup, group2: TonalDialogueGroup
+  ) -> TonalDialogueGroup:
+    """Merge two single-character dialogue groups into one two-character group."""
+    return group1.model_copy(
+      update={
+        "character_2_slug": group2.character_1_slug,
+        "character_2_style_direction": group2.character_1_style_direction,
+        "lines": group1.lines + group2.lines,
+      }
+    )
+
+  def _merge_consecutive_single_character_groups(
+    self, groups: list[TonalDialogueGroup]
+  ) -> list[TonalDialogueGroup]:
+    """Merge consecutive single-character groups to optimize API calls."""
+    if len(groups) <= 1:
+      return groups
+
+    merged_groups = []
+    i = 0
+
+    while i < len(groups):
+      current_group = groups[i]
+
+      # Check if we can merge with the next group
+      if (
+        i + 1 < len(groups)
+        and current_group.character_count == 1
+        and groups[i + 1].character_count == 1
+      ):
+        # Merge the two single-character groups
+        merged_group = self._merge_single_character_groups(current_group, groups[i + 1])
+        merged_groups.append(merged_group)
+        i += 2  # Skip the next group since we merged it
+      else:
+        # Can't merge, just add the current group
+        merged_groups.append(current_group)
+        i += 1
+
+    return merged_groups
+
+  def clean_script(self) -> "BriefingScript":
+    """Clean the script by removing unused character directions and merging single-character
+    groups."""
+    copy = self.model_copy()
+
+    for section in copy.sections:
+      # First, clean unused character directions in all groups
+      for group in section.dialogue_groups:
+        group.remove_unused_character_direction()
+
+      # Then merge consecutive single-character groups
+      section.dialogue_groups = self._merge_consecutive_single_character_groups(
+        section.dialogue_groups
+      )
+
+    return copy

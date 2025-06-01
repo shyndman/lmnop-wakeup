@@ -2,7 +2,6 @@ import itertools
 import textwrap
 from typing import override
 
-import lazy_object_proxy
 from langchain_core.runnables import RunnableConfig
 from pydantic import AwareDatetime, RootModel
 
@@ -65,9 +64,12 @@ def _get_meteorologist_agent(config: RunnableConfig) -> MeteorologistAgent:
   )
 
 
-_meteorologist_agent: MeteorologistAgent = lazy_object_proxy.Proxy(_get_meteorologist_agent)
+_meteorologist_agent: MeteorologistAgent | None = None
 
 
-def get_meteorologist_agent() -> MeteorologistAgent:
+def get_meteorologist_agent(config: RunnableConfig) -> MeteorologistAgent:
   """Get the location resolver agent."""
+  global _meteorologist_agent
+  if _meteorologist_agent is None:
+    _meteorologist_agent = _get_meteorologist_agent(config)
   return _meteorologist_agent

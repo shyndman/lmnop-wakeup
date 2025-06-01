@@ -84,6 +84,14 @@ LOGGING_CONFIG = {
       "handlers": ["default"],
       "level": "WARNING",
     },
+    "langgraph": {
+      "handlers": ["default"],
+      "level": "WARNING",
+    },
+    "langchain": {
+      "handlers": ["default"],
+      "level": "WARNING",
+    },
     "google.maps": {"handlers": ["default"], "level": "INFO"},
   },
 }

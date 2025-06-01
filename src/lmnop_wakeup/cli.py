@@ -26,6 +26,9 @@ class Script(Command):
   list_checkpoints: bool = arg(
     default=False, short="l", help="list checkpoints instead of running the workflow"
   )
+  review_events: bool = arg(
+    default=False, short="r", help="enable interactive review of prioritized events"
+  )
 
   @override
   async def run(self):
@@ -37,7 +40,11 @@ class Script(Command):
       if self.list_checkpoints:
         cmd = ListCheckpoints(briefing_date=self.briefing_date)
       else:
-        cmd = Run(briefing_date=self.briefing_date, briefing_location=self.current_location)
+        cmd = Run(
+          briefing_date=self.briefing_date,
+          briefing_location=self.current_location,
+          review_events=self.review_events,
+        )
       await run_workflow_command(cmd)
 
 

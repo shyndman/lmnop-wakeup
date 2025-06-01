@@ -57,7 +57,7 @@ def calendar_events_in_range(start_ts: datetime, end_ts: datetime) -> list[Calen
       continue
 
     cal_events = [
-      CalendarEvent.model_validate({**raw_event, "event_id": f"h{cal_idx}.{i}"})
+      CalendarEvent.model_validate({**raw_event, "event_id": f"g{cal_idx}.{i}"})
       for i, raw_event in enumerate(events)
     ]
     calendar.events = cal_events

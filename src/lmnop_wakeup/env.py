@@ -45,6 +45,10 @@ def get_postgres_connection_string() -> str:
   Raises:
     EnvironmentError: If the POSTGRES_CONNECTION_STRING environment variable is not set.
   """
+  if EnvName.POSTGRES_CONNECTION_STRING not in os.environ:
+    raise EnvironmentError(
+      f"Required environment variable {EnvName.POSTGRES_CONNECTION_STRING} not provided"
+    )
   return assert_not_none(os.getenv(EnvName.POSTGRES_CONNECTION_STRING))
 
 
@@ -58,6 +62,8 @@ def get_litellm_api_key() -> ApiKey:
   Raises:
     EnvironmentError: If the HASS_API_TOKEN environment variable is not set.
   """
+  if EnvName.LITELLM_API_KEY not in os.environ:
+    raise EnvironmentError(f"Required environment variable {EnvName.LITELLM_API_KEY} not provided")
   return ApiKey(assert_not_none(os.getenv(EnvName.LITELLM_API_KEY)))
 
 
@@ -71,6 +77,8 @@ def get_litellm_base_url() -> str:
   Raises:
     EnvironmentError: If the LITELLM_API_URL environment variable is not set.
   """
+  if EnvName.LITELLM_API_URL not in os.environ:
+    raise EnvironmentError(f"Required environment variable {EnvName.LITELLM_API_URL} not provided")
   return assert_not_none(os.getenv(EnvName.LITELLM_API_URL))
 
 
@@ -84,6 +92,8 @@ def get_hass_api_key() -> ApiKey:
   Raises:
     EnvironmentError: If the HASS_API_TOKEN environment variable is not set.
   """
+  if EnvName.HASS_API_TOKEN not in os.environ:
+    raise EnvironmentError(f"Required environment variable {EnvName.HASS_API_TOKEN} not provided")
   return ApiKey(assert_not_none(os.getenv(EnvName.HASS_API_TOKEN)))
 
 
@@ -97,6 +107,10 @@ def get_pirate_weather_api_key() -> ApiKey:
   Raises:
     EnvironmentError: If the PIRATE_WEATHER_API_KEY environment variable is not set.
   """
+  if EnvName.PIRATE_WEATHER_API_KEY not in os.environ:
+    raise EnvironmentError(
+      f"Required environment variable {EnvName.PIRATE_WEATHER_API_KEY} not provided"
+    )
   return ApiKey(assert_not_none(os.getenv(EnvName.PIRATE_WEATHER_API_KEY)))
 
 
@@ -110,6 +124,10 @@ def get_google_cloud_api_key() -> ApiKey:
   Raises:
     EnvironmentError: If the GOOGLE_ROUTES_API_KEY environment variable is not set.
   """
+  if EnvName.GOOGLE_ROUTES_API_KEY not in os.environ:
+    raise EnvironmentError(
+      f"Required environment variable {EnvName.GOOGLE_ROUTES_API_KEY} not provided"
+    )
   return ApiKey(assert_not_none(os.getenv(EnvName.GOOGLE_ROUTES_API_KEY)))
 
 
@@ -123,6 +141,8 @@ def get_redis_cache_url() -> str:
   Raises:
     EnvironmentError: If the REDIS_CACHE_URL environment variable is not set.
   """
+  if EnvName.REDIS_CACHE_URL not in os.environ:
+    raise EnvironmentError(f"Required environment variable {EnvName.REDIS_CACHE_URL} not provided")
   return assert_not_none(os.getenv(EnvName.REDIS_CACHE_URL))
 
 

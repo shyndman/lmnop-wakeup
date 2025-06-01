@@ -1,7 +1,10 @@
 import asyncio
 import itertools
+import json
 import operator
 import random
+import subprocess
+import tempfile
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from typing import Annotated, Any, Literal, cast
@@ -14,7 +17,8 @@ from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
 from langgraph.graph import StateGraph
 from langgraph.store.postgres import AsyncPostgresStore
-from langgraph.types import CachePolicy, RetryPolicy, Send
+from langgraph.types import CachePolicy, Command, RetryPolicy, Send, interrupt
+from loguru import logger
 from pydantic import AwareDatetime, BaseModel, computed_field
 from pydantic_extra_types.coordinate import Coordinate
 
@@ -25,14 +29,15 @@ from . import APP_DIRS
 from .brief.actors import CHARACTER_POOL
 from .brief.script_writer_agent import BriefingScript, ScriptWriterInput, get_script_writer_agent
 from .brief.sectioner_agent import BriefingOutline, SectionerInput, get_sectioner_agent
-from .core.date import start_of_local_day
+from .core.date import end_of_local_day, start_of_local_day
 from .core.tracing import langfuse_span, trace
 from .core.typing import assert_not_none, ensure
 from .env import get_postgres_connection_string
 from .events.events_api import get_filtered_calendars_with_notes
-from .events.model import CalendarEvent, CalendarsOfInterest, Schedule, end_of_local_day
+from .events.model import CalendarEvent, CalendarsOfInterest, Schedule
 from .events.prioritizer_agent import (
   EventPrioritizerInput,
+  EventPrioritizerOutput,
   PrioritizedEvents,
   RegionalWeatherReports,
   get_event_prioritizer_agent,
@@ -360,8 +365,8 @@ async def calculate_schedule(state: State, config: RunnableConfig):
 
 
 @trace()
-async def analyze_weather(state: LocationWeatherState):
-  analysis = await get_meteorologist_agent().run(
+async def analyze_weather(state: LocationWeatherState, config: RunnableConfig):
+  analysis = await get_meteorologist_agent(config).run(
     MeteorologistInput(
       report_date=state.day_start_ts,
       weather_report=state.reports,
@@ -407,6 +412,46 @@ async def prioritize_events(state: State, config: RunnableConfig):
 
 
 @trace()
+async def review_prioritized_events(state: State, config: RunnableConfig):
+  """Allow human review and editing of prioritized events using external editor."""
+
+  # Create temp file with prioritized events
+  with tempfile.NamedTemporaryFile(
+    mode="w", suffix=".json", prefix="wakeup_prioritized_events_", delete=False
+  ) as f:
+    events_data = state.prioritized_events.model_dump() if state.prioritized_events else {}
+    json.dump(events_data, f, indent=2)
+    temp_path = f.name
+
+  try:
+    # Interrupt and launch editor (blocks until editing complete)
+    updated_events = cast(
+      EventPrioritizerOutput,
+      interrupt(
+        {
+          "task": "Review and edit prioritized events",
+          "file_path": temp_path,
+          "events_count": len(state.prioritized_events.must_mention)
+          + len(state.prioritized_events.could_mention)
+          + len(state.prioritized_events.deprioritized)
+          if state.prioritized_events
+          else 0,
+        }
+      ),
+    )
+
+    logger.info("Events updated successfully from editor")
+    return {"prioritized_events": updated_events}
+
+  except subprocess.CalledProcessError as e:
+    logger.error(f"Editor exited with non-zero status: {e}")
+    raise ValueError(f"Editor failed: {e}")
+  except json.JSONDecodeError as e:
+    logger.error(f"Invalid JSON after editing: {e}")
+    raise ValueError(f"Invalid JSON in edited file: {e}")
+
+
+@trace()
 async def write_briefing_outline(state: State, config: RunnableConfig):
   sectioner = get_sectioner_agent(config)
   input = SectionerInput(
@@ -414,7 +459,7 @@ async def write_briefing_outline(state: State, config: RunnableConfig):
     prioritized_events=assert_not_none(state.prioritized_events),
     regional_weather_reports=assert_not_none(state.regional_weather),
     sunset_predication=assert_not_none(state.sunset_prediction),
-    yesterdays_events=assert_not_none(state.yesterdays_events),
+    yesterdays_events=state.yesterdays_events or [],
   )
   out = await sectioner.run(input=input)
   return {"briefing_outline": out}
@@ -452,48 +497,14 @@ location_graph_builder.set_finish_point("request_weather")
 
 location_graph = location_graph_builder.compile()
 
-builder = StateGraph(State)
-builder.add_node(populate_raw_inputs, cache_policy=CachePolicy(ttl=120 * 60))
-builder.add_node(process_location)
-builder.add_node(fork_analysis, defer=True)
-builder.add_node(calculate_schedule, retry=standard_retry)
-builder.add_node(analyze_weather, retry=standard_retry)
-builder.add_node(predict_sunset_beauty, retry=standard_retry)
-builder.add_node(prioritize_events, defer=True)
-builder.add_node(write_briefing_outline)
-builder.add_node(write_briefing_script)
-
-builder.set_entry_point("populate_raw_inputs")
-builder.add_conditional_edges(
-  "populate_raw_inputs", send_location_requests, then="process_location"
-)
-builder.add_edge("process_location", "fork_analysis")
-builder.add_edge("populate_raw_inputs", "fork_analysis")
-builder.add_conditional_edges(
-  "fork_analysis",
-  send_to_analysis_tasks,
-  {
-    "calculate_schedule": "calculate_schedule",
-    "predict_sunset_beauty": "predict_sunset_beauty",
-  },
-)
-builder.add_conditional_edges(
-  "fork_analysis",
-  send_locations_to_analysis_tasks,
-  {"analyze_weather": "analyze_weather"},
-)
-builder.add_edge("calculate_schedule", "prioritize_events")
-builder.add_edge("analyze_weather", "prioritize_events")
-builder.add_edge("predict_sunset_beauty", "prioritize_events")
-builder.add_edge("prioritize_events", "write_briefing_outline")
-builder.add_edge("write_briefing_outline", "write_briefing_script")
-builder.set_finish_point("write_briefing_script")
+# Old static builder removed - using build_graph() function instead
 
 
 @dataclass
 class Run:
   briefing_date: date
   briefing_location: CoordinateLocation
+  review_events: bool = False
 
 
 @dataclass
@@ -514,10 +525,62 @@ def config_for_date(briefing_date: date) -> RunnableConfig:
 
   return {
     "configurable": {
-      "thread_id": briefing_date.isoformat() + f"+{random.randbytes(4).hex()}",
-      # "checkpoint_id": "1f03c061-e828-6d6b-8009-f87baade1033",
+      "thread_id": f"{briefing_date.isoformat()}+{random.randbytes(4).hex()}",
+      # "checkpoint_id": "0a1f98c4-4cfc-2b76-e8c9-83675c3fedc6",
     }
   }
+
+
+def build_graph(review_events: bool = False):
+  """Build the workflow graph with optional review step."""
+  graph_builder = StateGraph(State)
+  graph_builder.add_node(populate_raw_inputs, cache_policy=CachePolicy(ttl=120 * 60))
+  graph_builder.add_node(process_location)
+  graph_builder.add_node(fork_analysis, defer=True)
+  graph_builder.add_node(calculate_schedule, retry=standard_retry)
+  graph_builder.add_node(analyze_weather, retry=standard_retry)
+  graph_builder.add_node(predict_sunset_beauty, retry=standard_retry)
+  graph_builder.add_node(prioritize_events, defer=True)
+
+  if review_events:
+    graph_builder.add_node(review_prioritized_events)
+
+  graph_builder.add_node(write_briefing_outline)
+  graph_builder.add_node(write_briefing_script)
+
+  graph_builder.set_entry_point("populate_raw_inputs")
+  graph_builder.add_conditional_edges(
+    "populate_raw_inputs", send_location_requests, then="process_location"
+  )
+  graph_builder.add_edge("process_location", "fork_analysis")
+  graph_builder.add_edge("populate_raw_inputs", "fork_analysis")
+  graph_builder.add_conditional_edges(
+    "fork_analysis",
+    send_to_analysis_tasks,
+    {
+      "calculate_schedule": "calculate_schedule",
+      "predict_sunset_beauty": "predict_sunset_beauty",
+    },
+  )
+  graph_builder.add_conditional_edges(
+    "fork_analysis",
+    send_locations_to_analysis_tasks,
+    {"analyze_weather": "analyze_weather"},
+  )
+  graph_builder.add_edge("calculate_schedule", "prioritize_events")
+  graph_builder.add_edge("analyze_weather", "prioritize_events")
+  graph_builder.add_edge("predict_sunset_beauty", "prioritize_events")
+
+  if review_events:
+    graph_builder.add_edge("prioritize_events", "review_prioritized_events")
+    graph_builder.add_edge("review_prioritized_events", "write_briefing_outline")
+  else:
+    graph_builder.add_edge("prioritize_events", "write_briefing_outline")
+
+  graph_builder.add_edge("write_briefing_outline", "write_briefing_script")
+  graph_builder.set_finish_point("write_briefing_script")
+
+  return graph_builder
 
 
 async def run_workflow_command(cmd: WorkflowCommand) -> None:
@@ -537,14 +600,16 @@ async def run_workflow_command(cmd: WorkflowCommand) -> None:
   ):
     await asyncio.gather(store.setup(), saver.setup())
 
-    graph = builder.compile(
-      cache=SqliteCache(path=str(APP_DIRS.user_cache_path / "cache.db")),
-      checkpointer=saver,
-      store=store,
-    )
-
     match cmd:
-      case Run(briefing_date, location):
+      case Run(briefing_date, location, review_events):
+        # Build graph with conditional review step
+        graph_builder = build_graph(review_events=review_events)
+        graph = graph_builder.compile(
+          cache=SqliteCache(path=str(APP_DIRS.user_cache_path / "cache.db")),
+          checkpointer=saver,
+          store=store,
+        )
+
         config: RunnableConfig = config_for_date(briefing_date)
         config["callbacks"] = [CallbackHandler(), PydanticAiCallback()]
 
@@ -555,29 +620,52 @@ async def run_workflow_command(cmd: WorkflowCommand) -> None:
         checkpoint_id = latest_state.config.get("configurable", {}).get("checkpoint_id", None)
         rich.print(f"Checkpoint ID: {checkpoint_id}")
 
-        # if checkpoint_id:
-        #   if "configurable" not in config:
-        #     config["configurable"] = {}
-        #   config["configurable"]["checkpoint_id"] = checkpoint_id
-
         with langfuse_span("graph"):
-          async for state_dict in graph.astream(
-            input=State(
+          result = await graph.ainvoke(
+            # input=None,
+            State(
               day_start_ts=day_start_ts,
               day_end_ts=end_of_local_day(day_start_ts),
               briefing_day_location=cast(ResolvedLocation, location),
             ),
             config=config,
-            stream_mode="debug",
             checkpoint_during=True,
             debug=True,
-          ):
-            rich.print(state_dict)
+          )
 
+          logger.info("🚨🛑 LEAVING?!?! 🛑🚨")
+          snapshot = await graph.aget_state(config)
+          logger.info("snapshot={snapshot}", snapshot=snapshot)
+
+          rich.print(result)
+          if "__interrupt__" not in result:
+            return
+
+          # Give user opportunity to edit
+          file_path = result["__interrupt__"][0].value["file_path"]
+          subprocess.run(f"/usr/bin/code --wait {file_path}", shell=True, check=True)
+
+          # Resume
+          with open(file_path, "r") as f:
+            updated_events = EventPrioritizerOutput.model_validate_json(f.read())
+            await graph.ainvoke(Command(resume=updated_events), config)
       case ListCheckpoints(briefing_date):
+        # Use basic graph for checkpoint listing
+        graph_builder = build_graph(review_events=False)
+        graph = graph_builder.compile(
+          cache=SqliteCache(path=str(APP_DIRS.user_cache_path / "cache.db")),
+          checkpointer=saver,
+          store=store,
+        )
         config = config_for_date(briefing_date)
         async for checkpoint in saver.alist(config=config):
           print(checkpoint.config)
 
       case PrintMermaid():
+        graph_builder = build_graph(review_events=True)  # Show full graph with review
+        graph = graph_builder.compile(
+          cache=SqliteCache(path=str(APP_DIRS.user_cache_path / "cache.db")),
+          checkpointer=saver,
+          store=store,
+        )
         rich.print(graph.get_graph().draw_mermaid())

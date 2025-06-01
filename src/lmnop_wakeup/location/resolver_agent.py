@@ -1,6 +1,6 @@
 from typing import override
 
-import lazy_object_proxy
+import rich
 from langchain_core.runnables import RunnableConfig
 from loguru import logger
 from pydantic import BaseModel
@@ -55,7 +55,7 @@ type LocationResolverAgent = LangfuseAgent[LocationResolverInput, LocationResolv
 
 def _get_location_resolver_agent(config: RunnableConfig) -> LocationResolverAgent:
   """Get the location resolver agent."""
-
+  rich.print(config)
   agent = LangfuseAgent[LocationResolverInput, LocationResolverOutput].create(
     "location_resolver",
     model_name=ModelName.GEMINI_20_FLASH,
@@ -107,11 +107,12 @@ def _get_location_resolver_agent(config: RunnableConfig) -> LocationResolverAgen
   return agent
 
 
-_location_resolver_agent: LocationResolverAgent = lazy_object_proxy.Proxy(
-  _get_location_resolver_agent
-)
+_location_resolver_agent: LocationResolverAgent | None = None
 
 
 def get_location_resolver_agent(config: RunnableConfig) -> LocationResolverAgent:
+  global _location_resolver_agent
+  if _location_resolver_agent is None:
+    _location_resolver_agent = _get_location_resolver_agent(config)
   """Get the location resolver agent."""
   return _location_resolver_agent

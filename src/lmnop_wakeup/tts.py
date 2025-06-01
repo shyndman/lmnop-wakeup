@@ -2,7 +2,6 @@ import asyncio
 import wave
 from pathlib import Path
 
-import rich
 from google import genai
 from google.genai import types
 from loguru import logger
@@ -73,48 +72,11 @@ async def run_tts(
   wave_file(str(file_name.absolute()), data)  # Saves the file to current directory
 
 
-def clean_script(script: BriefingScript) -> BriefingScript:
-  for section in script.sections:
-    groups = section.dialogue_groups
-    for group in groups:
-      rich.print(group)
-      group.remove_unused_character_direction()
-
-    new_groups = []
-    if len(groups) == 1:
-      new_groups = [groups[0]]
-    else:
-      i = 0
-      while i < len(groups) - 1:
-        group1, group2 = groups[i], groups[i + 1]
-        if group1.character_count == 1 and group2.character_count == 1:
-          # If both groups have only one character, merge them
-          new_groups.append(
-            group1.model_copy(
-              update={
-                "character_2_slug": group2.character_1_slug,
-                "character_2_style_direction": group2.character_1_style_direction,
-                "lines": group1.lines + group2.lines,
-              }
-            )
-          )
-          i += 2
-          continue
-
-        new_groups.append(group1)
-        i += 1
-        if i == len(groups) - 1:
-          new_groups.append(group2)
-    section.dialogue_groups = new_groups
-
-  return script
-
-
 async def run_voiceover(script: BriefingScript, print_script: bool, output_path: Path):
   # Implement the voiceover functionality here
   logger.info(rich_sprint(script))
 
-  clean_script(script)
+  cleaned_script = script.clean_script()
 
   client = genai.Client(
     api_key=get_litellm_api_key(),
@@ -123,7 +85,7 @@ async def run_voiceover(script: BriefingScript, print_script: bool, output_path:
     },
   )
 
-  logger.info(rich_sprint(script))
+  logger.info(rich_sprint(cleaned_script))
   tasks = []
   for i, dialogue_group in enumerate(script.dialogue_groups()):
     print(f"Processing part {i}")

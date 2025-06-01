@@ -25,10 +25,10 @@ def initialize_tracing():
   ).with_settings(
     console_log=False,
   )
-  logfire.instrument_httpx(capture_all=True)
   logfire.instrument_mcp()
   logfire.instrument_pydantic_ai(event_mode="logs")
   logfire.instrument_pydantic(record="failure")
+  # logfire.instrument_httpx(capture_all=True)
   # logfire.instrument_psycopg()
   # logfire.instrument_sqlite3()
 

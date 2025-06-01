@@ -4,6 +4,7 @@ from typing import override
 
 from langchain_core.runnables import RunnableConfig
 from pydantic import BaseModel, RootModel
+from pydantic.dataclasses import dataclass
 
 from ..llm import LangfuseAgent, LangfuseAgentInput, ModelName, extract_pydantic_ai_callback
 from ..weather.model import RegionalWeatherReports
@@ -37,39 +38,66 @@ class EventPrioritizerInput(LangfuseAgentInput):
     }
 
 
+@dataclass
+class PrioritizedEvent:
+  """Represents a prioritized event with its ID and reason for prioritization."""
+
+  event_id: CalendarEventId
+  """The CalendarEvent's event_id field """
+  reason: str
+  """
+  Reason for prioritization:
+  - Critical wake-up events
+  - High-priority events
+  - Upcoming personal important events (within reminder window)
+  - Interesting or relevant events worth mentioning
+  - Weather conditions affecting travel or local patterns
+  """
+  tag: str
+  """Categorization/prioritization tag"""
+
+
 class EventPrioritizerOutput(BaseModel):
   """Output for the event prioritizer agent."""
 
-  must_mention: list[CalendarEventId]
+  must_mention: list[PrioritizedEvent]
   """
   Events that absolutely need to be included in the briefing:
   - Today's critical wake-up event
   - Today's high-priority events
   - Upcoming personal important events (within reminder window)
   """
-  interesting_to_mention: list[CalendarEventId]
+
+  could_mention: list[PrioritizedEvent]
   """
-  Events worth discussing if space/time allows:
+  Events that might be worth discussing, in descending order of priority:
   - Today's standard events
   - Upcoming weekend/weeknight plans (within reminder window)
   - Select informational events that might be particularly relevant
   - Weather conditions for travel destinations or notable local weather patterns
+  - Upcoming media, particularly if there's a signal that the user enjoys the show/genre/director
+    etc. But keep it fresh, and don't repeat yourself day after day. You should only mention the
+    media once as it's coming up, and definitely prioritize mentioning on the day it comes out (if
+    the users like it). (we'll provide details of the media mentioned on previous days for
+    cross-checking)
+  - Nearby community events. Use similar rules to upcoming media, with the added consideration of
+    distance.
   """
-  didnt_quite_make_the_cut: list[CalendarEventId]
+
+  deprioritized: list[PrioritizedEvent]
   """
   Events that were considered but excluded, with brief reasoning:
-  - Informational events that seemed less relevant
   - Events outside optimal reminder windows
   - Events that conflict with higher priorities
   """
-  yesterdays_notable: list[CalendarEventId] | None = None
+
+  last_nights_notable: list[PrioritizedEvent] | None = None
   """
-  Interesting observations from yesterday's events for friendly contextual remarks.
-  This field is only required if data about the previous day was provided:
+  Interesting observations from last night's events, if any, for friendly contextual remarks.
+  This field is only required if data about the previous night was provided:
   - Personal celebrations (birthdays, anniversaries, etc.)
   - Unusual or irregular events
   - Late-night activities or events ending unusually late
-  - Anything that seems worth a casual mention or follow-up
   """
 
 

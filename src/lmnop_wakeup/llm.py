@@ -1,4 +1,3 @@
-import json
 import os
 import uuid
 from abc import ABC, abstractmethod
@@ -8,7 +7,8 @@ from typing import Any, cast
 
 from google import genai
 from google.genai.types import HttpOptions
-from langchain.callbacks.base import AsyncCallbackHandler, BaseCallbackHandler
+from langchain.callbacks.base import AsyncCallbackHandler
+from langchain_core.callbacks import AsyncCallbackManager
 from langchain_core.outputs import Generation, LLMResult
 from langchain_core.runnables import RunnableConfig
 from langfuse import Langfuse
@@ -107,9 +107,6 @@ class AgentContext[Input: LangfuseAgentInput]:
 class PydanticAiCallback(AsyncCallbackHandler):
   """Custom callback handler for Pydantic-AI LLM calls"""
 
-  def __init__(self):
-    super().__init__()
-
   async def before_run(self, model_name: str, prompt: str, **kwargs) -> uuid.UUID:
     """Call this when starting a Pydantic-AI LLM call"""
     run_id = uuid.uuid4()
@@ -139,8 +136,9 @@ class PydanticAiCallback(AsyncCallbackHandler):
 
 
 def extract_pydantic_ai_callback(config: RunnableConfig) -> PydanticAiCallback:
-  callbacks = cast(list[BaseCallbackHandler], config.get("callbacks", []))
-  for cb in callbacks:
+  cb_mgr = cast(AsyncCallbackManager, config.get("callbacks", []))
+
+  for cb in cb_mgr.handlers:
     if isinstance(cb, PydanticAiCallback):
       return cb
 
@@ -224,7 +222,7 @@ class LangfuseAgent[Input: LangfuseAgentInput, Output: BaseModel]:
       model=create_litellm_model(model_name),
       deps_type=AgentContext[Input],
       output_type=output_type,
-      model_settings=ModelSettings(res.config),
+      model_settings={"timeout": 60, **ModelSettings(res.config)},
       retries=5,
       instrument=True,
     )
@@ -254,7 +252,7 @@ class LangfuseAgent[Input: LangfuseAgentInput, Output: BaseModel]:
       run_id = await self._callback.before_run(str(self._model_name), system_prompt)
       ctx = AgentContext(input=input, instructions_prompt=system_prompt, user_prompt=user_prompt)
       result = await self._run_internal(ctx, run_id)
-      await self._callback.after_run(run_id, json.dumps(result))
+      await self._callback.after_run(run_id, str(result.all_messages_json(), encoding="utf-8"))
 
       # Set output attribute on span
       span.set_attribute("output.value", result.output)
