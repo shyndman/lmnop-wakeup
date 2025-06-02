@@ -1,10 +1,12 @@
 # from typing import override
 
 
+from datetime import timedelta
 from typing import override
 
 from langchain_core.runnables import RunnableConfig
 from pydantic import BaseModel, Field, RootModel
+from pydantic.dataclasses import dataclass
 
 from lmnop_wakeup.weather.sunset_oracle_agent import SunsetPrediction
 
@@ -40,13 +42,66 @@ class SectionerInput(LangfuseAgentInput):
     }
 
 
-class Section(BaseModel):
-  title: str
-  content: str
+@dataclass
+class EventBriefEstimation:
+  id: str = Field(..., description="The CalendarEvent's id field.")
+
+  summary: str = Field(..., description="The summary taken from the associated calendar event.")
+
+  estimated_words: int = Field(
+    ..., description="Estimated number of words for the briefing section."
+  )
+
+  rationale: str = Field(
+    ..., description="Rationale for the number of words allocated to this event."
+  )
 
 
 class SectionerOutput(BaseModel):
-  sections: list[Section] = Field([], min_length=4)
+  estimated_total_length: int = Field(
+    ...,
+    description="Estimated total length of the briefing in words.",
+  )
+  estimated_total_duration: timedelta = Field(
+    ...,
+    description="Estimated total duration of the briefing.",
+  )
+  must_include: list[EventBriefEstimation]
+  pass
+
+
+type ContentOptimizationReport = SectionerOutput
+
+# CONTENT OPTIMIZATION REPORT
+
+# TIME BUDGET STATUS: [OPTIMAL/TIGHT/OVER/UNDER]
+# Estimated total length: [X] words ([X.X] minutes)
+
+# MUST INCLUDE (Required):
+# - [Event 1]: [estimated words] - [brief rationale]
+# - [Event 2]: [estimated words] - [brief rationale]
+# - Wake-up event: [estimated words]
+# Total required: [X] words
+
+# RECOMMENDED ADDITIONS from could_mention:
+# - [Event A]: [estimated words] - [why include]
+# - [Event B]: [estimated words] - [why include]
+# Total recommended: [X] words
+
+# SKIP FOR TIME:
+# - [Event C]: [reason to skip]
+# - [Event D]: [reason to skip]
+
+# TRAVEL TIMING NOTES:
+# - [Include/Skip travel mentions] - [reasoning]
+
+# PACING SUGGESTIONS:
+# - [Any specific recommendations for handling tight/loose timing]
+# - [Suggestions for natural content groupings]
+
+# ALTERNATIVE SCENARIOS:
+# If running long: [which could_mention items to cut first]
+# If running short: [which deprioritized items could be rescued]
 
 
 type BriefingOutline = SectionerOutput

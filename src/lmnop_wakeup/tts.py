@@ -89,7 +89,7 @@ async def run_voiceover(script: BriefingScript, print_script: bool, output_path:
 
   logger.info(rich_sprint(cleaned_script))
   tasks = []
-  for i, dialogue_group in enumerate(script.dialogue_groups()):
+  for i, dialogue_group in enumerate(cleaned_script.dialogue_groups()):
     print(f"Processing part {i}")
     print(dialogue_group.build_prompt())
     if not print_script:

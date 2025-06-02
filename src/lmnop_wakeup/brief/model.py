@@ -60,12 +60,12 @@ class TonalDialogueGroup(BaseModel):
     ..., description="Detailed emotional and stylistic direction for character_1", min_length=15
   )
   character_2_slug: str | None = Field(
-    ...,
+    None,
     description="Second character participating in this tonal group. Can be null if there "
     "is only one speaker in the tonal group.",
   )
   character_2_style_direction: str | None = Field(
-    ...,
+    None,
     description="Detailed emotional and stylistic direction for character_2. Can be null if "
     "there is only one speaker in the tonal group.",
     min_length=15,

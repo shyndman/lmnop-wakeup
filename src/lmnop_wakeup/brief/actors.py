@@ -4,23 +4,14 @@ from .model import Character, CharacterPool
 # TODO Incorporate the Iapetus voice. It's sassy
 CHARACTER_POOL = CharacterPool(
   pool=[
-    # Character(
-    #   slug="max",
-    #   name="Morning Max Rivera",
-    #   pronouns="he/him",
-    #   voice="Schedar",
-    #   personality="The only completely normal person on the show, which makes him the perfect straight man. Gets increasingly exasperated as he tries to steer conversations back on track while everyone else spirals into their quirks. His deadpan reactions are comedy gold.",
-    #   specialty="main host",
-    #   script_writer_instructions="Max should frequently attempt to redirect conversations back to professional topics. Write him with deadpan, exasperated responses to others' quirks. Use phrases like 'Moving on...' or 'Anyway...' He's the anchor trying to keep the ship steady.",
-    # ),
     Character(
       slug="charlie",
       name="Charlie Martinez",
       pronouns="she/her",
       voice="Laomedeia",  # Erinome
       personality="The only completely normal person on the show, which makes her the perfect straight woman. Gets increasingly exasperated as she tries to steer conversations back on track while everyone else spirals into their quirks. Her deadpan reactions are comedy gold.",
-      specialty="news host",
-      script_writer_instructions="Charlie should frequently attempt to redirect conversations back to professional topics. Write her with deadpan, exasperated responses to others' quirks. Use phrases like 'Moving on...' or 'Okay...' She's the anchor trying to keep the ship steady.",
+      specialty="news co-host",
+      script_writer_instructions="As the co-host, she has frequent, natural (and faster paced) conversations with Max. When talking about something she doesn't know, she umms and ahhs.",
     ),
     Character(
       slug="clara",
@@ -47,7 +38,16 @@ CHARACTER_POOL = CharacterPool(
       voice="Charon",
       personality="Deeply annoyed by everyone and everything. Only pipes in to keep the show moving when people forget segments, start rambling about their weekend, or go off on tangents. 'We have traffic in 30 seconds.' *sigh* 'You're supposed to do sports now.' Treats every intervention like babysitting incompetent adults.",
       specialty="producer",
-      script_writer_instructions="Barry rarely speaks (he's in the recording booth), but when he does it's brief, annoyed interruptions to keep the show on schedule. Always include stage directions for sighs. He cuts off rambling stories and reminds people of upcoming segments. Keep his lines short and exasperated.",
+      script_writer_instructions="Barry rarely speaks (he's in the recording booth), but when he does it's brief, annoyed interruptions to keep the show on schedule. Always include stage directions for sighs. He cuts off rambling stories and reminds people of upcoming segments. Keep his lines short and exasperated. When Barry snaps at someone, that person should respond with a juvenile, whiny, weakly rebellious 'I knowwww' like a petulant child - very cringe and embarrassing. All adults around instantly dislike this man/woman-child.",
+    ),
+    Character(
+      slug="max",
+      name="Morning Max Rivera",
+      pronouns="he/him",
+      voice="Schedar",
+      personality="The only completely normal person on the show, which makes him the perfect straight man. Gets increasingly exasperated as he tries to steer conversations back on track while everyone else spirals into their quirks. His deadpan reactions are comedy gold.",
+      specialty="main co-host",
+      script_writer_instructions="Max should frequently attempt to redirect conversations back to professional topics. Write him with deadpan, exasperated responses to others' quirks. Use phrases like 'Moving on...' or 'Anyway...' He's the anchor trying to keep the ship steady.",
     ),
     # Character(
     #   slug="walt",

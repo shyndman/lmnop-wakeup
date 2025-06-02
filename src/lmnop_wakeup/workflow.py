@@ -423,7 +423,7 @@ async def write_briefing_outline(state: State, config: RunnableConfig):
 @trace()
 async def write_briefing_script(state: State, config: RunnableConfig):
   weather_analysis = state.regional_weather.analysis_by_location
-  out = await get_script_writer_agent(config).run(
+  script = await get_script_writer_agent(config).run(
     input=ScriptWriterInput(
       briefing_outline=assert_not_none(state.briefing_outline),
       prioritized_events=assert_not_none(state.prioritized_events),
@@ -436,8 +436,7 @@ async def write_briefing_script(state: State, config: RunnableConfig):
       previous_scripts=[],
     )
   )
-
-  return {"briefing_script": out}
+  return {"briefing_script": script.clean_script()}
 
 
 standard_retry = RetryPolicy(max_attempts=3)
@@ -582,12 +581,13 @@ async def run_workflow_command(cmd: WorkflowCommand) -> None:
           rich.print(final_state.model_dump())
           out_path = state_path = APP_DIRS.user_state_path / briefing_date.isoformat()
           state_path = out_path / "workflow_state.json"
-          briefing_path = out_path / "brief.json"
           state_path.parent.mkdir(parents=True, exist_ok=True)
+          briefing_path = out_path / "brief.json"
 
           logger.info("Saving state to {state_path}", state_path=state_path)
           with open(state_path, "w") as f:
             f.write(final_state.model_dump_json())
+          logger.info("Saving brief to {briefing_path}", briefing_path=briefing_path)
           with open(briefing_path, "w") as f:
             f.write(final_state.briefing_script.model_dump_json())  # type: ignore
 
