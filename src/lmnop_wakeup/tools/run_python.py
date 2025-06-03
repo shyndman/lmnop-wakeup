@@ -19,7 +19,7 @@ def run_code(
   return: The output of the code.
   """
 
-  logfire.debug("Running code", lang=lang, lib=libraries, code=code)
+  logfire.info("Running code", lang=lang, lib=libraries, code=code)
 
   try:
     with SandboxSession(lang=lang, verbose=verbose) as session:

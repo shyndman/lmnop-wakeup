@@ -7,10 +7,10 @@ from clypi import Command, arg
 from loguru import logger
 from rich.prompt import Confirm
 
-from . import APP_DIRS
 from .arg import parse_date_arg, parse_location
 from .brief.model import BriefingScript
 from .core.cache import get_cache
+from .core.paths import get_data_path
 from .env import assert_env
 from .location.model import CoordinateLocation, LocationName, location_named
 
@@ -55,7 +55,7 @@ class Script(Command):
       for line in briefing_script.lines:
         sb.write(f"{line.build_prompt()}\n\n")
 
-      print(clypi.boxed(sb.getvalue(), width=80, align="center"))
+      print(clypi.boxed(sb.getvalue(), width=80, align="left"))
       print("")
 
       if not Confirm.ask("Do you want to produce voiceovers?"):
@@ -78,7 +78,7 @@ class Voiceover(Command):
 async def run_voiceover(date):
   from .tts import run_voiceover
 
-  path = APP_DIRS.user_state_path / date.isoformat()
+  path = get_data_path() / date.isoformat()
   path.mkdir(parents=True, exist_ok=True)
   brief_path = path / "brief.json"
   brief = brief_path.open().read()
@@ -101,8 +101,19 @@ class LoadData(Command):
       await add_upcoming_blogto_events()
 
 
+class Server(Command):
+  """Runs the wakeup server"""
+
+  @override
+  async def run(self):
+    from .server import run
+
+    assert_env()
+    await run()
+
+
 class Wakeup(Command):
-  subcommand: Script | Voiceover | LoadData
+  subcommand: Script | Voiceover | LoadData | Server
 
   briefing_date: date = arg(
     default=date.today() + timedelta(days=1),
