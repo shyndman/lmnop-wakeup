@@ -2,7 +2,6 @@ import asyncio
 import itertools
 import operator
 import random
-from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from typing import Annotated, Any, Literal, cast
 
@@ -463,26 +462,6 @@ location_graph = location_graph_builder.compile()
 # Old static builder removed - using build_graph() function instead
 
 
-@dataclass
-class Run:
-  briefing_date: date
-  briefing_location: CoordinateLocation
-  review_events: bool = False
-
-
-@dataclass
-class ListCheckpoints:
-  briefing_date: date
-
-
-@dataclass
-class PrintMermaid:
-  pass
-
-
-type WorkflowCommand = Run | ListCheckpoints | PrintMermaid
-
-
 def config_for_date(briefing_date: date) -> RunnableConfig:
   """Create a configuration for the workflow based on the briefing date."""
 
@@ -494,7 +473,7 @@ def config_for_date(briefing_date: date) -> RunnableConfig:
   }
 
 
-def build_graph(review_events: bool = False):
+def build_graph():
   two_hour_cache = CachePolicy(ttl=120 * 60)
 
   """Build the workflow graph with optional review step."""
@@ -540,7 +519,10 @@ def build_graph(review_events: bool = False):
   return graph_builder
 
 
-async def run_workflow_command(cmd: WorkflowCommand) -> BriefingScript | None:
+async def run_workflow_command(
+  briefing_date: date,
+  briefing_location: CoordinateLocation,
+) -> BriefingScript | None:
   """Run the morning briefing workflow.
 
   Args:
@@ -557,71 +539,49 @@ async def run_workflow_command(cmd: WorkflowCommand) -> BriefingScript | None:
   ):
     await asyncio.gather(store.setup(), saver.setup())
 
-    match cmd:
-      case Run(briefing_date, location, review_events):
-        # Build graph with conditional review step
-        graph_builder = build_graph(review_events=review_events)
-        graph = graph_builder.compile(
-          cache=SqliteCache(path=str(APP_DIRS.user_cache_path / "cache.db")),
-          checkpointer=saver,
-          store=store,
-        )
+    # Build graph with conditional review step
+    graph_builder = build_graph()
+    graph = graph_builder.compile(
+      cache=SqliteCache(path=str(APP_DIRS.user_cache_path / "cache.db")),
+      checkpointer=saver,
+      store=store,
+    )
 
-        config: RunnableConfig = config_for_date(briefing_date)
-        config["callbacks"] = [CallbackHandler(), PydanticAiCallback()]
+    config: RunnableConfig = config_for_date(briefing_date)
+    config["callbacks"] = [CallbackHandler(), PydanticAiCallback()]
 
-        day_start_ts = start_of_local_day(briefing_date)
-        # Run the workflow with a state update
+    day_start_ts = start_of_local_day(briefing_date)
+    # Run the workflow with a state update
 
-        latest_state = await graph.aget_state(config)
-        checkpoint_id = latest_state.config.get("configurable", {}).get("checkpoint_id", None)
-        rich.print(f"Checkpoint ID: {checkpoint_id}")
+    latest_state = await graph.aget_state(config)
+    checkpoint_id = latest_state.config.get("configurable", {}).get("checkpoint_id", None)
+    rich.print(f"Checkpoint ID: {checkpoint_id}")
 
-        with langfuse_span("graph"):
-          result = await graph.ainvoke(
-            # input=None,
-            State(
-              day_start_ts=day_start_ts,
-              day_end_ts=end_of_local_day(day_start_ts),
-              briefing_day_location=cast(ResolvedLocation, location),
-            ),
-            config=config,
-            checkpoint_during=True,
-            debug=True,
-          )
-          final_state = State.model_validate(result)
+    with langfuse_span("graph"):
+      result = await graph.ainvoke(
+        # input=None,
+        State(
+          day_start_ts=day_start_ts,
+          day_end_ts=end_of_local_day(day_start_ts),
+          briefing_day_location=cast(ResolvedLocation, briefing_location),
+        ),
+        config=config,
+        checkpoint_during=True,
+        debug=True,
+      )
+      final_state = State.model_validate(result)
 
-          rich.print(final_state.model_dump())
-          out_path = state_path = APP_DIRS.user_state_path / briefing_date.isoformat()
-          state_path = out_path / "workflow_state.json"
-          state_path.parent.mkdir(parents=True, exist_ok=True)
-          briefing_path = out_path / "brief.json"
+      rich.print(final_state.model_dump())
+      out_path = state_path = APP_DIRS.user_state_path / briefing_date.isoformat()
+      state_path = out_path / "workflow_state.json"
+      state_path.parent.mkdir(parents=True, exist_ok=True)
+      briefing_path = out_path / "brief.json"
 
-          logger.info("Saving state to {state_path}", state_path=state_path)
-          with open(state_path, "w") as f:
-            f.write(final_state.model_dump_json())
-          logger.info("Saving brief to {briefing_path}", briefing_path=briefing_path)
-          with open(briefing_path, "w") as f:
-            f.write(final_state.briefing_script.model_dump_json())  # type: ignore
-          return final_state.briefing_script
+      logger.info("Saving state to {state_path}", state_path=state_path)
+      with open(state_path, "w") as f:
+        f.write(final_state.model_dump_json())
+      logger.info("Saving brief to {briefing_path}", briefing_path=briefing_path)
+      with open(briefing_path, "w") as f:
+        f.write(final_state.briefing_script.model_dump_json())  # type: ignore
 
-      case ListCheckpoints(briefing_date):
-        # Use basic graph for checkpoint listing
-        graph_builder = build_graph(review_events=False)
-        graph = graph_builder.compile(
-          cache=SqliteCache(path=str(APP_DIRS.user_cache_path / "cache.db")),
-          checkpointer=saver,
-          store=store,
-        )
-        config = config_for_date(briefing_date)
-        async for checkpoint in saver.alist(config=config):
-          print(checkpoint.config)
-
-      case PrintMermaid():
-        graph_builder = build_graph(review_events=True)  # Show full graph with review
-        graph = graph_builder.compile(
-          cache=SqliteCache(path=str(APP_DIRS.user_cache_path / "cache.db")),
-          checkpointer=saver,
-          store=store,
-        )
-        rich.print(graph.get_graph().draw_mermaid())
+      return final_state.briefing_script

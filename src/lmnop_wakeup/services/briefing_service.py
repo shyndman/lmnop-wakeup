@@ -22,7 +22,7 @@ class BriefingService:
     review_events: bool = False,
   ) -> Path:
     """Generate a briefing script and voiceover for the given date and location."""
-    from ..workflow import Run, run_workflow_command
+    from ..workflow import run_workflow_command
 
     location = location or self.default_location
 
@@ -33,13 +33,10 @@ class BriefingService:
     async with get_cache():
       assert_env()
 
-      cmd = Run(
+      briefing_script = await run_workflow_command(
         briefing_date=briefing_date,
         briefing_location=location,
-        review_events=review_events,
       )
-
-      briefing_script = await run_workflow_command(cmd)
 
       if briefing_script is None:
         raise ValueError("Failed to generate briefing script")

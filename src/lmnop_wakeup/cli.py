@@ -24,29 +24,21 @@ class Script(Command):
     help="name or latlng of the user's location",
   )
   briefing_date: date = arg(inherited=True)
-  list_checkpoints: bool = arg(
-    default=False, short="l", help="list checkpoints instead of running the workflow"
-  )
   review_events: bool = arg(
     default=False, short="r", help="enable interactive review of prioritized events"
   )
 
   @override
   async def run(self):
-    from .workflow import ListCheckpoints, Run, run_workflow_command
+    from .workflow import run_workflow_command
 
     async with get_cache():
       assert_env()
-      cmd = None
-      if self.list_checkpoints:
-        cmd = ListCheckpoints(briefing_date=self.briefing_date)
-      else:
-        cmd = Run(
-          briefing_date=self.briefing_date,
-          briefing_location=self.current_location,
-          review_events=self.review_events,
-        )
-      briefing_script = await run_workflow_command(cmd)
+
+      briefing_script = await run_workflow_command(
+        briefing_date=self.briefing_date,
+        briefing_location=self.current_location,
+      )
 
       if briefing_script is None:
         return
