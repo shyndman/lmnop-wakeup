@@ -97,6 +97,3 @@ known-first-party = ["lmnop_wakeup"]
 quote-style = "double"
 indent-style = "space"
 line-ending = "auto"
-
-[tool.uv.sources]
-rich = {git = "ssh://git@github.com/shyndman/rich"}
