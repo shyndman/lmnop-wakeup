@@ -45,7 +45,7 @@ dependencies = [
     "rich>=14.0.0",
     "rottentomatoes-python>=1.2.0",
     "typer>=0.15.4",
-    "aiolimiter>=1.2.1",
+    "asynciolimiter>=1.2.0",
 ]
 license = {text = "MIT"}
 

@@ -38,20 +38,20 @@ def expand_sonarr_series(e: CalendarEvent) -> CalendarEvent:
 CALENDAR_INSTRUCTIONS = {
   # Scott's personal calendar
   "scotty.hyndman@gmail.com": CalendarInfo(
-    notes="This is Scott's personal calendar. These are high priority events "
+    notes="This is Scott's personal calendar. These are priority events "
     "for wakeups and reminders, unless the event states otherwise."
   ),
   # Scott's birthday calendar
   "md3ntu1lbq9vqc59fs75svbusg@group.calendar.google.com": CalendarInfo(
-    notes="This is a birthday calendar. Short reminders for these can start a couple weeks before "
-    "the event, but they are not elevated priority unless they are for immediate family."
+    notes="This is Scott's birthday calendar. Short reminders for these can start a couple weeks "
+    "before the event, but they are not elevated priority unless they are for immediate family."
   ),
   # Doncaster calendar
   "family16125668672800183011@group.calendar.google.com": CalendarInfo(
-    notes="This is a family calendar. These are high priority events for wakeups and reminders. "
-    "The creator of the event and its attendees should indicate whether it applies to Hilary or "
-    "Scott, or both. If attendees do not indicate both are attending, but the description or "
-    "summary does, assume both are attending. "
+    notes="This is Scott and Hilary's shared calendar. These are priority events for "
+    "wakeups and reminders. The creator of the event and its attendees should indicate whether it "
+    "applies to Hilary or Scott, or both. If attendees do not indicate both are attending, but "
+    "the description or summary does, assume both are attending. "
   ),
   # Hilary's work calendar
   "calendar.hilary_s_work": CalendarInfo(

@@ -52,8 +52,8 @@ class Script(Command):
         return
 
       sb = StringIO()
-      for group in briefing_script.dialogue_groups():
-        sb.write(f"{group.build_prompt()}\n\n")
+      for line in briefing_script.lines:
+        sb.write(f"{line.build_prompt()}\n\n")
 
       print(clypi.boxed(sb.getvalue(), width=80, align="center"))
       print("")

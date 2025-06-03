@@ -164,7 +164,7 @@ class LocationWeatherState(BaseModel):
 
 
 FUTURE_EVENTS_TIMEDELTA = timedelta(days=15)
-FUTURE_WEATHER_TIMEDELTA = timedelta(days=15)
+FUTURE_WEATHER_TIMEDELTA = timedelta(days=5)
 
 
 @trace()
@@ -244,6 +244,8 @@ async def send_location_requests(state: State):
 
 @trace()
 async def process_location(new_state: LocationDataState):
+  logger.info("Processing {address}", address=new_state.address)
+
   loc_state = LocationDataState.model_validate(
     cast(
       dict,
@@ -443,7 +445,7 @@ async def write_briefing_script(state: State, config: RunnableConfig):
       previous_scripts=[],
     )
   )
-  return {"briefing_script": script.clean_script()}
+  return {"briefing_script": script}
 
 
 standard_retry = RetryPolicy(max_attempts=3)

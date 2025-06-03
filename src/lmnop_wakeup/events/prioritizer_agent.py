@@ -3,7 +3,7 @@
 from typing import override
 
 from langchain_core.runnables import RunnableConfig
-from pydantic import BaseModel, RootModel
+from pydantic import BaseModel, Field, RootModel
 from pydantic.dataclasses import dataclass
 
 from ..llm import LangfuseAgentInput, LmnopAgent, ModelName, extract_pydantic_ai_callback
@@ -42,23 +42,32 @@ class EventPrioritizerInput(LangfuseAgentInput):
 class PrioritizedEvent:
   """Represents a prioritized event with its ID and reason for prioritization."""
 
-  id: str
-  """The CalendarEvent's id field """
+  id: str = Field(..., description="The CalendarEvent's id field")
 
-  summary: str
-  """The CalendarEvent's summary field"""
+  subject: str = Field(
+    ...,
+    description="Whose event this is (e.g., 'Scott', 'Hilary'). Determined from "
+    "event description, calendar context, or event creator. Helps "
+    "disambiguate possessives like 'my mom' or 'my meeting'. Note that this is a "
+    "distinct concept from attendees, which are people who will be there.",
+  )
 
-  reason: str
-  """
-  Reason for prioritization:
-  - Wake-up events
-  - Prioritized events
-  - Upcoming personal events (within reminder window)
-  - Interesting or relevant events worth mentioning
-  - Weather conditions affecting travel or local patterns
-  """
-  tag: str
-  """Categorization/prioritization tag"""
+  summary: str = Field(..., description="The CalendarEvent's summary field")
+
+  reason: str = Field(
+    ...,
+    description="Reason for prioritization: Wake-up events, Prioritized events, "
+    "Upcoming personal events (within reminder window), Interesting or "
+    "relevant events worth mentioning, Weather conditions affecting "
+    "travel or local patterns",
+  )
+
+  tag: str = Field(
+    ...,
+    description="Categorization/prioritization tag (e.g., TODAY_CRITICAL_WAKE_UP, "
+    "TODAY_PRIORITY, TODAY_STANDARD, UPCOMING_PERSONAL_IMPORTANT, "
+    "UPCOMING_WEEKEND_PLAN, UPCOMING_WEEKNIGHT_PLAN, INFORMATIONAL)",
+  )
 
 
 class EventPrioritizerOutput(BaseModel):
