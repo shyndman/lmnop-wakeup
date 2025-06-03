@@ -47,6 +47,7 @@ dependencies = [
     "typer>=0.15.4",
     "asynciolimiter>=1.2.0",
     "fastapi>=0.115.12",
+    "music-assistant-client>=1.2.0",
 ]
 license = {text = "MIT"}
 
