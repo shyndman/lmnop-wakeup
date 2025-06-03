@@ -41,7 +41,7 @@ def initialize_tracing():
   global _user_id, _session_id
 
   # Get Linux username
-  _user_id = os.getlogin()
+  _user_id = os.getenv("LANGFUSE_USER") or os.getlogin()
 
   # Generate session ID (3 random kebab-cased words)
   word_list: list[str] | None = RandomWord(max_word_size=8).getList(num_of_words=3)
