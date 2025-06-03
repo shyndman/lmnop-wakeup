@@ -1,14 +1,15 @@
 from datetime import date, timedelta
-from pathlib import Path
+from io import StringIO
 from typing import override
 
+import clypi
 from clypi import Command, arg
 from loguru import logger
+from rich.prompt import Confirm
 
-from lmnop_wakeup import APP_DIRS
-from lmnop_wakeup.brief.model import BriefingScript
-
+from . import APP_DIRS
 from .arg import parse_date_arg, parse_location
+from .brief.model import BriefingScript
 from .core.cache import get_cache
 from .env import assert_env
 from .location.model import CoordinateLocation, LocationName, location_named
@@ -45,27 +46,46 @@ class Script(Command):
           briefing_location=self.current_location,
           review_events=self.review_events,
         )
-      await run_workflow_command(cmd)
+      briefing_script = await run_workflow_command(cmd)
+
+      if briefing_script is None:
+        return
+
+      sb = StringIO()
+      for group in briefing_script.dialogue_groups():
+        sb.write(f"{group.build_prompt()}\n\n")
+
+      print(clypi.boxed(sb.getvalue(), width=80, align="center"))
+      print("")
+
+      if not Confirm.ask("Do you want to produce voiceovers?"):
+        return
+
+      await run_voiceover(self.briefing_date)
 
 
 class Voiceover(Command):
-  script_path: Path = arg(short="i", help="path to the .json script file to voiceover")
   print_script: bool = arg(default=False, help="do not output the audio, just print the script")
   briefing_date: date = arg(inherited=True)
 
   @override
   async def run(self):
-    from .tts import run_voiceover
-
     assert_env()
-    script = self.script_path.open("r").read()
 
-    path = APP_DIRS.user_state_path / self.briefing_date.isoformat()
-    path.mkdir(parents=True, exist_ok=True)
+    await run_voiceover(self.briefing_date)
 
-    await run_voiceover(
-      BriefingScript.model_validate_json(script), print_script=self.print_script, output_path=path
-    )
+
+async def run_voiceover(date):
+  from .tts import run_voiceover
+
+  path = APP_DIRS.user_state_path / date.isoformat()
+  path.mkdir(parents=True, exist_ok=True)
+  brief_path = path / "brief.json"
+  brief = brief_path.open().read()
+
+  await run_voiceover(
+    BriefingScript.model_validate_json(brief), print_script=False, output_path=path
+  )
 
 
 class LoadData(Command):

@@ -1,6 +1,7 @@
 from io import StringIO
+from typing import Self
 
-from pydantic import BaseModel, Field, computed_field, model_validator
+from pydantic import BaseModel, Field, model_validator
 
 from lmnop_wakeup.core.typing import assert_not_none
 
@@ -61,12 +62,12 @@ class TonalDialogueGroup(BaseModel):
   )
   character_2_slug: str | None = Field(
     None,
-    description="Second character participating in this tonal group. Can be null if there "
+    description="Second character participating in this tonal group. Set to be None if there "
     "is only one speaker in the tonal group.",
   )
   character_2_style_direction: str | None = Field(
     None,
-    description="Detailed emotional and stylistic direction for character_2. Can be null if "
+    description="Detailed emotional and stylistic direction for character_2. Set to be None if "
     "there is only one speaker in the tonal group.",
     min_length=15,
   )
@@ -82,11 +83,16 @@ class TonalDialogueGroup(BaseModel):
   def character_count(self) -> int:
     return len(self.character_slugs)
 
+  @property
+  def is_single_speaker(self):
+    """Check if a dialogue group has only one speaker."""
+    return self.character_2_slug is None
+
   def remove_unused_character_direction(self):
-    if self.character_count > 1:
+    slugs = self.character_slugs
+    if self.character_1_slug in slugs and self.character_2_slug in slugs:
       return
 
-    slugs = self.character_slugs
     expecting_use_of_2 = False
     if self.character_1_slug not in slugs:
       self.character_1_slug = assert_not_none(self.character_2_slug)
@@ -97,7 +103,10 @@ class TonalDialogueGroup(BaseModel):
       if expecting_use_of_2:
         raise ValueError("Expected character_2_slug to be used, but it was not found in lines.")
       else:
-        raise ValueError("Expected character_2_slug to be unused, but it was found in lines.")
+        raise ValueError(
+          "Expected character_2_slug to be unused, but it was found in lines.\n"
+          f"{self.build_prompt()}"
+        )
 
     self.character_2_slug = None
     self.character_2_style_direction = None
@@ -128,6 +137,16 @@ class TonalDialogueGroup(BaseModel):
 
     return sb.getvalue()
 
+  @model_validator(mode="after")
+  def _validate_unique(self) -> Self:  # noqa: F821
+    if self.character_1_slug == self.character_2_slug:
+      raise ValueError(
+        "Both characters in a tonal group cannot be the same. "
+        "Please ensure character_1_slug and character_2_slug are distinct, either by "
+        "introducing a character, or setting character_2_slug to None"
+      )
+    return self
+
 
 class ScriptSection(BaseModel):
   """
@@ -147,6 +166,46 @@ class ScriptSection(BaseModel):
   dialogue_groups: list[TonalDialogueGroup] = Field(
     ..., description="Ordered list of dialogue groups within this section", min_length=1
   )
+
+  def normalize_doubled_speaker(self):
+    for group in self.dialogue_groups:
+      if group.character_1_slug == group.character_2_slug:
+        # If both characters are the same, remove character_2
+        group.character_2_slug = None
+        group.character_2_style_direction = None
+
+  def merge_single_speakers(self):
+    """
+    Merges consecutive single-speaker dialogue groups within each section.
+
+    When two consecutive dialogue groups each have only one speaker, this function
+    merges them by adding the second group's speaker as character_2 in the first
+    group and appending the second group's lines to the first group.
+
+    Args:
+      data: JSON dictionary containing sections with dialogue_groups
+
+    Returns:
+      Modified data dictionary with merged single-speaker groups
+    """
+    groups = self.dialogue_groups
+    i = 0
+    while i < len(groups) - 1:
+      current_group = groups[i]
+      next_group = groups[i + 1]
+
+      # Check if both are single-speaker groups
+      if current_group.is_single_speaker and next_group.is_single_speaker:
+        # Merge next_group into current_group
+        current_group.character_2_slug = next_group.character_1_slug
+        current_group.character_2_style_direction = next_group.character_1_style_direction
+        current_group.lines.extend(next_group.lines)
+
+        # Remove the next_group from the list
+        groups.pop(i + 1)
+
+      # Always increment i
+      i += 1
 
 
 class BriefingScript(BaseModel):
@@ -174,21 +233,6 @@ class BriefingScript(BaseModel):
   sections: list[ScriptSection] = Field(
     default=[], description="Ordered list of briefing sections", min_length=1
   )
-  character_count: int = Field(
-    ..., description="Total number of unique characters used in this script", ge=4, le=6
-  )
-
-  @computed_field
-  @property
-  def estimated_duration_minutes(self) -> float:
-    """Estimate duration based on total word count and average speaking pace."""
-    total_words = sum(
-      len(line.text.split())
-      for section in self.sections
-      for group in section.dialogue_groups
-      for line in group.lines
-    )
-    return total_words / 150
 
   def get_all_characters(self) -> set[str]:
     """Extract all unique character slugs used in the script."""
@@ -198,16 +242,6 @@ class BriefingScript(BaseModel):
         characters.add(group.character_1_slug)
         characters.add(group.character_2_slug)
     return characters
-
-  @model_validator(mode="after")
-  def validate_character_consistency(self) -> "BriefingScript":
-    """Ensure character count matches actual character usage."""
-    actual_count = len(self.get_all_characters())
-    if actual_count != self.character_count:
-      raise ValueError(
-        f"Character count mismatch: declared {self.character_count}, actual {actual_count}"
-      )
-    return self
 
   def dialogue_groups(self):
     for section in self.sections:
@@ -226,36 +260,6 @@ class BriefingScript(BaseModel):
       }
     )
 
-  def _merge_consecutive_single_character_groups(
-    self, groups: list[TonalDialogueGroup]
-  ) -> list[TonalDialogueGroup]:
-    """Merge consecutive single-character groups to optimize API calls."""
-    if len(groups) <= 1:
-      return groups
-
-    merged_groups = []
-    i = 0
-
-    while i < len(groups):
-      current_group = groups[i]
-
-      # Check if we can merge with the next group
-      if (
-        i + 1 < len(groups)
-        and current_group.character_count == 1
-        and groups[i + 1].character_count == 1
-      ):
-        # Merge the two single-character groups
-        merged_group = self._merge_single_character_groups(current_group, groups[i + 1])
-        merged_groups.append(merged_group)
-        i += 2  # Skip the next group since we merged it
-      else:
-        # Can't merge, just add the current group
-        merged_groups.append(current_group)
-        i += 1
-
-    return merged_groups
-
   def clean_script(self) -> "BriefingScript":
     """Clean the script by removing unused character directions and merging single-character
     groups."""
@@ -267,8 +271,6 @@ class BriefingScript(BaseModel):
         group.remove_unused_character_direction()
 
       # Then merge consecutive single-character groups
-      section.dialogue_groups = self._merge_consecutive_single_character_groups(
-        section.dialogue_groups
-      )
+      section.merge_single_speakers()
 
     return copy

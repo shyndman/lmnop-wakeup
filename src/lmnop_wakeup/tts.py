@@ -3,6 +3,7 @@ import wave
 from pathlib import Path
 
 import rich
+from aiolimiter import AsyncLimiter
 from google import genai
 from google.genai import types
 from loguru import logger
@@ -64,6 +65,8 @@ async def run_tts(
     ),
   )
 
+  rich.print(response.usage_metadata)
+
   candidates = ensure(response.candidates)
   content = ensure(candidates[0].content)
   parts = ensure(content.parts)
@@ -72,6 +75,7 @@ async def run_tts(
 
   file_name = output_path / f"{part}.wav"
   wave_file(str(file_name.absolute()), data)  # Saves the file to current directory
+  print(f"Wrote wav to {file_name}")
 
 
 async def run_voiceover(script: BriefingScript, print_script: bool, output_path: Path):
@@ -89,19 +93,23 @@ async def run_voiceover(script: BriefingScript, print_script: bool, output_path:
 
   logger.info(rich_sprint(cleaned_script))
   tasks = []
+  rate_limit = AsyncLimiter(10, 60)
   for i, dialogue_group in enumerate(cleaned_script.dialogue_groups()):
     print(f"Processing part {i}")
     print(dialogue_group.build_prompt())
     if not print_script:
-      tasks.append(
-        run_tts(
-          client.aio,
-          prompt=dialogue_group.build_prompt(),
-          part=i,
-          speakers=dialogue_group.character_slugs,
-          output_path=output_path,
-        ),
-      )
+      async with rate_limit:
+        # Run the TTS for this dialogue group
+        logger.info(f"Running TTS for part {i} with speakers {dialogue_group.character_slugs}")
+        tasks.append(
+          run_tts(
+            client.aio,
+            prompt=dialogue_group.build_prompt(),
+            part=i,
+            speakers=dialogue_group.character_slugs,
+            output_path=output_path,
+          ),
+        )
 
   rich.print(tasks)
   await asyncio.gather(*tasks)

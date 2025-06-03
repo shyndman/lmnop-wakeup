@@ -1,4 +1,7 @@
+import logfire
 from llm_sandbox import SandboxSession
+from llm_sandbox.exceptions import CommandFailedError
+from pydantic_ai import ModelRetry
 
 
 def run_code(
@@ -15,5 +18,11 @@ def run_code(
   param libraries: The libraries to use, it is optional.
   return: The output of the code.
   """
-  with SandboxSession(lang=lang, verbose=verbose) as session:
-    return session.run(code, libraries).stdout
+
+  logfire.debug("Running code", lang=lang, lib=libraries, code=code)
+
+  try:
+    with SandboxSession(lang=lang, verbose=verbose) as session:
+      return session.run(code, libraries).stdout
+  except CommandFailedError as e:
+    raise ModelRetry(f"Command failed: {e}")

@@ -19,13 +19,14 @@ from loguru import logger
 from pydantic import AwareDatetime, BaseModel, computed_field
 from pydantic_extra_types.coordinate import Coordinate
 
-from lmnop_wakeup.llm import PydanticAiCallback
-from lmnop_wakeup.weather.model import WeatherKey, weather_key_for_location
-
 from . import APP_DIRS
 from .brief.actors import CHARACTER_POOL
+from .brief.content_optimizer import (
+  ContentOptimizationReport,
+  ContentOptimizerInput,
+  get_content_optimizer,
+)
 from .brief.script_writer_agent import BriefingScript, ScriptWriterInput, get_script_writer_agent
-from .brief.sectioner_agent import BriefingOutline, SectionerInput, get_sectioner_agent
 from .core.date import end_of_local_day, start_of_local_day
 from .core.tracing import langfuse_span, trace
 from .core.typing import assert_not_none, ensure
@@ -39,6 +40,7 @@ from .events.prioritizer_agent import (
   get_event_prioritizer_agent,
 )
 from .events.scheduler_agent import SchedulerInput, get_scheduler_agent
+from .llm import PydanticAiCallback
 from .location.model import (
   NAMED_LOCATIONS,
   CoordinateLocation,
@@ -53,6 +55,7 @@ from .weather.meteorologist_agent import (
   MeteorologistInput,
   get_meteorologist_agent,
 )
+from .weather.model import WeatherKey, weather_key_for_location
 from .weather.sunset_oracle_agent import (
   SunsetOracleInput,
   SunsetPrediction,
@@ -108,8 +111,9 @@ class State(BaseModel):
   """A list of events prioritized for the briefing, including their importance and
   relevance to the day's schedule."""
 
-  briefing_outline: BriefingOutline | None = None
-  """An outline of the briefing, including sections and their content."""
+  content_optimization_report: ContentOptimizationReport | None = None
+  """Suggestions for optimizing the briefing content, including events to include and their
+  suggested length."""
 
   briefing_script: BriefingScript | None = None
   """The final script for the briefing, including all sections and their content."""
@@ -160,16 +164,18 @@ class LocationWeatherState(BaseModel):
 
 
 FUTURE_EVENTS_TIMEDELTA = timedelta(days=15)
+FUTURE_WEATHER_TIMEDELTA = timedelta(days=15)
 
 
 @trace()
 async def populate_raw_inputs(state: State):
   span_end = state.day_end_ts + FUTURE_EVENTS_TIMEDELTA
+  weather_span_end = state.day_end_ts + FUTURE_WEATHER_TIMEDELTA
 
   local_weather = await get_weather_report(
     location=state.briefing_day_location,
     report_start_ts=state.day_start_ts,
-    report_end_ts=span_end,
+    report_end_ts=weather_span_end,
     # TODO We should really be getting this data for wherever we'll be in the evening
     include_air_quality=True,
     include_comfort_hourly=True,
@@ -408,16 +414,17 @@ async def prioritize_events(state: State, config: RunnableConfig):
 
 
 @trace()
-async def write_briefing_outline(state: State, config: RunnableConfig):
-  sectioner = get_sectioner_agent(config)
-  input = SectionerInput(
+async def write_content_optimization(state: State, config: RunnableConfig):
+  sectioner = get_content_optimizer(config)
+  input = ContentOptimizerInput(
     schedule=assert_not_none(state.schedule),
     prioritized_events=assert_not_none(state.prioritized_events),
     regional_weather_reports=assert_not_none(state.regional_weather),
     sunset_predication=assert_not_none(state.sunset_prediction),
   )
+  logger.warning(input.model_dump_json(indent=2))
   out = await sectioner.run(input=input)
-  return {"briefing_outline": out}
+  return {"content_optimization_report": out}
 
 
 @trace()
@@ -425,7 +432,7 @@ async def write_briefing_script(state: State, config: RunnableConfig):
   weather_analysis = state.regional_weather.analysis_by_location
   script = await get_script_writer_agent(config).run(
     input=ScriptWriterInput(
-      briefing_outline=assert_not_none(state.briefing_outline),
+      content_optimizer_report=assert_not_none(state.content_optimization_report),
       prioritized_events=assert_not_none(state.prioritized_events),
       schedule=assert_not_none(state.schedule),
       weather_report=assert_not_none(
@@ -486,17 +493,21 @@ def config_for_date(briefing_date: date) -> RunnableConfig:
 
 
 def build_graph(review_events: bool = False):
+  two_hour_cache = CachePolicy(ttl=120 * 60)
+
   """Build the workflow graph with optional review step."""
   graph_builder = StateGraph(State)
-  graph_builder.add_node(populate_raw_inputs, cache_policy=CachePolicy(ttl=120 * 60))
+  graph_builder.add_node(
+    populate_raw_inputs, cache_policy=two_hour_cache, destinations=("process_location",)
+  )
   graph_builder.add_node(process_location)
   graph_builder.add_node(fork_analysis, defer=True)
   graph_builder.add_node(calculate_schedule, retry=standard_retry)
-  graph_builder.add_node(analyze_weather, retry=standard_retry)
-  graph_builder.add_node(predict_sunset_beauty, retry=standard_retry)
+  graph_builder.add_node(analyze_weather, retry=standard_retry, cache_policy=two_hour_cache)
+  graph_builder.add_node(predict_sunset_beauty, retry=standard_retry, cache_policy=two_hour_cache)
   graph_builder.add_node(prioritize_events, defer=True)
-  graph_builder.add_node(write_briefing_outline)
-  graph_builder.add_node(write_briefing_script)
+  graph_builder.add_node(write_content_optimization, retry=standard_retry)
+  graph_builder.add_node(write_briefing_script, retry=standard_retry)
 
   graph_builder.set_entry_point("populate_raw_inputs")
   graph_builder.add_conditional_edges(
@@ -520,14 +531,14 @@ def build_graph(review_events: bool = False):
   graph_builder.add_edge("calculate_schedule", "prioritize_events")
   graph_builder.add_edge("analyze_weather", "prioritize_events")
   graph_builder.add_edge("predict_sunset_beauty", "prioritize_events")
-  graph_builder.add_edge("prioritize_events", "write_briefing_outline")
-  graph_builder.add_edge("write_briefing_outline", "write_briefing_script")
+  graph_builder.add_edge("prioritize_events", "write_content_optimization")
+  graph_builder.add_edge("write_content_optimization", "write_briefing_script")
   graph_builder.set_finish_point("write_briefing_script")
 
   return graph_builder
 
 
-async def run_workflow_command(cmd: WorkflowCommand) -> None:
+async def run_workflow_command(cmd: WorkflowCommand) -> BriefingScript | None:
   """Run the morning briefing workflow.
 
   Args:
@@ -590,6 +601,7 @@ async def run_workflow_command(cmd: WorkflowCommand) -> None:
           logger.info("Saving brief to {briefing_path}", briefing_path=briefing_path)
           with open(briefing_path, "w") as f:
             f.write(final_state.briefing_script.model_dump_json())  # type: ignore
+          return final_state.briefing_script
 
       case ListCheckpoints(briefing_date):
         # Use basic graph for checkpoint listing

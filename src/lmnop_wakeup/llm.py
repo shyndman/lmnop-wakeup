@@ -210,7 +210,7 @@ class LmnopAgent[Input: LangfuseAgentInput, Output: BaseModel]:
       label=PRODUCTION_PROMPT_LABEL,
       request_options=RequestOptions(
         max_retries=5,
-        timeout_in_seconds=10,
+        timeout_in_seconds=20,
       ),
     )
 
@@ -280,6 +280,11 @@ class LmnopAgent[Input: LangfuseAgentInput, Output: BaseModel]:
       if self._callback is not None and run_id is not None:
         await self._callback.error_encountered(run_id=run_id, error=error)
       raise
+
+  def output_validator(self, *args, **kwargs):
+    """Decorator to register an output validator function.
+    Optionally takes RunContext as its first argument. Can decorate a sync or async functions."""
+    return self._agent.output_validator(*args, **kwargs)
 
   # Expose agent decorators for tool registration
   def tool_plain(self, *args, **kwargs):
