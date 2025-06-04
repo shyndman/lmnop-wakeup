@@ -2,6 +2,7 @@
 .claude
 schedule.json
 script.json
+out
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
