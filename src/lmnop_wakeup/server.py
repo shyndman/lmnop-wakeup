@@ -67,7 +67,8 @@ async def run() -> None:
     app=app,
     host="0.0.0.0",
     port=8000,
-    log_config=None,  # Use loguru instead of uvicorn's logging
+    log_config=None,
+    log_level=None,
   )
   server = uvicorn.Server(config)
   await server.serve()

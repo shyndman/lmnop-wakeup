@@ -39,6 +39,20 @@ def initialize_logging():
   # Intercept Logfire
   logger.configure(handlers=[logfire.loguru_handler()])
 
+  # Propagate uvicorn logs to root
+  loggers = (
+    "uvicorn",
+    "uvicorn.access",
+    "uvicorn.error",
+    "fastapi",
+    "asyncio",
+    "starlette",
+  )
+  for logger_name in loggers:
+    logging_logger = logging.getLogger(logger_name)
+    logging_logger.handlers = []
+    logging_logger.propagate = True
+
 
 class InterceptHandler(logging.Handler):
   @override
