@@ -88,7 +88,7 @@ def get_sunset_oracle_agent(config: RunnableConfig) -> SunsetOracleAgent:
 
   agent = LmnopAgent[SunsetOracleInput, SunsetOracleOutput].create(
     "sunset_oracle",
-    model_name=ModelName.GEMINI_25_PRO,
+    model_name=ModelName.GEMINI_25_FLASH,
     input_type=SunsetOracleInput,
     output_type=SunsetOracleOutput,
     callback=extract_pydantic_ai_callback(config),

@@ -311,7 +311,7 @@ def get_content_optimizer(config: RunnableConfig) -> ContentOptimizerAgent:
 
   agent = LmnopAgent[ContentOptimizerInput, ContentOptimizerOutput].create(
     "content_optimizer",
-    model_name=ModelName.GEMINI_25_PRO,
+    model_name=ModelName.GEMINI_25_FLASH,
     input_type=ContentOptimizerInput,
     output_type=ContentOptimizerOutput,
     callback=extract_pydantic_ai_callback(config),
