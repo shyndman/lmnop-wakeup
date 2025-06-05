@@ -177,7 +177,7 @@ class LocationWeatherState(BaseModel):
 
 
 FUTURE_EVENTS_TIMEDELTA = timedelta(days=15)
-FUTURE_WEATHER_TIMEDELTA = timedelta(days=5)
+FUTURE_WEATHER_TIMEDELTA = timedelta(days=3)
 
 
 @trace()
