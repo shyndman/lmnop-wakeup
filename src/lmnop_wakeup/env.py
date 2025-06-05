@@ -33,6 +33,12 @@ class EnvName(StrEnum):
   """The environment variable name for the Postgres database URL."""
   REDIS_CACHE_URL = "REDIS_CACHE_URL"
   """The environment variable name for the Redis cache URL."""
+  MUSIC_ASSISTANT_URL = "MUSIC_ASSISTANT_URL"
+  """The environment variable name for the Music Assistant server URL."""
+  MUSIC_ASSISTANT_PLAYER_ID = "MUSIC_ASSISTANT_PLAYER_ID"
+  """The environment variable name for the Music Assistant player ID."""
+  WAKEUP_SERVER_BASE_URL = "WAKEUP_SERVER_BASE_URL"
+  """The environment variable name for the base URL that Music Assistant can reach back to."""
 
 
 def get_postgres_connection_string() -> str:
@@ -144,6 +150,57 @@ def get_redis_cache_url() -> str:
   if EnvName.REDIS_CACHE_URL not in os.environ:
     raise EnvironmentError(f"Required environment variable {EnvName.REDIS_CACHE_URL} not provided")
   return assert_not_none(os.getenv(EnvName.REDIS_CACHE_URL))
+
+
+def get_music_assistant_url() -> str:
+  """
+  Retrieves the Music Assistant server URL from environment variables.
+
+  Returns:
+    The Music Assistant server URL.
+
+  Raises:
+    EnvironmentError: If the MUSIC_ASSISTANT_URL environment variable is not set.
+  """
+  if EnvName.MUSIC_ASSISTANT_URL not in os.environ:
+    raise EnvironmentError(
+      f"Required environment variable {EnvName.MUSIC_ASSISTANT_URL} not provided"
+    )
+  return assert_not_none(os.getenv(EnvName.MUSIC_ASSISTANT_URL))
+
+
+def get_music_assistant_player_id() -> str:
+  """
+  Retrieves the Music Assistant player ID from environment variables.
+
+  Returns:
+    The Music Assistant player ID.
+
+  Raises:
+    EnvironmentError: If the MUSIC_ASSISTANT_PLAYER_ID environment variable is not set.
+  """
+  if EnvName.MUSIC_ASSISTANT_PLAYER_ID not in os.environ:
+    raise EnvironmentError(
+      f"Required environment variable {EnvName.MUSIC_ASSISTANT_PLAYER_ID} not provided"
+    )
+  return assert_not_none(os.getenv(EnvName.MUSIC_ASSISTANT_PLAYER_ID))
+
+
+def get_wakeup_server_base_url() -> str:
+  """
+  Retrieves the wakeup server base URL from environment variables.
+
+  Returns:
+    The wakeup server base URL that Music Assistant can reach.
+
+  Raises:
+    EnvironmentError: If the WAKEUP_SERVER_BASE_URL environment variable is not set.
+  """
+  if EnvName.WAKEUP_SERVER_BASE_URL not in os.environ:
+    raise EnvironmentError(
+      f"Required environment variable {EnvName.WAKEUP_SERVER_BASE_URL} not provided"
+    )
+  return assert_not_none(os.getenv(EnvName.WAKEUP_SERVER_BASE_URL))
 
 
 def assert_env():
