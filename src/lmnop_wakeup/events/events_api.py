@@ -58,8 +58,8 @@ CALENDAR_INSTRUCTIONS = {
   # Hilary's work calendar
   "calendar.hilary_s_work": CalendarInfo(
     notes="This is Hilary's work calendar. While the events are private, they are higher "
-    "priority IN THE MORNING and should result in wakeups and reminders. Refer to the events as "
-    'meetings, not "busy" event, and NEVER mention them as being high priority.',
+    "priority IN THE MORNING and should result in wakeups and reminders. ALWAYS refer to the "
+    'events as meetings, not "busy" event, and NEVER mention them as being high priority.',
     event_filter=CalendarEventFilter.today_only,
   ),
   # Ontario statuatory holidays
@@ -89,8 +89,8 @@ CALENDAR_INSTRUCTIONS = {
   "calendar.toronto_on": CalendarInfo(
     notes="This is Toronto's waste collection schedule. It is important that we're told the day "
     "before so we can have the bins out when the trucks come around, in the early morning. These "
-    "are high-ish priority. We should at least get a sentence reminder. "
-    "Language-wise, GreenBin also goes by organics, YardWaste=leaves and twig collection, "
+    "are high priority, but only ever require a short mention. Language-wise, GreenBin also "
+    "goes by organics, YardWaste=leaves and twig collection, "
     "yard clippings, etc. BlueBin=Recycling, cardboard",
   ),
 }
