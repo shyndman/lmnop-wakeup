@@ -8,11 +8,10 @@ from clypi import Command, arg
 from rich.prompt import Confirm
 
 from .arg import parse_date_arg, parse_location
-from .brief.model import BriefingScript
 from .core.cache import get_cache
-from .core.paths import get_data_path
 from .env import assert_env
 from .location.model import CoordinateLocation, LocationName, location_named
+from .paths import BriefingDirectory
 
 logger = structlog.get_logger()
 
@@ -72,14 +71,12 @@ class Voiceover(Command):
 async def run_voiceover(date):
   from .tts import run_voiceover
 
-  path = get_data_path() / date.isoformat()
-  path.mkdir(parents=True, exist_ok=True)
-  brief_path = path / "brief.json"
-  brief = brief_path.open().read()
+  briefing_dir = BriefingDirectory.for_date(date)
+  briefing_dir.ensure_exists()
 
-  await run_voiceover(
-    BriefingScript.model_validate_json(brief), print_script=False, output_path=path
-  )
+  briefing_script = briefing_dir.load_script()
+
+  await run_voiceover(briefing_script, print_script=False, output_path=briefing_dir.base_path)
 
 
 class LoadData(Command):

@@ -5,9 +5,9 @@ import structlog
 
 from ..brief.model import BriefingScript
 from ..core.cache import get_cache
-from ..core.paths import get_data_path
 from ..env import assert_env
 from ..location.model import CoordinateLocation, LocationName, location_named
+from ..paths import BriefingDirectory
 from ..tts import run_voiceover
 
 logger = structlog.get_logger(__name__)
@@ -51,17 +51,11 @@ class BriefingService:
 
   def _prepare_output_path(self, briefing_date: date) -> Path:
     """Prepare the output directory for the briefing."""
-    path = get_data_path() / briefing_date.isoformat()
-    path.mkdir(parents=True, exist_ok=True)
-    return path
+    briefing_dir = BriefingDirectory.for_date(briefing_date)
+    briefing_dir.ensure_exists()
+    return briefing_dir.base_path
 
   def load_briefing_script(self, briefing_date: date) -> BriefingScript:
     """Load an existing briefing script from disk."""
-    path = get_data_path() / briefing_date.isoformat()
-    brief_path = path / "brief.json"
-
-    if not brief_path.exists():
-      raise FileNotFoundError(f"No briefing found for {briefing_date}")
-
-    brief_content = brief_path.read_text()
-    return BriefingScript.model_validate_json(brief_content)
+    briefing_dir = BriefingDirectory.for_date(briefing_date)
+    return briefing_dir.load_script()
