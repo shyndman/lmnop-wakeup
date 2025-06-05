@@ -250,7 +250,7 @@ class LmnopAgent[Input: LangfuseAgentInput, Output: BaseModel]:
     Returns:
       Agent output matching the Output BaseModel type
     """
-    with langfuse_span(name=f"run {self.prompt_name}") as span:
+    with langfuse_span(name=f"run {self.prompt_name}", prompt=self._raw_prompt) as span:
       async with self._agent.run_mcp_servers():
         # Set input attribute on span
         span.set_attribute("input.value", input)

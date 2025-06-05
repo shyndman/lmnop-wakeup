@@ -6,6 +6,7 @@ from typing import Any, ParamSpec, TypeVar
 
 import logfire
 import structlog
+from langfuse.api import Prompt_Chat
 
 # Global variables for ambient tracing information
 _user_id: str | None = None
@@ -61,9 +62,10 @@ class LangfuseSpanContext:
   Sets span name, user ID, session ID, and optional tags.
   """
 
-  def __init__(self, name: str, tags: list[str] | None = None):
+  def __init__(self, name: str, tags: list[str] | None = None, prompt: Prompt_Chat | None = None):
     self.name = name
     self.tags = tags
+    self.prompt = prompt
     self._logfire_span = None  # To store the Logfire span context manager
 
   def __enter__(self):
@@ -79,6 +81,9 @@ class LangfuseSpanContext:
         span.set_attribute("langfuse.user.id", _user_id)
       if _session_id is not None:
         span.set_attribute("langfuse.session.id", _session_id)
+      if self.prompt is not None:
+        span.set_attribute("langfuse.prompt.name", self.prompt.name)
+        span.set_attribute("langfuse.prompt.version", self.prompt.version)
 
       # Set optional tags
       if self.tags:
@@ -107,7 +112,9 @@ class LangfuseSpanContext:
     self._logfire_span.set_attribute(key, value)
 
 
-def langfuse_span(name: str, tags: list[str] | None = None) -> LangfuseSpanContext:
+def langfuse_span(
+  name: str, tags: list[str] | None = None, prompt: Prompt_Chat | None = None
+) -> LangfuseSpanContext:
   """
   Creates a LangfuseSpanContext context manager instance.
 
@@ -118,7 +125,7 @@ def langfuse_span(name: str, tags: list[str] | None = None) -> LangfuseSpanConte
   Returns:
       An instance of LangfuseSpanContext.
   """
-  return LangfuseSpanContext(name=name, tags=tags)
+  return LangfuseSpanContext(name=name, tags=tags, prompt=prompt)
 
 
 _P = ParamSpec("_P")
