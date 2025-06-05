@@ -1,6 +1,6 @@
 [project]
 name = "lmnop_wakeup"
-version = "0.0.0"
+version = "0.0.2"
 description = "Rise and Shine!"
 readme = "README.md"
 authors = [{name = "Scott Hyndman", email = "scotty.hyndman@gmail.com"}]
