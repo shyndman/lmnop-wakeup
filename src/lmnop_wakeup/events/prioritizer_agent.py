@@ -8,7 +8,7 @@ from pydantic.dataclasses import dataclass
 
 from ..llm import LangfuseAgentInput, LmnopAgent, ModelName, extract_pydantic_ai_callback
 from ..weather.model import RegionalWeatherReports
-from .model import CalendarEvent, CalendarsOfInterest, Schedule
+from .model import CalendarEvent, CalendarsOfInterest, Schedule, start_of_local_day
 
 
 class _CalendarEventList(RootModel[list[CalendarEvent]]):
@@ -26,9 +26,12 @@ class EventPrioritizerInput(LangfuseAgentInput):
   @override
   def to_prompt_variable_map(self) -> dict[str, str]:
     """Convert the input to a map of prompt variables."""
+
     return {
       "schedule": self.schedule.model_dump_json(),
-      "calendars_of_interest": self.calendars_of_interest.model_dump_markdown(),
+      "calendars_of_interest": self.calendars_of_interest.model_dump_markdown(
+        start_of_local_day(self.schedule.date)
+      ),
       "regional_weather_reports": self.regional_weather_reports.model_dump_json(
         exclude={"reports_by_location"}
       ),

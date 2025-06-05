@@ -51,7 +51,7 @@ class SchedulerInput(LangfuseAgentInput):
         iso8601 format: {self.scheduling_date.isoformat()}
         """).lstrip(),
       "home_location": self.home_location.model_dump_json(indent=4),
-      "calendars_of_interest": self.calendars.model_dump_markdown(),
+      "calendars_of_interest": self.calendars.model_dump_markdown(self.scheduling_date),
       "hourly_weather": self.hourly_weather_api_result,
     }
 

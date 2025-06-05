@@ -1,6 +1,6 @@
 import textwrap
 from collections.abc import Generator
-from datetime import date
+from datetime import date, datetime
 from io import StringIO
 from typing import Any, NewType, TypedDict
 
@@ -113,7 +113,7 @@ class CalendarEvent(BaseModel):
     """
     return self.start_datetime_aware < range_end and self.end_datetime_aware > range_start
 
-  def model_dump_markdown(self) -> str:
+  def model_dump_markdown(self, briefing_date: datetime) -> str:
     """
     Dumps the event details in a markdown format.
 
@@ -125,7 +125,9 @@ class CalendarEvent(BaseModel):
     if self.end:
       event_time += " to "
       event_time += textwrap.dedent(format_time_info(self.end, "%Y-%m-%d", "%H:%M:%S"))
-    event_time += ""
+
+    time_until = self.start_datetime_aware - briefing_date
+    event_time += f"\nDays until event: {time_until.days}"
 
     sb.write(
       textwrap.dedent(f"""
@@ -185,7 +187,7 @@ class Calendar(BaseModel):
     """
     return [event for event in self.events if event.overlaps_with_range(start_ts, end_ts)]
 
-  def model_dump_markdown(self) -> str:
+  def model_dump_markdown(self, briefing_date: datetime) -> str:
     sb = StringIO()
     sb.write(
       textwrap.dedent(f"""
@@ -200,7 +202,7 @@ class Calendar(BaseModel):
     )
 
     for event in self.events:
-      sb.write(event.model_dump_markdown())
+      sb.write(event.model_dump_markdown(briefing_date))
       sb.write("\n\n")
 
     return sb.getvalue()
@@ -251,13 +253,13 @@ class CalendarsOfInterest(BaseModel):
 
     return CalendarsOfInterest(calendars_by_id=filtered_calendars)
 
-  def model_dump_markdown(self) -> str:
+  def model_dump_markdown(self, briefing_date: datetime) -> str:
     sb = StringIO()
     for cal in self.calendars_by_id.values():
       if not cal.events:
         continue
 
-      sb.write(cal.model_dump_markdown())
+      sb.write(cal.model_dump_markdown(briefing_date))
 
     return sb.getvalue()
 
