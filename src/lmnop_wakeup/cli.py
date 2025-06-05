@@ -36,7 +36,7 @@ class Script(Command):
     async with get_cache():
       assert_env()
 
-      briefing_script = await run_workflow_command(
+      briefing_script, _state = await run_workflow_command(
         briefing_date=self.briefing_date,
         briefing_location=self.current_location,
       )

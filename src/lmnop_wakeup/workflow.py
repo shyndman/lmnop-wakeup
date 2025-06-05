@@ -18,6 +18,12 @@ from langgraph.types import CachePolicy, RetryPolicy, Send
 from pydantic import AwareDatetime, BaseModel, computed_field
 from pydantic_extra_types.coordinate import Coordinate
 
+from lmnop_wakeup.weather.sunset_scoring import (
+  SunsetAirQualityAPIResponse,
+  SunsetWeatherAPIResponse,
+  analyze_sunset_conditions,
+)
+
 from . import APP_DIRS
 from .brief.actors import CHARACTER_POOL
 from .brief.content_optimizer import (
@@ -390,12 +396,19 @@ async def predict_sunset_beauty(state: State, config: RunnableConfig):
     )
 
   weather_report = weather_reports[0]
-  sunset_prediction = await get_sunset_oracle_agent(config).run(
-    SunsetOracleInput(
-      prediction_date=state.day_start_ts,
-      weather_report=weather_report.weather_report_api_result,
-      air_quality_report=assert_not_none(weather_report.air_quality_api_result),
+  if weather_report.air_quality_api_result is None:
+    raise ValueError(
+      f"No air quality report available for {state.briefing_day_location} on {state.day_start_ts}"
     )
+  weather_report.weather_report_api_result = weather_report.weather_report_api_result
+  analysis = analyze_sunset_conditions(
+    state.day_start_ts.date(),
+    SunsetWeatherAPIResponse.model_validate_json(weather_report.weather_report_api_result),
+    SunsetAirQualityAPIResponse.model_validate_json(weather_report.air_quality_api_result),
+  )
+
+  sunset_prediction = await get_sunset_oracle_agent(config).run(
+    SunsetOracleInput(prediction_date=state.day_start_ts, sunset_analysis=analysis)
   )
   return {"sunset_prediction": sunset_prediction}
 
