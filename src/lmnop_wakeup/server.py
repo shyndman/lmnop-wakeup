@@ -30,6 +30,7 @@ class GenerateRequest(BaseModel):
 
 class AnnounceRequest(BaseModel):
   briefing_date: date
+  player_id: str | None = None
 
 
 briefing_service = BriefingService()
@@ -68,7 +69,10 @@ async def generate_briefing(request: GenerateRequest):
 
 @app.post("/announce")
 async def announce_briefing(request: AnnounceRequest):
-  """Announce a briefing for the specified date."""
+  """Announce a briefing for the specified date.
+
+  If player_id is provided in the request, it will override the environment configuration.
+  """
   logger.info(f"Received announce request for {request.briefing_date}")
 
   try:
@@ -88,8 +92,16 @@ async def announce_briefing(request: AnnounceRequest):
     # Get environment configuration
     try:
       music_assistant_url = get_music_assistant_url()
-      player_id = get_music_assistant_player_id()
       server_base_url = get_wakeup_server_base_url()
+
+      # Use player_id from request if provided, otherwise get from environment
+      if request.player_id is not None:
+        player_id = request.player_id
+        logger.info(f"Using player_id from request: {player_id}")
+      else:
+        player_id = get_music_assistant_player_id()
+        logger.info(f"Using player_id from environment: {player_id}")
+
     except EnvironmentError as e:
       logger.error(f"Configuration error: {e}")
       raise HTTPException(
