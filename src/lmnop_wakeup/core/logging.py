@@ -39,20 +39,6 @@ def initialize_logging():
   # Intercept Logfire
   logger.configure(handlers=[logfire.loguru_handler()])
 
-  # Propagate uvicorn logs to root
-  loggers = (
-    "uvicorn",
-    "uvicorn.access",
-    "uvicorn.error",
-    "fastapi",
-    "asyncio",
-    "starlette",
-  )
-  for logger_name in loggers:
-    logging_logger = logging.getLogger(logger_name)
-    logging_logger.handlers = []
-    logging_logger.propagate = True
-
 
 class InterceptHandler(logging.Handler):
   @override
@@ -107,6 +93,14 @@ LOGGING_CONFIG = {
     "langchain": {
       "handlers": ["default"],
       "level": "WARNING",
+    },
+    "fastapi": {
+      "handlers": ["default"],
+      "level": "INFO",
+    },
+    "uvicorn": {
+      "handlers": ["default"],
+      "level": "INFO",
     },
     "google.maps": {"handlers": ["default"], "level": "INFO"},
   },

@@ -11,7 +11,7 @@ RUN nala fetch --auto --assume-yes --country CA --debian bookworm
 
 # The installer requires curl (and certificates) to download the release archive
 RUN nala update && nala install -y --no-install-recommends \
-      git libavcodec-extra ffmpeg
+      git libavcodec-extra ffmpeg libpq5
 
 RUN rm -rf /var/lib/apt/lists/*
 
