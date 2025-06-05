@@ -5,10 +5,13 @@ from collections.abc import Callable, Coroutine
 from typing import Any, ParamSpec, TypeVar
 
 import logfire
+import structlog
 
 # Global variables for ambient tracing information
 _user_id: str | None = None
 _session_id: str | None = None
+
+logger = structlog.get_logger()
 
 
 def initialize_tracing():
@@ -156,8 +159,12 @@ def trace_sync(name: str | None = None):
   ) -> Callable[_P, _R]:
     @functools.wraps(func)
     def wrapper(*args: _P.args, **kwargs: _P.kwargs) -> _R:
-      with langfuse_span(name=name or func.__name__):
-        return func(*args, **kwargs)
+      try:
+        with langfuse_span(name=name or func.__name__):
+          logger.info(f"entering {name or func.__name__}")
+          return func(*args, **kwargs)
+      finally:
+        logger.info(f"exiting {name or func.__name__}")
 
     return wrapper
 
