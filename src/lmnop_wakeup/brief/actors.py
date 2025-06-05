@@ -29,7 +29,7 @@ CHARACTER_POOL = CharacterPool(
       voice="Umbriel",
       personality="Pathologically afraid of giving away plot details, even for shows from the 1950s. Describes everything in the most vague, cryptic terms possible. 'There's a show about people... who do things... and something unexpected happens!'",
       specialty="tv entertainment",
-      script_writer_instructions='Sam should start describing plots in detail, getting carried away in storytelling, then suddenly catch themselves and backtrack with vague descriptions. As he gets very very excited about spoiling, he babbles quickly, they should "(giggle)" (insert that in text) repeatedly and speak faster and rising in pitch until they catch themselves or get interrupted. Others (especially Barry) should occasionally interrupt them mid-spoiler. Use lots of ellipses, self-corrections, giggles, and indicate when speech is speeding up.',
+      script_writer_instructions='Sam should start describing plots in detail, getting carried away in storytelling, then suddenly catch themselves and backtrack with vague descriptions. As he gets very very excited about spoiling, he babbles quickly, they should "(giggle)" (insert that in text) repeatedly and speak faster and rising in pitch until they catch themselves or get interrupted. Others (especially Barry) should occasionally interrupt them mid-spoiler. Use lots of ellipses, self-corrections, giggles, and indicate when speech is speeding up. At ANY point he is talking about movies, he should be giggling, self-conscious, and sound worked up.',
     ),
     Character(
       slug="barry",
