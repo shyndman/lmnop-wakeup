@@ -29,7 +29,7 @@ def drop_color_message_key(_, __, event_dict: EventDict) -> EventDict:
 
 
 def initialize_logging(json_logs: bool = False, log_level: str = "DEBUG"):
-  timestamper = structlog.processors.TimeStamper(fmt="%H:%M:%S")
+  timestamper = structlog.processors.TimeStamper(utc=False, fmt="%H:%M:%S")
 
   shared_processors: list[Processor] = [
     structlog.contextvars.merge_contextvars,
