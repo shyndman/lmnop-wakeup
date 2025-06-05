@@ -2,6 +2,7 @@ import logging
 import sys
 from io import StringIO
 
+import logfire
 import rich
 import structlog
 from structlog.types import Processor
@@ -71,6 +72,7 @@ def initialize_logging(json_logs: bool = False, log_level: str = "DEBUG"):
     processors=[
       # Remove _record & _from_structlog.
       structlog.stdlib.ProcessorFormatter.remove_processors_meta,
+      logfire.StructlogProcessor(),
       log_renderer,
     ],
   )
