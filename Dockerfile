@@ -24,6 +24,8 @@ RUN sh /uv-installer.sh && rm /uv-installer.sh
 # Ensure the installed binary is on the `PATH`
 ENV PATH="/root/.local/bin/:$PATH"
 
+FROM builder
+
 # Copy the project into the intermediate image
 ADD . /app
 
@@ -37,7 +39,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # COPY --from=builder --chown=app:app /app/.venv /app/.venv
 
 # Expose the port the app runs on
-EXPOSE 8000
+EXPOSE 8002
 
 # Add health check using the FastAPI health endpoint
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
