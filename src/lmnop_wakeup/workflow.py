@@ -8,7 +8,7 @@ from typing import Annotated, Any, Literal, cast
 import rich
 import structlog
 from langchain_core.runnables import RunnableConfig
-from langfuse.callback import CallbackHandler
+from langfuse.langchain import CallbackHandler
 from langgraph.cache.sqlite import SqliteCache
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
