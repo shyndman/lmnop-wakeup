@@ -160,7 +160,10 @@ class BriefingAnnouncer:
 
     while time.time() - start_time < timeout:
       try:
-        player = self.client.players.get(self.player_id)
+        if self.client is not None:
+          player = self.client.players.get(self.player_id)
+        else:
+          raise MusicAssistantConnectionError("Client is None")
         if not player or not player.announcement_in_progress:
           return  # Announcement completed
 

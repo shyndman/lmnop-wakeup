@@ -530,7 +530,7 @@ def build_graph():
 async def run_workflow_command(
   briefing_date: date,
   briefing_location: CoordinateLocation,
-) -> BriefingScript | None:
+) -> tuple[BriefingScript | None, State]:
   """Run the morning briefing workflow.
 
   Args:
@@ -595,4 +595,4 @@ async def run_workflow_command(
       with open(briefing_dir.consolidated_brief_json_path, "w") as f:
         f.write(final_state.consolidated_briefing_script.model_dump_json())  # type: ignore
 
-      return final_state.consolidated_briefing_script
+      return final_state.consolidated_briefing_script, final_state

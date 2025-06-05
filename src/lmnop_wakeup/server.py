@@ -1,7 +1,7 @@
 from datetime import date
 
 import structlog
-from fastapi import BackgroundTasks, FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
@@ -36,14 +36,34 @@ briefing_service = BriefingService()
 
 
 @app.post("/generate")
-async def generate_briefing(request: GenerateRequest, background_tasks: BackgroundTasks):
+async def generate_briefing(request: GenerateRequest):
   """Generate a briefing script and voiceover for the specified date."""
   logger.info(f"Received generate request for {request.briefing_date}")
 
-  # Return immediately and process in background
-  background_tasks.add_task(_generate_briefing_background, request.briefing_date)
+  try:
+    # Wait for generation to complete
+    result = await briefing_service.generate_briefing(request.briefing_date)
 
-  return {"status": "accepted", "briefing_date": request.briefing_date}
+    logger.info(f"Briefing generation completed successfully for {request.briefing_date}")
+    return {
+      "status": "success",
+      "briefing_date": request.briefing_date,
+      "output_path": str(result.output_path),
+      "schedule": result.schedule,
+    }
+
+  except Exception as e:
+    logger.exception(f"Briefing generation failed for {request.briefing_date}: {e}")
+    raise HTTPException(
+      status_code=500,
+      detail={
+        "status": "error",
+        "error_code": "generation_failed",
+        "message": f"Briefing generation failed: {str(e)}",
+        "briefing_date": str(request.briefing_date),
+        "technical_details": {"exception": type(e).__name__},
+      },
+    )
 
 
 @app.post("/announce")
@@ -186,8 +206,8 @@ async def _generate_briefing_background(briefing_date: date) -> None:
   """Background task to generate briefing."""
   try:
     logger.info(f"Starting background briefing generation for {briefing_date}")
-    output_path = await briefing_service.generate_briefing(briefing_date)
-    logger.info(f"Background briefing generation completed: {output_path}")
+    result = await briefing_service.generate_briefing(briefing_date)
+    logger.info(f"Background briefing generation completed: {result.output_path}")
   except Exception:
     logger.exception(f"Background briefing generation failed for {briefing_date}")
 
