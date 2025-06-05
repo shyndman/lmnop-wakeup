@@ -18,12 +18,6 @@ from langgraph.types import CachePolicy, RetryPolicy, Send
 from pydantic import AwareDatetime, BaseModel, computed_field
 from pydantic_extra_types.coordinate import Coordinate
 
-from lmnop_wakeup.weather.sunset_scoring import (
-  SunsetAirQualityAPIResponse,
-  SunsetWeatherAPIResponse,
-  analyze_sunset_conditions,
-)
-
 from . import APP_DIRS
 from .brief.actors import CHARACTER_POOL
 from .brief.content_optimizer import (
@@ -67,6 +61,12 @@ from .weather.sunset_oracle_agent import (
   SunsetPrediction,
   get_sunset_oracle_agent,
 )
+from .weather.sunset_scoring import (
+  SunsetAirQualityAPIResponse,
+  SunsetAnalysisResult,
+  SunsetWeatherAPIResponse,
+  analyze_sunset_conditions,
+)
 from .weather.weather_api import WeatherReport, get_weather_report
 
 type RouteKey = tuple[str, Coordinate]
@@ -105,6 +105,9 @@ class State(BaseModel):
   regional_weather: Annotated[RegionalWeatherReports, operator.add] = RegionalWeatherReports()
   """Contains weather reports for all locations the user may occupy, for the dates they would
   occupy them, as determined by the calendars"""
+
+  sunset_analysis: SunsetAnalysisResult | None = None
+  """Procedurally determined sunset analysis for the day, including cloud cover, air quality,"""
 
   sunset_prediction: SunsetPrediction | None = None
   """A prediction of the sunset beauty for the day, including the best viewing time and
@@ -401,16 +404,16 @@ async def predict_sunset_beauty(state: State, config: RunnableConfig):
       f"No air quality report available for {state.briefing_day_location} on {state.day_start_ts}"
     )
   weather_report.weather_report_api_result = weather_report.weather_report_api_result
-  analysis = analyze_sunset_conditions(
+  sunset_analysis = analyze_sunset_conditions(
     state.day_start_ts.date(),
     SunsetWeatherAPIResponse.model_validate_json(weather_report.weather_report_api_result),
     SunsetAirQualityAPIResponse.model_validate_json(weather_report.air_quality_api_result),
   )
 
   sunset_prediction = await get_sunset_oracle_agent(config).run(
-    SunsetOracleInput(prediction_date=state.day_start_ts, sunset_analysis=analysis)
+    SunsetOracleInput(prediction_date=state.day_start_ts, sunset_analysis=sunset_analysis)
   )
-  return {"sunset_prediction": sunset_prediction}
+  return {"sunset_analysis": sunset_analysis, "sunset_prediction": sunset_prediction}
 
 
 @trace()
