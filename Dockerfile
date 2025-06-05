@@ -1,4 +1,4 @@
-FROM ghcr.io/shyndman/lmnop-base:latest
+FROM ghcr.io/shyndman/lmnop-base:main
 
 # Copy the project into the intermediate image
 ADD . /app
