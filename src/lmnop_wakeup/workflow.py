@@ -50,6 +50,7 @@ from .location.model import (
   location_named,
 )
 from .location.resolver_agent import LocationResolverInput, get_location_resolver_agent
+from .paths import BriefingDirectory
 from .weather.meteorologist_agent import (
   MeteorologistInput,
   get_meteorologist_agent,
@@ -116,7 +117,10 @@ class State(BaseModel):
   suggested length."""
 
   briefing_script: BriefingScript | None = None
-  """The final script for the briefing, including all sections and their content."""
+  """The script for the briefing, including all sections and their content."""
+
+  consolidated_briefing_script: BriefingScript | None = None
+  """The final script for the briefing, with its dialog consolidated."""
 
   @computed_field
   @property
@@ -442,6 +446,13 @@ async def write_briefing_script(state: State, config: RunnableConfig):
   return {"briefing_script": script}
 
 
+@trace()
+async def consolidate_dialog(state: State, config: RunnableConfig):
+  if state.briefing_script is not None:
+    return {"consolidated_briefing_script": state.briefing_script.consolidate_dialogue()}
+  return None
+
+
 standard_retry = RetryPolicy(max_attempts=3)
 
 location_graph_builder = StateGraph(LocationDataState)
@@ -484,6 +495,7 @@ def build_graph():
   graph_builder.add_node(prioritize_events, defer=True)
   graph_builder.add_node(write_content_optimization, retry=standard_retry)
   graph_builder.add_node(write_briefing_script, retry=standard_retry)
+  graph_builder.add_node(consolidate_dialog)
 
   graph_builder.set_entry_point("populate_raw_inputs")
   graph_builder.add_conditional_edges(
@@ -509,7 +521,8 @@ def build_graph():
   graph_builder.add_edge("predict_sunset_beauty", "prioritize_events")
   graph_builder.add_edge("prioritize_events", "write_content_optimization")
   graph_builder.add_edge("write_content_optimization", "write_briefing_script")
-  graph_builder.set_finish_point("write_briefing_script")
+  graph_builder.add_edge("write_briefing_script", "consolidate_dialogue")
+  graph_builder.set_finish_point("consolidate_dialogue")
 
   return graph_builder
 
@@ -567,16 +580,19 @@ async def run_workflow_command(
       final_state = State.model_validate(result)
 
       rich.print(final_state.model_dump())
-      out_path = state_path = APP_DIRS.user_state_path / briefing_date.isoformat()
-      state_path = out_path / "workflow_state.json"
-      state_path.parent.mkdir(parents=True, exist_ok=True)
-      briefing_path = out_path / "brief.json"
 
-      logger.info(f"Saving state to {state_path}")
-      with open(state_path, "w") as f:
+      # Use BriefingDirectory for type-safe file operations
+      briefing_dir = BriefingDirectory.for_date(briefing_date)
+      briefing_dir.ensure_exists()
+
+      logger.info(f"Saving state to {briefing_dir.workflow_state_path}")
+      with open(briefing_dir.workflow_state_path, "w") as f:
         f.write(final_state.model_dump_json())
-      logger.info(f"Saving brief to {briefing_path}")
-      with open(briefing_path, "w") as f:
+      logger.info(f"Saving brief to {briefing_dir.brief_json_path}")
+      with open(briefing_dir.brief_json_path, "w") as f:
         f.write(final_state.briefing_script.model_dump_json())  # type: ignore
+      logger.info(f"Saving consolidated brief to {briefing_dir.consolidated_brief_json_path}")
+      with open(briefing_dir.consolidated_brief_json_path, "w") as f:
+        f.write(final_state.consolidated_briefing_script.model_dump_json())  # type: ignore
 
-      return final_state.briefing_script
+      return final_state.consolidated_briefing_script

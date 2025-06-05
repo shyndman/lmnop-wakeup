@@ -37,6 +37,10 @@ class BriefingDirectory:
     return self.base_path / "brief.json"
 
   @property
+  def consolidated_brief_json_path(self) -> Path:
+    return self.base_path / "consolidated_brief.json"
+
+  @property
   def workflow_state_path(self) -> Path:
     return self.base_path / "workflow_state.json"
 

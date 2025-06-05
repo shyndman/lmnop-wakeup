@@ -1,5 +1,6 @@
 from io import StringIO
 
+import structlog
 from pydantic import BaseModel, Field
 
 
@@ -115,3 +116,81 @@ class BriefingScript(BaseModel):
     without needing to navigate through sections.
     """
     return [line for section in self.sections for line in section.lines]
+
+  def consolidate_dialogue(self) -> "BriefingScript":
+    """
+    Create a new BriefingScript with consecutive lines merged when they have
+    the same character and style direction.
+
+    This method produces a single "Merged" section containing all script lines,
+    with consecutive lines from the same character with identical style directions
+    combined into single lines with concatenated text.
+
+    Returns:
+        BriefingScript: New script with merged lines in a single section
+    """
+    logger = structlog.get_logger()
+
+    original_lines = self.lines
+    total_original_lines = len(original_lines)
+
+    logger.debug("Starting line merge operation", total_lines=total_original_lines)
+
+    if not original_lines:
+      logger.debug("No lines to merge, returning empty script")
+      return BriefingScript(sections=[ScriptSection(name="Merged", lines=[])])
+
+    merged_lines: list[ScriptLine] = []
+    current_merged_line: ScriptLine | None = None
+    merge_operations = 0
+
+    for line in original_lines:
+      if (
+        current_merged_line
+        and current_merged_line.character_slug == line.character_slug
+        and current_merged_line.character_style_direction == line.character_style_direction
+      ):
+        # Merge with current line
+        current_merged_line.text += " " + line.text
+        merge_operations += 1
+
+        logger.debug(
+          "Merged lines",
+          character=line.character_slug,
+          style_direction=line.character_style_direction[:50] + "..."
+          if len(line.character_style_direction) > 50
+          else line.character_style_direction,
+          merged_text_length=len(current_merged_line.text),
+        )
+      else:
+        # Start new merged line
+        if current_merged_line:
+          merged_lines.append(current_merged_line)
+
+        # Create a copy of the line to avoid mutating the original
+        current_merged_line = ScriptLine(
+          character_slug=line.character_slug,
+          character_style_direction=line.character_style_direction,
+          text=line.text,
+        )
+
+    # Don't forget the last line
+    if current_merged_line:
+      merged_lines.append(current_merged_line)
+
+    total_merged_lines = len(merged_lines)
+    merge_ratio = (
+      (total_original_lines - total_merged_lines) / total_original_lines
+      if total_original_lines > 0
+      else 0
+    )
+
+    logger.debug(
+      "Line merge completed",
+      original_lines=total_original_lines,
+      merged_lines=total_merged_lines,
+      merge_operations=merge_operations,
+      merge_ratio=round(merge_ratio, 3),
+    )
+
+    return BriefingScript(sections=[ScriptSection(name="Merged", lines=merged_lines)])
