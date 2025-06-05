@@ -48,6 +48,7 @@ dependencies = [
     "music-assistant-client>=1.2.0",
     "pydub-ng>=0.2.0",
     "structlog>=25.4.0",
+    "ujson>=5.10.0",
 ]
 license = {text = "MIT"}
 
