@@ -28,9 +28,11 @@ def get_cache() -> RedisCache:
   else:
     raise ValueError("Invalid Redis cache URL")
 
+  logger.debug("Initializing Redis cache", host=host, port=port, db=db)
   _cache = RedisCache(
     endpoint=host, port=int(port), db=int(db), serializer=PickleSerializer(), namespace="wakeup"
   )
+
   return _cache
 
 

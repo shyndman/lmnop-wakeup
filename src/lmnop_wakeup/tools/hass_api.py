@@ -1,3 +1,4 @@
+import os
 from datetime import date, datetime
 from datetime import datetime as Datetime
 from typing import NewType, TypedDict
@@ -7,7 +8,7 @@ from pydantic import BaseModel
 
 from ..env import ApiKey, get_hass_api_key
 
-_HASS_API_BASE = "http://home.don/api"
+_HASS_API_BASE = os.environ.get("HASS_API_BASE", "http://home.don/api")
 
 HassEntityId = NewType("HassEntityId", str)
 
