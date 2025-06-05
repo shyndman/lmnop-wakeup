@@ -6,11 +6,13 @@ on:
       - main
     paths:
       - docker/Dockerfile.base
+      - .github/workflows/docker.base.yaml
   pull_request:
     branches:
       - main
     paths:
       - docker/Dockerfile.base
+      - .github/workflows/docker.base.yaml
 
 jobs:
   docker:
@@ -52,6 +54,6 @@ jobs:
       - name: Generate artifact attestation
         uses: actions/attest-build-provenance@v2
         with:
-          subject-name: ghcr.io/${{ github.repository }}
+          subject-name: ghcr.io/shyndman/lmnop-base
           subject-digest: ${{ steps.push.outputs.digest }}
           push-to-registry: true
