@@ -447,7 +447,7 @@ async def write_briefing_script(state: State, config: RunnableConfig):
 
 
 @trace()
-async def consolidate_dialog(state: State, config: RunnableConfig):
+async def consolidate_dialogue(state: State, config: RunnableConfig):
   if state.briefing_script is not None:
     return {"consolidated_briefing_script": state.briefing_script.consolidate_dialogue()}
   return None
@@ -495,7 +495,7 @@ def build_graph():
   graph_builder.add_node(prioritize_events, defer=True)
   graph_builder.add_node(write_content_optimization, retry=standard_retry)
   graph_builder.add_node(write_briefing_script, retry=standard_retry)
-  graph_builder.add_node(consolidate_dialog)
+  graph_builder.add_node(consolidate_dialogue)
 
   graph_builder.set_entry_point("populate_raw_inputs")
   graph_builder.add_conditional_edges(
