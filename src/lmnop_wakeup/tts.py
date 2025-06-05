@@ -2,10 +2,10 @@ import asyncio
 from pathlib import Path
 
 import rich
+import structlog
 from asynciolimiter import Limiter
 from google import genai
 from google.genai import types
-from loguru import logger
 
 from lmnop_wakeup.audio.config import TTSConfig
 from lmnop_wakeup.audio.file_manager import AudioFileManager
@@ -15,6 +15,8 @@ from lmnop_wakeup.brief.model import BriefingScript, ScriptLine
 from lmnop_wakeup.core.logging import rich_sprint
 from lmnop_wakeup.core.typing import ensure
 from lmnop_wakeup.env import get_litellm_api_key, get_litellm_base_url
+
+logger = structlog.get_logger(__name__)
 
 
 class TTSProcessor:
@@ -43,11 +45,7 @@ class TTSProcessor:
 
     await rate_limiter.wait()
 
-    logger.info(
-      "Processing TTS for part {part} with speaker {speaker}",
-      part=part,
-      speaker=line.character_slug,
-    )
+    logger.info(f"Processing TTS for part {part} with speaker {line.character_slug}")
 
     response = await self.client.aio.models.generate_content(
       model=self.config.model_name,
@@ -91,7 +89,7 @@ class TTSOrchestrator:
 
     tasks = self._create_tts_tasks(script, output_path)
 
-    logger.info("Starting TTS generation for {count} script lines", count=len(tasks))
+    logger.info(f"Starting TTS generation for {len(tasks)} script lines")
     await asyncio.gather(*tasks)
 
     logger.info("TTS generation complete, mastering audio")

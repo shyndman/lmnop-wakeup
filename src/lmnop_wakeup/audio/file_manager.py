@@ -1,7 +1,9 @@
 import wave
 from pathlib import Path
 
-from loguru import logger
+import structlog
+
+logger = structlog.get_logger()
 
 
 class AudioFileManager:
@@ -18,4 +20,4 @@ class AudioFileManager:
       wf.setframerate(self.rate)
       wf.writeframes(pcm_data)
 
-    logger.debug("Created WAV file {filename}", filename=filename)
+    logger.debug(f"Created WAV file {filename}")

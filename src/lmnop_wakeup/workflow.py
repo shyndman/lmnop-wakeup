@@ -6,6 +6,7 @@ from datetime import date, datetime, timedelta
 from typing import Annotated, Any, Literal, cast
 
 import rich
+import structlog
 from langchain_core.runnables import RunnableConfig
 from langfuse.callback import CallbackHandler
 from langgraph.cache.sqlite import SqliteCache
@@ -14,7 +15,6 @@ from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
 from langgraph.graph import StateGraph
 from langgraph.store.postgres import AsyncPostgresStore
 from langgraph.types import CachePolicy, RetryPolicy, Send
-from loguru import logger
 from pydantic import AwareDatetime, BaseModel, computed_field
 from pydantic_extra_types.coordinate import Coordinate
 
@@ -63,6 +63,7 @@ from .weather.sunset_oracle_agent import (
 from .weather.weather_api import WeatherReport, get_weather_report
 
 type RouteKey = tuple[str, Coordinate]
+logger = structlog.get_logger()
 
 
 class State(BaseModel):
@@ -208,12 +209,6 @@ async def populate_raw_inputs(state: State):
 
 @trace()
 async def send_location_requests(state: State):
-  # import debugpy
-
-  # logger.debug("Beginning debugpy session")
-  # debugpy.listen(("0.0.0.0", 5678))
-  # debugpy.wait_for_client()
-
   # Loop over all locations taken from calendars
   # `Send` each of them in turn to resolve_location
   location_data_states = [
@@ -243,7 +238,7 @@ async def send_location_requests(state: State):
 
 @trace()
 async def process_location(new_state: LocationDataState):
-  logger.info("Processing {address}", address=new_state.address)
+  logger.info(f"Processing {new_state.address}")
 
   loc_state = LocationDataState.model_validate(
     cast(
@@ -577,10 +572,10 @@ async def run_workflow_command(
       state_path.parent.mkdir(parents=True, exist_ok=True)
       briefing_path = out_path / "brief.json"
 
-      logger.info("Saving state to {state_path}", state_path=state_path)
+      logger.info(f"Saving state to {state_path}")
       with open(state_path, "w") as f:
         f.write(final_state.model_dump_json())
-      logger.info("Saving brief to {briefing_path}", briefing_path=briefing_path)
+      logger.info(f"Saving brief to {briefing_path}")
       with open(briefing_path, "w") as f:
         f.write(final_state.briefing_script.model_dump_json())  # type: ignore
 

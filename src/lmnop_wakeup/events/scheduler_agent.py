@@ -2,8 +2,8 @@ import textwrap
 from datetime import datetime
 from typing import override
 
+import structlog
 from langchain_core.runnables import RunnableConfig
-from loguru import logger
 from pydantic import BaseModel
 
 from ..llm import (
@@ -19,6 +19,8 @@ from ..location.routes_api import (
   TimeConstraint,
 )
 from .model import CalendarsOfInterest, Schedule
+
+logger = structlog.get_logger()
 
 
 class SchedulerInput(LangfuseAgentInput):
@@ -117,16 +119,10 @@ def get_scheduler_agent(config: RunnableConfig) -> SchedulerAgent:
     """
 
     logger.info(
-      "Timekeeper tool called: compute_routes with origin={origin}, "
-      "destination={destination}, "
-      "time_constraint={time_constraint}, include_cycling={include_cycling}, "
-      "include_transit={include_transit}, include_walking={include_walking}",
-      origin=origin,
-      destination=destination,
-      time_constraint=time_constraint,
-      include_cycling=include_cycling,
-      include_transit=include_transit,
-      include_walking=include_walking,
+      f"Timekeeper tool called: compute_routes with origin={origin}, "
+      f"destination={destination}, "
+      f"time_constraint={time_constraint}, include_cycling={include_cycling}, "
+      f"include_transit={include_transit}, include_walking={include_walking}"
     )
     return await routes_api.compute_route_durations(
       origin=origin,

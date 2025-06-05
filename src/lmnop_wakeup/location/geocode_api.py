@@ -1,10 +1,10 @@
 from typing import cast
 
 import geopy
+import structlog
 from geopy.adapters import AioHTTPAdapter
 from geopy.geocoders import GoogleV3
 from haversine import Unit, haversine
-from loguru import logger
 from pydantic import BaseModel
 from pydantic_extra_types.coordinate import Coordinate
 
@@ -12,6 +12,8 @@ from ..core.cache import cached
 from ..core.tracing import trace
 from ..core.typing import assert_not_none
 from ..env import get_google_cloud_api_key
+
+logger = structlog.get_logger()
 
 
 class GeocodeSearchResult(BaseModel):

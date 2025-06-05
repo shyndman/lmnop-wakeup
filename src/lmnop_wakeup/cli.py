@@ -3,8 +3,8 @@ from io import StringIO
 from typing import override
 
 import clypi
+import structlog
 from clypi import Command, arg
-from loguru import logger
 from rich.prompt import Confirm
 
 from .arg import parse_date_arg, parse_location
@@ -13,6 +13,8 @@ from .core.cache import get_cache
 from .core.paths import get_data_path
 from .env import assert_env
 from .location.model import CoordinateLocation, LocationName, location_named
+
+logger = structlog.get_logger()
 
 
 class Script(Command):

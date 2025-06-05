@@ -3,8 +3,8 @@ from datetime import datetime, timedelta
 from typing import cast
 
 import httpx
+import structlog
 from langgraph.func import task
-from loguru import logger
 from pydantic import AwareDatetime
 
 from lmnop_wakeup.core.tracing import trace
@@ -21,6 +21,7 @@ from ..env import ApiKey, get_pirate_weather_api_key
 from ..location.model import CoordinateLocation
 from .model import AlertsItem, WeatherNotAvailable, WeatherReport
 
+logger = structlog.get_logger(__name__)
 _API_BASE_URL = "https://api.pirateweather.net"
 
 
@@ -171,13 +172,12 @@ async def _get_weather_alerts(
 
       if not isinstance(alert_res, WeatherResponse200) or alert_res.currently is None:
         logger.error(
-          "Failed to retrieve weather data or 'currently' block missing, error={error}",
-          error=alert_res,
+          f"Failed to retrieve weather data or 'currently' block missing, error={alert_res}"
         )
         raise WeatherNotAvailable()
 
       alert_res = cast(WeatherResponse200, alert_res)
-      logger.info("Async Current Temperature: {temp}", temp=ensure(alert_res.currently).temperature)
+      logger.info(f"Async Current Temperature: {ensure(alert_res.currently).temperature}")
 
       alerts = assert_not_none(alert_res.alerts)
       # Filter alerts to those overlapping with the report time range

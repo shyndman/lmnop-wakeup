@@ -1,12 +1,14 @@
 from datetime import datetime
 from math import floor
 
-from loguru import logger
+import structlog
 from pydantic import AwareDatetime, BaseModel, Field
 
 from pirate_weather_api_client.models import AlertsItem
 
 from ..location.model import CoordinateLocation, ResolvedLocation
+
+logger = structlog.get_logger(__name__)
 
 
 class WeatherReport(BaseModel):

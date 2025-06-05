@@ -2,8 +2,10 @@ from functools import reduce
 from pathlib import Path
 from typing import cast
 
-from loguru import logger
+import structlog
 from pydub import AudioSegment
+
+logger = structlog.get_logger()
 
 
 class AudioMaster:
@@ -11,15 +13,13 @@ class AudioMaster:
     """Master briefing audio by combining all WAV files into a single MP3."""
     wav_files = self._find_and_sort_wav_files(path)
     if not wav_files:
-      logger.warning("No WAV files found in {path}", path=path)
+      logger.warning(f"No WAV files found in {path}")
       raise ValueError(f"No WAV files found in {path}")
 
     combined_audio = self._combine_audio_segments(wav_files)
     output_path = self._export_master_audio(combined_audio, path)
 
-    logger.info(
-      "Mastered {count} audio files to {output_path}", count=len(wav_files), output_path=output_path
-    )
+    logger.info(f"Mastered {len(wav_files)} audio files to {output_path}")
     return output_path
 
   def _find_and_sort_wav_files(self, path: Path) -> list[Path]:

@@ -3,14 +3,15 @@ import pickle
 import re
 from typing import cast
 
+import structlog
 from aiocache import RedisCache
 from aiocache.serializers import PickleSerializer
 from pydantic import BaseModel
 
-from ..core.logging import logger
 from ..env import get_redis_cache_url
 
 _cache: RedisCache | None = None
+logger = structlog.get_logger()
 
 
 def get_cache() -> RedisCache:
@@ -61,14 +62,14 @@ class _CacheDecorator:
     """Attempts to retrieve a value from the cache."""
     cached_result = await cache_instance.get(cache_key)
     if cached_result is not None:
-      logger.debug("Cache hit for {func_name}", func_name=func_name)
+      logger.debug(f"Cache hit for {func_name}")
     return cached_result
 
   async def _set_to_cache(
     self, cache_instance: RedisCache, cache_key: bytes, result, func_name: str
   ) -> None:
     """Stores a value in the cache."""
-    logger.debug("Cache miss for {func_name}", func_name=func_name)
+    logger.debug(f"Cache miss for {func_name}")
     await cache_instance.set(cache_key, result, ttl=self.ttl)
 
   def __call__(self, func):
@@ -84,9 +85,7 @@ class _CacheDecorator:
       try:
         result = await func(*args, **kwargs)
       except Exception:
-        logger.debug(
-          "Function {func_name} raised an exception, not caching.", func_name=func.__name__
-        )
+        logger.debug(f"Function {func.__name__} raised an exception, not caching.")
         raise
 
       await self._set_to_cache(_cache_instance, cache_key, result, func.__name__)

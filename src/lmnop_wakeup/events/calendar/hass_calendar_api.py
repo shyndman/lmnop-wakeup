@@ -2,11 +2,13 @@ from datetime import datetime as Datetime
 from typing import NewType
 
 import httpx
-from loguru import logger
+import structlog
 
 from ...core.tracing import trace
 from ...env import ApiKey
 from ..model import Calendar, CalendarEvent
+
+logger = structlog.get_logger()
 
 _HASS_API_BASE = "http://home.don/api"
 

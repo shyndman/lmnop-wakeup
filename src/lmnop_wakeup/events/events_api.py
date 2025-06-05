@@ -3,14 +3,16 @@ from collections.abc import Callable
 from datetime import datetime
 from enum import StrEnum, auto
 
+import structlog
 from langgraph.func import task
-from loguru import logger
 from pydantic import BaseModel
 
 from ..core.date import end_of_local_day, start_of_local_day
 from ..env import ApiKey, get_hass_api_key
 from .calendar import gcalendar_api, hass_calendar_api
 from .model import Calendar, CalendarEvent
+
+logger = structlog.get_logger()
 
 
 class CalendarEventFilter(StrEnum):
@@ -105,34 +107,23 @@ async def get_filtered_calendars_with_notes(
   Fetches calendars from Google Calendar and Home Assistant, filters them based on
   CALENDAR_INSTRUCTIONS, and assigns notes for processing.
   """
-  logger.info(
-    "Fetching Google Calendars between {start_ts} and {end_ts}", start_ts=start_ts, end_ts=end_ts
-  )
+  logger.info(f"Fetching Google Calendars between {start_ts} and {end_ts}")
   google_calendars = gcalendar_api.calendar_events_in_range(start_ts, end_ts)
-  logger.info("Fetched {num_google_cals} Google Calendars", num_google_cals=len(google_calendars))
+  logger.info("Fetched {len(google_calendars)} Google Calendars")
 
-  logger.info(
-    "Fetching Home Assistant Calendars between {start_ts} and {end_ts}",
-    start_ts=start_ts,
-    end_ts=end_ts,
-  )
+  logger.info("Fetching Home Assistant Calendars between {start_ts} and {end_ts}")
   hass_calendars = await hass_calendar_api.calendar_events_in_range(
     start_ts, end_ts, hass_api_token or get_hass_api_key()
   )
-  logger.info("Fetched {num_hass_cals} Home Assistant Calendars", num_hass_cals=len(hass_calendars))
+  logger.info(f"Fetched {len(hass_calendars)} Home Assistant Calendars")
 
   all_calendars = google_calendars + hass_calendars
-  logger.info(
-    "Combined calendars from both sources. Total: {total_cals}", total_cals=len(all_calendars)
-  )
+  logger.info(f"Combined calendars from both sources. Total: {len(all_calendars)}")
 
   filtered_calendars: list[Calendar] = []
   for calendar in all_calendars:
     if calendar.entity_id not in CALENDAR_INSTRUCTIONS:
-      logger.info(
-        "Skipping calendar {calendar_id} as it is not in the instructions",
-        calendar_id=calendar.entity_id,
-      )
+      logger.info(f"Skipping calendar {calendar.entity_id} as it is not in the instructions")
       continue
 
     instructions = CALENDAR_INSTRUCTIONS[calendar.entity_id]
@@ -148,8 +139,5 @@ async def get_filtered_calendars_with_notes(
 
     filtered_calendars.append(calendar)
 
-  logger.info(
-    "Filtered calendars based on instructions. Included: {num_filtered_cals}",
-    num_filtered_cals=len(filtered_calendars),
-  )
+  logger.info(f"Filtered calendars based on instructions. Included: {len(filtered_calendars)}")
   return filtered_calendars

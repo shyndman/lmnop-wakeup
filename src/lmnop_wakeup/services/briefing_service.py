@@ -1,7 +1,7 @@
 from datetime import date
 from pathlib import Path
 
-from loguru import logger
+import structlog
 
 from ..brief.model import BriefingScript
 from ..core.cache import get_cache
@@ -9,6 +9,8 @@ from ..core.paths import get_data_path
 from ..env import assert_env
 from ..location.model import CoordinateLocation, LocationName, location_named
 from ..tts import run_voiceover
+
+logger = structlog.get_logger(__name__)
 
 
 class BriefingService:
@@ -26,9 +28,7 @@ class BriefingService:
 
     location = location or self.default_location
 
-    logger.info(
-      "Starting briefing generation for {date} at {location}", date=briefing_date, location=location
-    )
+    logger.info(f"Starting briefing generation for {briefing_date} at {location}")
 
     async with get_cache():
       assert_env()
@@ -46,7 +46,7 @@ class BriefingService:
       logger.info("Generating voiceover for briefing")
       await run_voiceover(briefing_script, print_script=False, output_path=output_path)
 
-      logger.info("Briefing generation complete: {path}", path=output_path)
+      logger.info(f"Briefing generation complete: {output_path}")
       return output_path
 
   def _prepare_output_path(self, briefing_date: date) -> Path:

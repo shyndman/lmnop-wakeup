@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from types import CoroutineType
 from typing import Any
 
+import structlog
 from google.auth.api_key import Credentials
 from google.maps import routing_v2
 from google.maps.routing import (
@@ -16,7 +17,6 @@ from google.protobuf.timestamp_pb2 import Timestamp
 from haversine import Unit
 from haversine.haversine import haversine
 from langgraph.func import task
-from loguru import logger
 from pydantic import BaseModel, computed_field
 
 from lmnop_wakeup.core.tracing import trace
@@ -25,6 +25,8 @@ from ..core.asyncio import gather_map
 from ..core.cache import cached
 from ..env import ApiKey, get_google_cloud_api_key
 from .model import CoordinateLocation
+
+logger = structlog.get_logger()
 
 
 class RouteDetails(BaseModel):
@@ -114,15 +116,9 @@ async def compute_route_durations(
   google_routes_api_key: ApiKey | None = None,
 ) -> RouteDetailsByMode:
   logger.debug(
-    "Computing route durations for origin={origin}, destination={destination}, "
-    "time_constraint={time_constraint}, include_cycling={include_cycling}, "
-    "include_transit={include_transit}, include_walking={include_walking}",
-    origin=origin,
-    destination=destination,
-    time_constraint=time_constraint,
-    include_cycling=include_cycling,
-    include_transit=include_transit,
-    include_walking=include_walking,
+    f"Computing route durations for origin={origin}, destination={destination}, "
+    f"time_constraint={time_constraint}, include_cycling={include_cycling}, "
+    f"include_transit={include_transit}, include_walking={include_walking}"
   )
 
   # Do a quick check for (near-)equality of the origin and destination
@@ -165,11 +161,11 @@ async def compute_route_durations(
     )
     for mode in travel_modes
   }
-  logger.debug("Sending route requests for modes: {travel_modes}", travel_modes=travel_modes)
+  logger.debug(f"Sending route requests for modes: {travel_modes}")
 
   # Construct the response model
   modes_to_responses = await gather_map(mode_to_in_flight_requests)
-  logger.debug("Received responses for route requests")
+  logger.debug(f"Received responses for route requests: {modes_to_responses}")
 
   # Drive
   res = modes_to_responses[RouteTravelMode.DRIVE]
@@ -234,10 +230,7 @@ async def compute_route_durations(
     transit=transit_details,
     walk=walking_details,
   )
-  logger.debug(
-    "Returning RouteDetailsByMode: {route_details_by_mode}",
-    route_details_by_mode=route_details_by_mode,
-  )
+  logger.debug(f"Returning RouteDetailsByMode: {route_details_by_mode}")
   return route_details_by_mode
 
 
@@ -256,12 +249,8 @@ def create_route_request(
   departure_time: datetime,
 ) -> ComputeRoutesRequest:
   logger.debug(
-    "Creating route request for mode={mode}, origin={origin}, destination={destination}, "
-    "departure_time={departure_time}",
-    mode=mode,
-    origin=origin,
-    destination=destination,
-    departure_time=departure_time,
+    f"Creating route request for mode={mode}, origin={origin}, destination={destination}, "
+    f"departure_time={departure_time}",
   )
   posix = departure_time.timestamp()
   seconds = int(posix)
@@ -275,7 +264,7 @@ def create_route_request(
     travel_mode=mode,
     routing_preference=RoutingPreference.TRAFFIC_AWARE if mode == RouteTravelMode.DRIVE else None,
   )
-  logger.debug("Returning ComputeRoutesRequest for mode {mode}", mode=route_request.travel_mode)
+  logger.debug(f"Returning ComputeRoutesRequest for mode {mode}")
   return route_request
 
 
@@ -285,5 +274,5 @@ def send_route_request(
   request: ComputeRoutesRequest,
   metadata: Sequence[tuple[str, str | bytes]],
 ) -> CoroutineType[Any, Any, ComputeRoutesResponse]:
-  logger.debug("Sending route request for mode: {travel_mode}", travel_mode=request.travel_mode)
+  logger.debug(f"Sending route request for mode: {request.travel_mode}")
   return client.compute_routes(request=request, metadata=metadata)

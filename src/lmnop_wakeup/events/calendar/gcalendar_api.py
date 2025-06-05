@@ -1,14 +1,16 @@
 import os.path
 from datetime import datetime
 
+import structlog
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
-from loguru import logger
 
 from ...core.tracing import trace_sync
 from ..model import Calendar, CalendarEvent
+
+logger = structlog.get_logger()
 
 # If modifying these scopes, delete the file token.json.
 SCOPES = [

@@ -1,8 +1,8 @@
 from typing import override
 
 import rich
+import structlog
 from langchain_core.runnables import RunnableConfig
-from loguru import logger
 from pydantic import BaseModel
 
 from ..core.tracing import trace
@@ -10,6 +10,8 @@ from ..core.typing import ensure
 from ..llm import LangfuseAgentInput, LmnopAgent, ModelName, extract_pydantic_ai_callback
 from .geocode_api import GeocodeSearchResult, geocode_location
 from .model import NamedLocation, ResolvedLocation
+
+logger = structlog.get_logger()
 
 
 class LocationResolverInput(LangfuseAgentInput):
@@ -99,9 +101,9 @@ def _get_location_resolver_agent(config: RunnableConfig) -> LocationResolverAgen
         the distance field can help select the most appropriate option. If no location can be found
         for the given input, an empty list will be returned.
     """
-    logger.debug("Geocoding location: {}", location)
+    logger.debug(f"Geocoding location: {location}")
     result = await geocode_location(location)
-    logger.debug("Geocoding result: {}", result)
+    logger.debug(f"Geocoding result: {result}")
     return result
 
   return agent

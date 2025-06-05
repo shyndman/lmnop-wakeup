@@ -1,7 +1,9 @@
+import structlog
 from google.genai import types
-from loguru import logger
 
 from lmnop_wakeup.brief.actors import voice_for_speaker
+
+logger = structlog.get_logger()
 
 
 class SpeechConfigBuilder:
@@ -17,11 +19,7 @@ class SpeechConfigBuilder:
   def _build_single_speaker_config(self, speaker: str) -> types.SpeechConfig:
     """Build configuration for single speaker."""
     voice_name = voice_for_speaker(speaker)
-    logger.debug(
-      "Building single speaker config for {speaker} with voice {voice}",
-      speaker=speaker,
-      voice=voice_name,
-    )
+    logger.debug(f"Building single speaker config for {speaker} with voice {voice_name}")
 
     return types.SpeechConfig(
       voice_config=types.VoiceConfig(
@@ -31,9 +29,7 @@ class SpeechConfigBuilder:
 
   def _build_multi_speaker_config(self, speakers: set[str]) -> types.SpeechConfig:
     """Build configuration for multiple speakers."""
-    logger.debug(
-      "Building multi-speaker config for speakers: {speakers}", speakers=", ".join(speakers)
-    )
+    logger.debug(f"Building multi-speaker config for speakers: {', '.join(speakers)}")
 
     speaker_configs = []
     for speaker in speakers:
