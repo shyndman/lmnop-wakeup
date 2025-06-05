@@ -95,8 +95,9 @@ def initialize_logging(json_logs: bool = False, log_level: str = "DEBUG"):
   # in the structured log (see the `logging_middleware` in main.py), we clear
   # the handlers and prevent the logs to propagate to a logger higher up in the
   # hierarchy (effectively rendering them silent).
-  logging.getLogger("uvicorn.access").handlers.clear()
-  logging.getLogger("uvicorn.access").propagate = False
+  for _log in ["urllib3", "uvicorn.access", "httpcore"]:
+    logging.getLogger(_log).handlers.clear()
+    logging.getLogger(_log).propagate = False
 
   def handle_exception(exc_type, exc_value, exc_traceback):
     """
