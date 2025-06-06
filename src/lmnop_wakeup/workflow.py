@@ -482,7 +482,7 @@ async def schedule_automation_calendar_events(state: State, config: RunnableConf
     raise ValueError("No schedule available to write calendar events")
 
   wakeup_event = CalendarEvent(
-    id=f"lmnop_up_{schedule.date.isoformat()}",
+    id=f"up{schedule.date.isoformat().replace('-', '')}",
     summary=f"lmnop:wakeup({schedule.date.isoformat()})",
     start=TimeInfo(dateTime=schedule.wakeup_time),
     end=TimeInfo(dateTime=schedule.wakeup_time + timedelta(minutes=5)),
