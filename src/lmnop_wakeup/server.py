@@ -11,13 +11,13 @@ from .audio.announcer import (
   MusicAssistantConnectionError,
   PlayerNotFoundError,
 )
+from .brief.service import BriefingService
 from .env import (
   get_music_assistant_player_id,
   get_music_assistant_url,
   get_wakeup_server_base_url,
 )
 from .paths import BriefingDirectory
-from .services.briefing_service import BriefingService
 
 logger = structlog.get_logger()
 

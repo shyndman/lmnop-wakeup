@@ -481,8 +481,6 @@ location_graph_builder.set_finish_point("request_weather")
 
 location_graph = location_graph_builder.compile()
 
-# Old static builder removed - using build_graph() function instead
-
 
 def config_for_date(briefing_date: date) -> RunnableConfig:
   """Create a configuration for the workflow based on the briefing date."""
@@ -490,7 +488,6 @@ def config_for_date(briefing_date: date) -> RunnableConfig:
   return {
     "configurable": {
       "thread_id": f"{briefing_date.isoformat()}+{random.randbytes(4).hex()}",
-      # "checkpoint_id": "0a1f98c4-4cfc-2b76-e8c9-83675c3fedc6",
     }
   }
 
@@ -583,7 +580,6 @@ async def run_workflow_command(
 
     with langfuse_span("graph"):
       result = await graph.ainvoke(
-        # input=None,
         State(
           day_start_ts=day_start_ts,
           day_end_ts=end_of_local_day(day_start_ts),
@@ -594,7 +590,6 @@ async def run_workflow_command(
         debug=True,
       )
       final_state = State.model_validate(result)
-
       rich.print(final_state.model_dump())
 
       # Use BriefingDirectory for type-safe file operations
