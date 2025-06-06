@@ -4,13 +4,13 @@ from pathlib import Path
 
 import structlog
 
-from ..brief.model import BriefingScript
 from ..core.cache import get_cache
 from ..env import assert_env
 from ..events.model import Schedule
 from ..location.model import CoordinateLocation, LocationName, location_named
 from ..paths import BriefingDirectory
 from ..tts import run_voiceover
+from .model import BriefingScript
 
 logger = structlog.get_logger(__name__)
 
@@ -34,7 +34,7 @@ class BriefingService:
     review_events: bool = False,
   ) -> BriefingResult:
     """Generate a briefing script and voiceover for the given date and location."""
-    from ..workflow import run_workflow_command
+    from ..workflow import run_workflow
 
     location = location or self.default_location
 
@@ -43,7 +43,7 @@ class BriefingService:
     async with get_cache():
       assert_env()
 
-      briefing_script, final_state = await run_workflow_command(
+      briefing_script, final_state = await run_workflow(
         briefing_date=briefing_date,
         briefing_location=location,
       )
