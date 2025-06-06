@@ -62,7 +62,10 @@ def initialize_logging(json_logs: bool = False, log_level: str = "DEBUG"):
   if json_logs:
     log_renderer = structlog.processors.JSONRenderer()
   else:
-    log_renderer = structlog.dev.ConsoleRenderer(pad_level=False)
+    log_renderer = structlog.dev.ConsoleRenderer(
+      pad_level=False,
+      exception_formatter=structlog.dev.RichTracebackFormatter(max_frames=20),
+    )
 
   formatter = structlog.stdlib.ProcessorFormatter(
     # These run ONLY on `logging` entries that do NOT originate within
