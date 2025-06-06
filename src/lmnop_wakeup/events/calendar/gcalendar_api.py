@@ -32,6 +32,11 @@ CALENDAR_IDS = [
   BLOGTO_CALENDAR_ID,
 ]
 
+# This does not appear in CALENDAR_IDS, because these are workflow outputs, not inputs
+AUTOMATION_SCHEDULER_CALENDAR_ID = (
+  "afcafa68dfd547f5076ef90ee75df884da1324cabfa2caded5c0abe95d7bccfd@group.calendar.google.com"
+)
+
 
 def get_services():
   service = build("calendar", "v3", credentials=authenticate())

@@ -31,11 +31,12 @@ class CalendarUser(CalendarEmailUser):
 CalendarEventId = NewType("CalendarEventId", str)
 
 
-class PrivateExtendedPropertiesDict(TypedDict, total=True):
+class PrivateExtendedPropertiesDict(TypedDict, total=False):
   blogto_event: str
   intended_audience: str
   is_top_pick: str
   category: str
+  state_hash: int
 
 
 class ExtendedPropertiesDict(TypedDict, total=True):
@@ -47,7 +48,6 @@ class CalendarEvent(BaseModel):
 
   id: str
   """Uniquely identifies the event in its calendar"""
-
   summary: str
   """A brief summary or title of the event."""
 

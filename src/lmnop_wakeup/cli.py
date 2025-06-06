@@ -31,12 +31,12 @@ class Script(Command):
 
   @override
   async def run(self):
-    from .workflow import run_workflow_command
+    from .workflow import run_workflow
 
     async with get_cache():
       assert_env()
 
-      briefing_script, _state = await run_workflow_command(
+      briefing_script, _state = await run_workflow(
         briefing_date=self.briefing_date,
         briefing_location=self.current_location,
       )

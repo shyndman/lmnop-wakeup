@@ -26,10 +26,16 @@ from .brief.content_optimizer import (
   get_content_optimizer,
 )
 from .brief.script_writer_agent import BriefingScript, ScriptWriterInput, get_script_writer_agent
-from .core.date import end_of_local_day, start_of_local_day
+from .core.date import TimeInfo, end_of_local_day, start_of_local_day
 from .core.tracing import langfuse_span, trace
 from .core.typing import assert_not_none, ensure
 from .env import get_postgres_connection_string
+from .events.calendar.gcalendar_api import (
+  AUTOMATION_SCHEDULER_CALENDAR_ID,
+  get_calendar_event,
+  insert_calendar_event,
+  update_calendar_event,
+)
 from .events.events_api import get_filtered_calendars_with_notes
 from .events.model import CalendarEvent, CalendarsOfInterest, Schedule
 from .events.prioritizer_agent import (
@@ -469,6 +475,27 @@ async def consolidate_dialogue(state: State, config: RunnableConfig):
   return None
 
 
+@trace()
+async def schedule_automation_calendar_events(state: State, config: RunnableConfig):
+  schedule = state.schedule
+  if schedule is None:
+    raise ValueError("No schedule available to write calendar events")
+
+  wakeup_event = CalendarEvent(
+    id=f"lmnop_up_{schedule.date.isoformat()}",
+    summary=f"lmnop:wakeup({schedule.date.isoformat()})",
+    start=TimeInfo(dateTime=schedule.wakeup_time),
+    end=TimeInfo(dateTime=schedule.wakeup_time + timedelta(minutes=5)),
+  )
+  maybe_event = get_calendar_event(AUTOMATION_SCHEDULER_CALENDAR_ID, wakeup_event.id)
+  if maybe_event:
+    rich.print(f"Event {wakeup_event.id} already exists in calendar, updating.")
+    update_calendar_event(calendar_id=AUTOMATION_SCHEDULER_CALENDAR_ID, event=wakeup_event)
+  else:
+    rich.print(f"Event {wakeup_event.id} is new, inserting.")
+    insert_calendar_event(calendar_id=AUTOMATION_SCHEDULER_CALENDAR_ID, event=wakeup_event)
+
+
 standard_retry = RetryPolicy(max_attempts=3)
 
 location_graph_builder = StateGraph(LocationDataState)
@@ -509,6 +536,7 @@ def build_graph():
   graph_builder.add_node(write_content_optimization, retry=standard_retry)
   graph_builder.add_node(write_briefing_script, retry=standard_retry)
   graph_builder.add_node(consolidate_dialogue)
+  graph_builder.add_node(schedule_automation_calendar_events, retry=standard_retry)
 
   graph_builder.set_entry_point("populate_raw_inputs")
   graph_builder.add_conditional_edges(
@@ -535,12 +563,13 @@ def build_graph():
   graph_builder.add_edge("prioritize_events", "write_content_optimization")
   graph_builder.add_edge("write_content_optimization", "write_briefing_script")
   graph_builder.add_edge("write_briefing_script", "consolidate_dialogue")
-  graph_builder.set_finish_point("consolidate_dialogue")
+  graph_builder.add_edge("consolidate_dialogue", "schedule_automation_calendar_events")
+  graph_builder.set_finish_point("schedule_automation_calendar_events")
 
   return graph_builder
 
 
-async def run_workflow_command(
+async def run_workflow(
   briefing_date: date,
   briefing_location: CoordinateLocation,
 ) -> tuple[BriefingScript | None, State]:
