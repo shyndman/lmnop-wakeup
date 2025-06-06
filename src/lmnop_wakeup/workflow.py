@@ -298,11 +298,11 @@ async def resolve_location(state: LocationDataState, config: RunnableConfig):
 
   result = await location_resolver.run(input)
 
-  if result.special_location is not None:
-    if result.special_location not in LocationName:
-      raise ValueError(f"Special location {result.special_location} is not a valid LocationName")
+  if result.special_location_id is not None:
+    if result.special_location_id not in LocationName:
+      raise ValueError(f"Special location {result.special_location_id} is not a valid LocationName")
     return {
-      "resolved_location": location_named(LocationName(result.special_location)),
+      "resolved_location": location_named(LocationName(result.special_location_id)),
     }
 
   if isinstance(result.geocoded_location, ResolvedLocation):

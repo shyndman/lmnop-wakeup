@@ -31,7 +31,9 @@ class LocationResolverInput(LangfuseAgentInput):
     return {
       "event_location": ensure(self.address),
       "home_location": self.home_location.model_dump_json(),
-      "named_locations": "\n".join([f" * {location.name}" for location in self.named_locations])
+      "named_locations": "\n".join(
+        [f" * **id: {location.slug}** {location.name}" for location in self.named_locations]
+      )
       + "\n",
     }
 
@@ -39,8 +41,8 @@ class LocationResolverInput(LangfuseAgentInput):
 class LocationResolverOutput(BaseModel):
   """Output for the location resolver agent."""
 
-  special_location: str | None = None
-  """Set to the location's name if the input location was identified as one of the user's named
+  special_location_id: str | None = None
+  """Set to the location's id if the input location was identified as one of the user's named
   locations."""
 
   geocoded_location: ResolvedLocation | None = None
