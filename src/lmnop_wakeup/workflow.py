@@ -182,7 +182,7 @@ class LocationWeatherState(BaseModel):
   reports: list[WeatherReport]
 
 
-FUTURE_EVENTS_TIMEDELTA = timedelta(days=15)
+FUTURE_EVENTS_TIMEDELTA = timedelta(days=12)
 FUTURE_WEATHER_TIMEDELTA = timedelta(days=3)
 
 
