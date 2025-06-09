@@ -281,7 +281,7 @@ async def process_location(new_state: LocationDataState):
   loc = loc_state.resolved_location
   if weather is not None and loc is not None:
     state_delta["regional_weather"] = RegionalWeatherReports(
-      reports_by_location={loc: [weather]}  # type: ignore
+      reports_by_location={weather_key_for_location(loc): [weather]}  # type: ignore
     )
 
   return state_delta

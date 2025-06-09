@@ -1720,7 +1720,7 @@ requires-dist = [
     { name = "opentelemetry-instrumentation-httpx", specifier = ">=0.54b0" },
     { name = "opentelemetry-instrumentation-sqlite3", specifier = ">=0.54b1" },
     { name = "platformdirs", specifier = ">=4.3.8" },
-    { name = "psycopg", extras = ["binary", "python"], specifier = ">=3.2.9" },
+    { name = "psycopg", extras = ["binary"], specifier = ">=3.2.9" },
     { name = "pydantic", specifier = ">=2.11.4" },
     { name = "pydantic-ai", specifier = ">=0.2.12" },
     { name = "pydantic-ai", extras = ["logfire"], specifier = ">=0.2.7" },
