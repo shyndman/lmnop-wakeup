@@ -49,6 +49,7 @@ dependencies = [
     "pydub-ng>=0.2.0",
     "structlog>=25.4.0",
     "ujson>=5.10.0",
+    "psycopg[binary]>=3.2.9",
 ]
 license = {text = "MIT"}
 
