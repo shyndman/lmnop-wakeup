@@ -1,9 +1,7 @@
 import asyncio
-import itertools
-import operator
 import random
 from datetime import date, datetime, timedelta
-from typing import Annotated, Any, Literal, cast
+from typing import Any, Literal, cast
 
 import rich
 import structlog
@@ -15,13 +13,11 @@ from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
 from langgraph.graph import StateGraph
 from langgraph.store.postgres import AsyncPostgresStore
 from langgraph.types import CachePolicy, RetryPolicy, Send
-from pydantic import AwareDatetime, BaseModel, computed_field
 from pydantic_extra_types.coordinate import Coordinate
 
 from . import APP_DIRS
 from .brief.actors import CHARACTER_POOL
 from .brief.content_optimizer import (
-  ContentOptimizationReport,
   ContentOptimizerInput,
   get_content_optimizer,
 )
@@ -37,10 +33,9 @@ from .events.calendar.gcalendar_api import (
   update_calendar_event,
 )
 from .events.events_api import get_filtered_calendars_with_notes
-from .events.model import CalendarEvent, CalendarsOfInterest, Schedule
+from .events.model import CalendarEvent, CalendarsOfInterest
 from .events.prioritizer_agent import (
   EventPrioritizerInput,
-  PrioritizedEvents,
   RegionalWeatherReports,
   get_event_prioritizer_agent,
 )
@@ -57,137 +52,25 @@ from .location.model import (
 )
 from .location.resolver_agent import LocationResolverInput, get_location_resolver_agent
 from .paths import BriefingDirectory
+from .state import LocationDataState, LocationWeatherState, State
 from .weather.meteorologist_agent import (
   MeteorologistInput,
   get_meteorologist_agent,
 )
-from .weather.model import WeatherKey, weather_key_for_location
+from .weather.model import weather_key_for_location
 from .weather.sunset_oracle_agent import (
   SunsetOracleInput,
-  SunsetPrediction,
   get_sunset_oracle_agent,
 )
 from .weather.sunset_scoring import (
   SunsetAirQualityAPIResponse,
-  SunsetAnalysisResult,
   SunsetWeatherAPIResponse,
   analyze_sunset_conditions,
 )
-from .weather.weather_api import WeatherReport, get_weather_report
+from .weather.weather_api import get_weather_report
 
 type RouteKey = tuple[str, Coordinate]
 logger = structlog.get_logger()
-
-
-class State(BaseModel):
-  """A model representing the current state of the workflow's briefing process.
-  Contains aggregated data from various sources including calendar entries, locations, and weather
-  information necessary for generating a briefing.
-  """
-
-  day_start_ts: AwareDatetime
-  """Time 0 on the day of the briefing, in the local timezone. This is useful for calculating
-  datetime ranges."""
-
-  day_end_ts: AwareDatetime
-  """Time -1 (last microsecond) on the day of the briefing, in the local timezone. This is useful
-  for calculating datetime ranges."""
-
-  # TODO: It would be interesting to be able to build multiple briefings if Scott and Hilary are
-  # apart.
-  briefing_day_location: ResolvedLocation
-  """Where Scott and Hilary are at the start of the day."""
-
-  event_consideration_range_end: AwareDatetime | None = None
-  """The end of the range of events to consider for the briefing."""
-
-  calendars: CalendarsOfInterest | None = None
-  """Calendar data containing events, appointments, birthdays, etc"""
-
-  referenced_locations: Annotated[ReferencedLocations, operator.add] = ReferencedLocations()
-  """Stores the locations from various sources. Exposes convenience methods for requesting
-  lists of sets in various states"""
-
-  regional_weather: Annotated[RegionalWeatherReports, operator.add] = RegionalWeatherReports()
-  """Contains weather reports for all locations the user may occupy, for the dates they would
-  occupy them, as determined by the calendars"""
-
-  sunset_analysis: SunsetAnalysisResult | None = None
-  """Procedurally determined sunset analysis for the day, including cloud cover, air quality,"""
-
-  sunset_prediction: SunsetPrediction | None = None
-  """A prediction of the sunset beauty for the day, including the best viewing time and
-  overall rating."""
-
-  schedule: Schedule | None = None
-  """A schedule of events for the day, including their start and end times, locations, and
-  travel information"""
-
-  prioritized_events: PrioritizedEvents | None = None
-  """A list of events prioritized for the briefing, including their importance and
-  relevance to the day's schedule."""
-
-  content_optimization_report: ContentOptimizationReport | None = None
-  """Suggestions for optimizing the briefing content, including events to include and their
-  suggested length."""
-
-  briefing_script: BriefingScript | None = None
-  """The script for the briefing, including all sections and their content."""
-
-  consolidated_briefing_script: BriefingScript | None = None
-  """The final script for the briefing, with its dialog consolidated."""
-
-  @computed_field
-  @property
-  def yesterdays_events(self) -> list[CalendarEvent]:
-    if self.calendars is None:
-      return []
-
-    # Calendars to exclude from yesterday's events based on their notes
-    excluded_calendar_ids = {
-      "calendar.radarr",  # Movies - noted to never appear in previous day's events
-      "calendar.sonarr",  # TV shows - noted to never appear in previous day's events
-    }
-
-    return list(
-      itertools.chain.from_iterable(
-        [
-          cal.filter_events_by_range(
-            self.day_start_ts - timedelta(days=1), self.day_end_ts - timedelta(days=1)
-          )
-          for cal in self.calendars.calendars_by_id.values()
-          if cal.entity_id not in excluded_calendar_ids
-        ]
-      )
-    )
-
-
-class LocationDataState(BaseModel):
-  """A model representing the state of location data in the workflow.
-  This model is used to track the status of location data processing and the associated
-  coordinates.
-  """
-
-  day_start_ts: AwareDatetime
-  day_end_ts: AwareDatetime
-
-  event_start_ts: AwareDatetime
-  event_end_ts: AwareDatetime
-
-  address: str
-  resolved_location: ResolvedLocation | None = None
-  weather: WeatherReport | None = None
-
-
-class LocationWeatherState(BaseModel):
-  """A model representing the state of weather data for a specific location.
-  This model is used to track the weather data associated with a resolved location.
-  """
-
-  day_start_ts: AwareDatetime
-  weather_key: WeatherKey
-  reports: list[WeatherReport]
-
 
 FUTURE_EVENTS_TIMEDELTA = timedelta(days=12)
 FUTURE_WEATHER_TIMEDELTA = timedelta(days=3)
