@@ -143,6 +143,12 @@ class State(BaseModel):
     if self.calendars is None:
       return []
 
+    # Calendars to exclude from yesterday's events based on their notes
+    excluded_calendar_ids = {
+      "calendar.radarr",  # Movies - noted to never appear in previous day's events
+      "calendar.sonarr",  # TV shows - noted to never appear in previous day's events
+    }
+
     return list(
       itertools.chain.from_iterable(
         [
@@ -150,6 +156,7 @@ class State(BaseModel):
             self.day_start_ts - timedelta(days=1), self.day_end_ts - timedelta(days=1)
           )
           for cal in self.calendars.calendars_by_id.values()
+          if cal.entity_id not in excluded_calendar_ids
         ]
       )
     )
