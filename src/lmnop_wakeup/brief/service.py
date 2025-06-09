@@ -32,6 +32,7 @@ class BriefingService:
     briefing_date: date,
     location: CoordinateLocation | None = None,
     review_events: bool = False,
+    thread_id: str | None = None,
   ) -> BriefingResult:
     """Generate a briefing script and voiceover for the given date and location."""
     from ..workflow import run_workflow
@@ -46,6 +47,7 @@ class BriefingService:
       briefing_script, final_state = await run_workflow(
         briefing_date=briefing_date,
         briefing_location=location,
+        thread_id=thread_id,
       )
 
       if briefing_script is None:

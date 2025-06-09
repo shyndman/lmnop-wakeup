@@ -399,12 +399,48 @@ location_graph_builder.set_finish_point("request_weather")
 location_graph = location_graph_builder.compile()
 
 
-def config_for_date(briefing_date: date) -> RunnableConfig:
+async def find_incomplete_thread_for_date(saver, briefing_date: date) -> str | None:
+  """Find the most recent incomplete thread for a given date."""
+  try:
+    # Get all threads that start with the briefing date
+    date_prefix = briefing_date.isoformat()
+
+    # List all checkpoints and find threads for this date
+    checkpoints = []
+    async for checkpoint in saver.alist({}):
+      thread_id = checkpoint.config.get("configurable", {}).get("thread_id", "")
+      if thread_id.startswith(date_prefix):
+        checkpoints.append(checkpoint)
+
+    if not checkpoints:
+      return None
+
+    # Sort by timestamp (most recent first) and check if any are incomplete
+    checkpoints.sort(key=lambda c: c.checkpoint.ts, reverse=True)
+
+    for checkpoint in checkpoints:
+      # Check if this checkpoint represents an incomplete workflow
+      # A complete workflow should have reached the finish point
+      if checkpoint.next and len(checkpoint.next) > 0:
+        thread_id = checkpoint.config.get("configurable", {}).get("thread_id")
+        logger.info(f"Found incomplete thread for {briefing_date}: {thread_id}")
+        return thread_id
+
+    return None
+  except Exception as e:
+    logger.warning(f"Error finding incomplete threads for {briefing_date}: {e}")
+    return None
+
+
+def config_for_date(briefing_date: date, thread_id: str | None = None) -> RunnableConfig:
   """Create a configuration for the workflow based on the briefing date."""
+
+  if thread_id is None:
+    thread_id = f"{briefing_date.isoformat()}+{random.randbytes(4).hex()}"
 
   return {
     "configurable": {
-      "thread_id": f"{briefing_date.isoformat()}+{random.randbytes(4).hex()}",
+      "thread_id": thread_id,
     }
   }
 
@@ -462,6 +498,7 @@ def build_graph():
 async def run_workflow(
   briefing_date: date,
   briefing_location: CoordinateLocation,
+  thread_id: str | None = None,
 ) -> tuple[BriefingScript | None, State]:
   """Run the morning briefing workflow.
 
@@ -487,27 +524,53 @@ async def run_workflow(
       store=store,
     )
 
-    config: RunnableConfig = config_for_date(briefing_date)
+    # Handle thread_id logic: use provided thread_id, or find incomplete thread, or create new
+    if thread_id is None:
+      found_thread_id = await find_incomplete_thread_for_date(saver, briefing_date)
+      if found_thread_id:
+        logger.info(f"Continuing incomplete thread: {found_thread_id}")
+        thread_id = found_thread_id
+      else:
+        logger.info(f"No incomplete threads found for {briefing_date}, creating new thread")
+    else:
+      logger.info(f"Using provided thread_id: {thread_id}")
+
+    config: RunnableConfig = config_for_date(briefing_date, thread_id)
     config["callbacks"] = [CallbackHandler(), PydanticAiCallback()]
 
     day_start_ts = start_of_local_day(briefing_date)
-    # Run the workflow with a state update
 
+    # Check if we have an existing checkpoint state
     latest_state = await graph.aget_state(config)
     checkpoint_id = latest_state.config.get("configurable", {}).get("checkpoint_id", None)
+    has_existing_state = latest_state.values is not None and len(latest_state.values) > 0
+
     rich.print(f"Checkpoint ID: {checkpoint_id}")
+    rich.print(f"Has existing state: {has_existing_state}")
 
     with langfuse_span("graph"):
-      result = await graph.ainvoke(
-        State(
-          day_start_ts=day_start_ts,
-          day_end_ts=end_of_local_day(day_start_ts),
-          briefing_day_location=cast(ResolvedLocation, briefing_location),
-        ),
-        config=config,
-        checkpoint_during=True,
-        debug=True,
-      )
+      if has_existing_state:
+        logger.info(f"Continuing from existing checkpoint: {checkpoint_id}")
+        # Don't provide state - let it resume from checkpoint
+        result = await graph.ainvoke(
+          None,  # No initial state - continue from checkpoint
+          config=config,
+          checkpoint_during=True,
+          debug=True,
+        )
+      else:
+        logger.info("Starting new workflow with initial state")
+        # Provide initial state for new workflow
+        result = await graph.ainvoke(
+          State(
+            day_start_ts=day_start_ts,
+            day_end_ts=end_of_local_day(day_start_ts),
+            briefing_day_location=cast(ResolvedLocation, briefing_location),
+          ),
+          config=config,
+          checkpoint_during=True,
+          debug=True,
+        )
       final_state = State.model_validate(result)
       rich.print(final_state.model_dump())
 

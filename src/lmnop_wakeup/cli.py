@@ -28,6 +28,11 @@ class Script(Command):
   review_events: bool = arg(
     default=False, short="r", help="enable interactive review of prioritized events"
   )
+  thread_id: str | None = arg(
+    default=None,
+    help="thread ID to continue existing workflow (if not provided, continues most recent "
+    "incomplete thread)",
+  )
 
   @override
   async def run(self):
@@ -39,6 +44,7 @@ class Script(Command):
       briefing_script, _state = await run_workflow(
         briefing_date=self.briefing_date,
         briefing_location=self.current_location,
+        thread_id=self.thread_id,
       )
 
       if briefing_script is None:

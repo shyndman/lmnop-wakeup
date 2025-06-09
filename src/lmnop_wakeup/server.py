@@ -26,6 +26,7 @@ app = FastAPI(title="Wakeup Briefing API", version="1.0.0")
 
 class GenerateRequest(BaseModel):
   briefing_date: date
+  thread_id: str | None = None
 
 
 class AnnounceRequest(BaseModel):
@@ -43,7 +44,9 @@ async def generate_briefing(request: GenerateRequest):
 
   try:
     # Wait for generation to complete
-    result = await briefing_service.generate_briefing(request.briefing_date)
+    result = await briefing_service.generate_briefing(
+      request.briefing_date, thread_id=request.thread_id
+    )
 
     logger.info(f"Briefing generation completed successfully for {request.briefing_date}")
     return {
