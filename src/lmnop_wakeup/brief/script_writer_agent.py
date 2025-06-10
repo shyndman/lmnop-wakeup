@@ -31,8 +31,9 @@ class ScriptWriterInput(LangfuseAgentInput):
 
   @override
   def to_prompt_variable_map(self) -> dict[str, str]:
+    filtered_content_optimizer_report = self.content_optimizer_report.filter_zero_priority_skipped()
     return {
-      "content_optimizer_report": self.content_optimizer_report.model_dump_json(),
+      "content_optimizer_report": filtered_content_optimizer_report.model_dump_json(),
       "schedule": self.schedule.model_dump_json(),
       "prioritized_events": self.prioritized_events.model_dump_json(),
       "weather_report": self.weather_report.model_dump_json(exclude={"reports_by_location"}),

@@ -4,7 +4,7 @@ import structlog
 from langgraph.graph import StateGraph
 from pydantic import AwareDatetime, BaseModel
 
-from ..brief.model import BriefingScript
+from ..brief.model import BriefingScript, ConsolidatedBriefingScript
 from ..core.tracing import trace
 from ..paths import BriefingDirectory
 from ..tts import TTSOrchestrator
@@ -28,7 +28,7 @@ class TTSState(BaseModel):
 class TTSWorkflowState(BaseModel):
   """Minimal state for TTS workflow."""
 
-  consolidated_briefing_script: BriefingScript
+  consolidated_briefing_script: BriefingScript | ConsolidatedBriefingScript
   """The script to convert to audio."""
 
   day_start_ts: AwareDatetime

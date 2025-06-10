@@ -3,6 +3,8 @@ from io import StringIO
 import structlog
 from pydantic import BaseModel, Field
 
+from lmnop_wakeup.core.typing import assert_not_none
+
 
 class Character(BaseModel):
   slug: str
@@ -168,9 +170,10 @@ class BriefingScript(BaseModel):
     Create a new ConsolidatedBriefingScript with lines grouped into speaker segments
     optimized for multi-speaker TTS generation.
 
-    This method groups consecutive lines by speaker combinations (1-2 speakers max)
-    to minimize API calls while respecting Gemini's multi-speaker TTS limits.
-    The first speaker always starts as a solo segment.
+    This method first merges consecutive lines by the same speaker with identical
+    style directions, then groups the resulting lines by speaker combinations
+    (1-2 speakers max) to minimize API calls while respecting Gemini's multi-speaker
+    TTS limits. The first speaker always starts as a solo segment.
 
     Returns:
         ConsolidatedBriefingScript: New script with speaker segments for efficient TTS
@@ -180,12 +183,21 @@ class BriefingScript(BaseModel):
     original_lines = self.lines
     total_original_lines = len(original_lines)
 
-    logger.debug("Starting speaker segment consolidation", total_lines=total_original_lines)
+    logger.debug("Starting dialogue consolidation", total_lines=total_original_lines)
 
     if not original_lines:
       logger.debug("No lines to consolidate, returning empty script")
       return ConsolidatedBriefingScript(segments=[])
 
+    # Step 1: Merge consecutive lines by same speaker with identical style directions
+    merged_lines = self._merge_consecutive_same_speaker_lines(original_lines)
+    logger.debug(
+      "Merged consecutive lines",
+      original_lines=total_original_lines,
+      merged_lines=len(merged_lines),
+    )
+
+    # Step 2: Group merged lines into speaker segments for TTS optimization
     segments: list[SpeakerSegment] = []
     current_segment_lines: list[ScriptLine] = []
     current_speakers: set[str] = set()
@@ -226,7 +238,7 @@ class BriefingScript(BaseModel):
       segment = SpeakerSegment(
         lines=current_segment_lines.copy(),
         character_1_slug=character_1_slug,
-        character_1_style_direction=character_1_style_direction,
+        character_1_style_direction=assert_not_none(character_1_style_direction),
         character_2_slug=character_2_slug,
         character_2_style_direction=character_2_style_direction,
       )
@@ -240,7 +252,7 @@ class BriefingScript(BaseModel):
         character_2=character_2_slug,
       )
 
-    for line in original_lines:
+    for line in merged_lines:
       line_speaker = {line.character_slug}
 
       # For the first segment, always start as solo
@@ -273,14 +285,60 @@ class BriefingScript(BaseModel):
     consolidation_ratio = total_segments / total_original_lines if total_original_lines > 0 else 0
 
     logger.debug(
-      "Speaker segment consolidation completed",
+      "Dialogue consolidation completed",
       original_lines=total_original_lines,
+      merged_lines=len(merged_lines),
       segments=total_segments,
       total_segment_lines=total_segment_lines,
       consolidation_ratio=round(consolidation_ratio, 3),
     )
 
     return ConsolidatedBriefingScript(segments=segments)
+
+  def _merge_consecutive_same_speaker_lines(self, lines: list[ScriptLine]) -> list[ScriptLine]:
+    """
+    Merge consecutive lines by the same speaker with identical style directions.
+
+    Args:
+        lines: Original list of script lines
+
+    Returns:
+        List of merged script lines where consecutive same-speaker lines with
+        identical style directions have been combined into single lines
+    """
+    if not lines:
+      return []
+
+    merged_lines: list[ScriptLine] = []
+    current_line = lines[0]
+
+    for next_line in lines[1:]:
+      # Check if we can merge with the current line
+      if (
+        current_line.character_slug == next_line.character_slug
+        and current_line.character_style_direction == next_line.character_style_direction
+      ):
+        # Merge the text, adding space between if needed
+        merged_text = current_line.text
+        if not merged_text.endswith((" ", "\n")):
+          merged_text += " "
+        merged_text += next_line.text
+
+        # Create new merged line
+        current_line = ScriptLine(
+          character_slug=current_line.character_slug,
+          character_style_direction=current_line.character_style_direction,
+          text=merged_text,
+        )
+      else:
+        # Can't merge, finalize current line and start new one
+        merged_lines.append(current_line)
+        current_line = next_line
+
+    # Don't forget the last line
+    merged_lines.append(current_line)
+
+    return merged_lines
 
 
 class ConsolidatedBriefingScript(BaseModel):

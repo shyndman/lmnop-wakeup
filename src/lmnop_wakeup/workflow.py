@@ -22,7 +22,11 @@ from .brief.content_optimizer import (
   ContentOptimizerInput,
   get_content_optimizer,
 )
-from .brief.script_writer_agent import BriefingScript, ScriptWriterInput, get_script_writer_agent
+from .brief.model import ConsolidatedBriefingScript
+from .brief.script_writer_agent import (
+  ScriptWriterInput,
+  get_script_writer_agent,
+)
 from .core.date import TimeInfo, end_of_local_day, start_of_local_day
 from .core.tracing import langfuse_span, trace
 from .core.typing import assert_not_none, ensure
@@ -721,7 +725,7 @@ async def run_workflow(
   briefing_location: CoordinateLocation,
   thread_id: str | None = None,
   interactive: bool = False,
-) -> tuple[BriefingScript | None, State]:
+) -> tuple[ConsolidatedBriefingScript | None, State]:
   """Run the morning briefing workflow.
 
   Args:

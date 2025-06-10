@@ -6,6 +6,7 @@ import structlog
 from asynciolimiter import Limiter
 from google import genai
 from google.genai import types
+from pydub import AudioSegment
 
 from lmnop_wakeup.audio.config import TTSConfig
 from lmnop_wakeup.audio.file_manager import AudioFileManager
@@ -22,6 +23,123 @@ from lmnop_wakeup.core.typing import ensure
 from lmnop_wakeup.env import get_litellm_api_key, get_litellm_base_url
 
 logger = structlog.get_logger(__name__)
+
+
+def calculate_words_per_minute(text: str, audio_file_path: Path) -> float:
+  """Calculate words per minute for given text and corresponding audio file.
+
+  Args:
+      text: The text that was converted to speech
+      audio_file_path: Path to the generated WAV file
+
+  Returns:
+      Words per minute as a float
+  """
+  # Count words in the text (simple whitespace splitting)
+  word_count = len(text.split())
+
+  # Get audio duration using pydub
+  audio = AudioSegment.from_wav(str(audio_file_path))
+  duration_minutes = len(audio) / 1000.0 / 60.0  # Convert milliseconds to minutes
+
+  if duration_minutes == 0:
+    logger.warning(f"Audio file {audio_file_path} has zero duration")
+    return 0.0
+
+  wpm = word_count / duration_minutes
+
+  logger.debug(
+    "WPM calculation",
+    text_length=len(text),
+    word_count=word_count,
+    duration_seconds=len(audio) / 1000.0,
+    wpm=round(wpm, 1),
+    file=audio_file_path.name,
+  )
+
+  return wpm
+
+
+def calculate_tts_cost(model_name: str, input_tokens: int, output_tokens: int) -> float:
+  """Calculate the cost of a TTS request based on model and token usage.
+
+  Args:
+      model_name: The Gemini model used (e.g., "gemini-2.5-pro-preview-tts")
+      input_tokens: Number of input tokens used
+      output_tokens: Number of output tokens used
+
+  Returns:
+      Total cost in USD
+  """
+  # Pricing per 1M tokens as of Dec 2024
+  pricing = {
+    "gemini-2.5-flash-preview-tts": {
+      "input_per_1m": 0.50,
+      "output_per_1m": 10.00,
+    },
+    "gemini-2.5-pro-preview-tts": {
+      "input_per_1m": 1.00,
+      "output_per_1m": 20.00,
+    },
+  }
+
+  # Normalize model name to handle variations
+  model_key = model_name.lower()
+  if model_key not in pricing:
+    logger.warning(f"Unknown model for pricing: {model_name}, using Pro pricing as fallback")
+    model_key = "gemini-2.5-pro-preview-tts"
+
+  rates = pricing[model_key]
+
+  # Calculate cost (tokens / 1M * price_per_1M)
+  input_cost = (input_tokens / 1_000_000) * rates["input_per_1m"]
+  output_cost = (output_tokens / 1_000_000) * rates["output_per_1m"]
+  total_cost = input_cost + output_cost
+
+  logger.debug(
+    "TTS cost calculation",
+    model=model_name,
+    input_tokens=input_tokens,
+    output_tokens=output_tokens,
+    input_cost_usd=round(input_cost, 6),
+    output_cost_usd=round(output_cost, 6),
+    total_cost_usd=round(total_cost, 6),
+  )
+
+  return total_cost
+
+
+def calculate_overall_statistics(output_path: Path) -> dict[str, float]:
+  """Calculate overall statistics for all generated WAV files in a directory.
+
+  Args:
+      output_path: Directory containing numbered WAV files
+
+  Returns:
+      Dictionary with statistics: total_files, total_duration_minutes
+  """
+  wav_files = sorted(output_path.glob("*.wav"), key=lambda f: int(f.stem))
+
+  if not wav_files:
+    logger.warning(f"No WAV files found in {output_path}")
+    return {"total_files": 0, "total_duration_minutes": 0.0}
+
+  total_duration_ms = 0
+
+  for wav_file in wav_files:
+    try:
+      audio = AudioSegment.from_wav(str(wav_file))
+      total_duration_ms += len(audio)
+    except Exception as e:
+      logger.warning(f"Could not process {wav_file}: {e}")
+      continue
+
+  total_duration_minutes = total_duration_ms / 1000.0 / 60.0
+
+  return {
+    "total_files": len(wav_files),
+    "total_duration_minutes": round(total_duration_minutes, 2),
+  }
 
 
 class TTSProcessor:
@@ -44,7 +162,7 @@ class TTSProcessor:
     part: int,
     output_path: Path,
     rate_limiter: Limiter,
-  ) -> None:
+  ) -> float:
     """Process a single script line into audio."""
     speech_config = self.speech_config_builder.build_config({line.character_slug})
 
@@ -65,6 +183,14 @@ class TTSProcessor:
 
     rich.print(response.usage_metadata)
 
+    # Calculate cost from usage metadata
+    usage = response.usage_metadata
+    cost = calculate_tts_cost(
+      self.config.model_name,
+      usage.prompt_token_count,
+      usage.candidates_token_count,
+    )
+
     # Extract audio data
     candidates = ensure(response.candidates)
     content = ensure(candidates[0].content)
@@ -76,13 +202,21 @@ class TTSProcessor:
     output_file = output_path / f"{part}.wav"
     self.file_manager.create_wave_file(output_file, audio_data)
 
+    # Calculate and log words per minute and cost
+    wpm = calculate_words_per_minute(line.text, output_file)
+    logger.info(
+      f"Generated audio for part {part}: {wpm:.1f} WPM, ${cost:.4f} ({line.character_slug})"
+    )
+
+    return cost
+
   async def process_speaker_segment(
     self,
     segment: SpeakerSegment,
     part: int,
     output_path: Path,
     rate_limiter: Limiter,
-  ) -> None:
+  ) -> float:
     """Process a speaker segment into audio using multi-speaker TTS."""
     speech_config = self.speech_config_builder.build_config(segment.speakers)
 
@@ -106,6 +240,14 @@ class TTSProcessor:
 
     rich.print(response.usage_metadata)
 
+    # Calculate cost from usage metadata
+    usage = response.usage_metadata
+    cost = calculate_tts_cost(
+      self.config.model_name,
+      usage.prompt_token_count,
+      usage.candidates_token_count,
+    )
+
     # Extract audio data
     candidates = ensure(response.candidates)
     content = ensure(candidates[0].content)
@@ -117,11 +259,20 @@ class TTSProcessor:
     output_file = output_path / f"{part}.wav"
     self.file_manager.create_wave_file(output_file, audio_data)
 
+    # Calculate and log words per minute and cost for the segment
+    # Combine text from all lines in the segment
+    combined_text = " ".join(line.text for line in segment.lines)
+    wpm = calculate_words_per_minute(combined_text, output_file)
+    logger.info(f"Generated audio for segment {part}: {wpm:.1f} WPM, ${cost:.4f} ({speakers_str})")
+
+    return cost
+
 
 class TTSOrchestrator:
   def __init__(self, config: TTSConfig | None = None):
     self.config = config or TTSConfig()
     self.processor = TTSProcessor(self.config)
+    self.total_cost = 0.0
 
   async def generate_individual_tts_files(
     self, script: BriefingScript | ConsolidatedBriefingScript, output_path: Path
@@ -136,7 +287,14 @@ class TTSOrchestrator:
       tasks = self._create_tts_tasks(script, output_path)
       logger.info(f"Starting TTS generation for {len(tasks)} script lines")
 
-    await asyncio.gather(*tasks)
+    costs = await asyncio.gather(*tasks)
+    self.total_cost = sum(costs)
+
+    # Log overall statistics with cost
+    stats = calculate_overall_statistics(output_path)
+    total_files = stats["total_files"]
+    total_duration = stats["total_duration_minutes"]
+    logger.info(f"TTS complete: {total_files} files, {total_duration} min, ${self.total_cost:.4f}")
 
   async def generate_voiceover(
     self,

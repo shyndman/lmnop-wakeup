@@ -8,11 +8,9 @@ from pydantic import BaseModel, Field, RootModel, field_validator
 from pydantic.dataclasses import dataclass
 from pydantic_ai import ModelRetry
 
-from lmnop_wakeup.tools.run_python import run_code
-
-from ..events.model import CalendarEvent
+# from lmnop_wakeup.tools.run_python import run_code
+from ..events.model import CalendarEvent, Schedule
 from ..events.prioritizer_agent import PrioritizedEvents
-from ..events.scheduler_agent import Schedule
 from ..llm import (
   AgentContext,
   LangfuseAgentInput,
@@ -301,6 +299,16 @@ class ContentOptimizerOutput(BaseModel):
       return timedelta(hours=hours, minutes=minutes, seconds=seconds)
     return v
 
+  def filter_zero_priority_skipped(self) -> "ContentOptimizerOutput":
+    """Return a deep copy with skip_for_time events that have rescue_priority=0 filtered out.
+
+    Returns:
+      ContentOptimizerOutput: A new instance with filtered skip_for_time list.
+    """
+    filtered_skip_for_time = [event for event in self.skip_for_time if event.rescue_priority > 0]
+
+    return self.model_copy(update={"skip_for_time": filtered_skip_for_time}, deep=True)
+
 
 type ContentOptimizationReport = ContentOptimizerOutput
 
@@ -313,7 +321,7 @@ def get_content_optimizer(config: RunnableConfig) -> ContentOptimizerAgent:
 
   agent = LmnopAgent[ContentOptimizerInput, ContentOptimizerOutput].create(
     "content_optimizer",
-    model_name=ModelName.GEMINI_25_FLASH,
+    model_name=ModelName.GEMINI_25_PRO,
     input_type=ContentOptimizerInput,
     output_type=ContentOptimizerOutput,
     callback=extract_pydantic_ai_callback(config),
@@ -335,33 +343,33 @@ def get_content_optimizer(config: RunnableConfig) -> ContentOptimizerAgent:
 
     return output
 
-  @agent.tool_plain(retries=10)
-  def execute_python(code: str, libraries: list[str]) -> str:
-    """
-     Execute Python code to assist you in your estimation of content length.
+  # @agent.tool_plain(retries=10)
+  # def execute_python(code: str, libraries: list[str]) -> str:
+  #   """
+  #    Execute Python code to assist you in your estimation of content length.
 
-     Pre-installed libraries:
-     - numpy: For numerical computations, array operations, and mathematical functions
-     - plotly: For creating interactive charts and visualizations of weather/air quality data
+  #    Pre-installed libraries:
+  #    - numpy: For numerical computations, array operations, and mathematical functions
+  #    - plotly: For creating interactive charts and visualizations of weather/air quality data
 
-     Args:
-         code (str): Python code to execute. Should be well-structured and include proper
-           error handling. The code can define functions, perform calculations,
-           create visualizations, or analyze datasets related to sunset prediction.
-         libraries (list[str]): Additional Python libraries to install before code execution.
-           Common useful libraries for this context might include:
-           - 'pandas' for data manipulation and analysis
-           - 'scipy' for scientific computing and statistics
-           - 'math' for mathematical operations (though this is built-in)
+  #    Args:
+  #        code (str): Python code to execute. Should be well-structured and include proper
+  #          error handling. The code can define functions, perform calculations,
+  #          create visualizations, or analyze datasets related to sunset prediction.
+  #        libraries (list[str]): Additional Python libraries to install before code execution.
+  #          Common useful libraries for this context might include:
+  #          - 'pandas' for data manipulation and analysis
+  #          - 'scipy' for scientific computing and statistics
+  #          - 'math' for mathematical operations (though this is built-in)
 
-     Returns:
-       str: The output from the executed code, including any print statements, calculation
-             results, error messages, or data summaries. If the code generates plots with
-             plotly, the visualization data will be included in the response.
+  #    Returns:
+  #      str: The output from the executed code, including any print statements, calculation
+  #            results, error messages, or data summaries. If the code generates plots with
+  #            plotly, the visualization data will be included in the response.
 
-    Note: The execution environment is sandboxed and secure. Code should focus on data
-           analysis and calculation rather than system operations or file manipulation.
-    """
-    return run_code("python", code, libraries=["numpy", "plotly"] + libraries, verbose=True)
+  #   Note: The execution environment is sandboxed and secure. Code should focus on data
+  #          analysis and calculation rather than system operations or file manipulation.
+  #   """
+  #   return run_code("python", code, libraries=["numpy", "plotly"] + libraries, verbose=True)
 
   return agent

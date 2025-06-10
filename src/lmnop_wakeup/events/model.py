@@ -7,8 +7,6 @@ from typing import Any, NewType, TypedDict
 from pydantic import AwareDatetime, BaseModel, EmailStr, Field
 from pydantic_extra_types.timezone_name import TimeZoneName
 
-from lmnop_wakeup.core.relative_dates import format_relative_date
-
 from ..core.date import TimeInfo, end_of_local_day, format_time_info, start_of_local_day
 from ..location.model import CoordinateLocation
 from ..location.routes_api import CyclingRouteDetails, RouteDetails
@@ -74,6 +72,10 @@ class CalendarEvent(BaseModel):
   end: TimeInfo | None = None
   """The end time information of the event. None for all-day events."""
 
+  relative_date_terms: list[str] = []
+  relative_date_terms: list[str] = []
+  """A set of terms that can be used to refer to this event's time and date"""
+
   extended_properties: ExtendedPropertiesDict | None = None
 
   def is_all_day(self) -> bool:
@@ -102,6 +104,10 @@ class CalendarEvent(BaseModel):
       raise ValueError("End time is not set for this event, and it is not an all-day event.")
     return self.end.to_aware_datetime()
 
+  # format_relative_date(
+  #       briefing_date.date(), self.start.date or self.start.to_aware_datetime()
+  #     )
+
   def overlaps_with_range(self, range_start: AwareDatetime, range_end: AwareDatetime) -> bool:
     """
     Checks if the event's time range overlaps with a given range.
@@ -128,11 +134,8 @@ class CalendarEvent(BaseModel):
       event_time += " to "
       event_time += textwrap.dedent(format_time_info(self.end, "%Y-%m-%d", "%H:%M:%S"))
 
-    relative_detes = "**Casual sounding ways to refer to the date:**\n" + "\n".join(
-      f"        - {desc}"
-      for desc in format_relative_date(
-        briefing_date.date(), self.start.date or self.start.to_aware_datetime()
-      )
+    relative_date_list = "**Casual sounding ways to refer to the date:**\n" + "\n".join(
+      f"        - {desc}" for desc in self.relative_date_terms
     )
     # event_time += f"\nDays until event: {time_until.days}"
 
@@ -142,7 +145,7 @@ class CalendarEvent(BaseModel):
         id: {self.id}
 
         {event_time}
-        {relative_detes}
+        {relative_date_list}
 
       """).lstrip()
     )
