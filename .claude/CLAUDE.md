@@ -137,3 +137,28 @@ Named locations defined in `src/lmnop_wakeup/location/model.py`:
 - Generated briefings saved to `BriefingDirectory` with JSON + audio outputs
 
 When making changes, follow the domain boundaries and use existing agent patterns. All AI interactions should use the `LmnopAgent` wrapper for consistency.
+
+## Code Style Guidelines
+
+- **No explanatory comments**: Avoid comments that explain what was done during refactoring (e.g., "TTS is now handled automatically")
+- **Comments explain WHY, not WHAT**: Only add comments that provide context future maintainers need
+- **Self-documenting code**: Prefer clear naming and structure over explanatory comments
+
+## Recent Architecture Changes (June 2025)
+
+### TTS Integration into Workflow Graph
+- TTS generation moved from separate CLI step into main workflow graph
+- Runs automatically after `consolidate_dialogue` node  
+- No manual confirmation needed in CLI
+- Audio files tracked in `State.tts: TTSState`
+- Checkpointing works for TTS operations
+- TTS subgraph uses minimal `TTSWorkflowState` for modularity
+
+### Thread Management & Checkpointing
+- Thread IDs now support continuation of incomplete workflows
+- CLI `--thread-id` parameter for explicit thread control
+- Auto-discovery of incomplete threads for seamless resume
+- PostgreSQL-backed checkpoint persistence
+
+## Interaction Guidelines
+- Always number your questions for easier answering
