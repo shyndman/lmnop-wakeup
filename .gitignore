@@ -2,7 +2,10 @@
 schedule.json
 script.json
 out
+
+# Claude related
 CLAUDE.md
+.claude/settings.local.json
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
