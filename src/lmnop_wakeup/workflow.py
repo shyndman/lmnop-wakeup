@@ -1,5 +1,4 @@
 import asyncio
-import random
 from datetime import date, datetime, timedelta
 from typing import Any, Literal, cast
 
@@ -94,6 +93,7 @@ def get_user_decision(prompt_text: str) -> Literal["continue", "abort", "rerun"]
     choice = Prompt.ask(
       "Choose action [(c)ontinue/(a)bort/(r)erun]",
       choices=["continue", "c", "abort", "a", "rerun", "r"],
+      show_choices=False,
       default="continue",
     )
     # Normalize single letter choices
@@ -605,7 +605,7 @@ def config_for_date(briefing_date: date, thread_id: str | None = None) -> Runnab
   """Create a configuration for the workflow based on the briefing date."""
 
   if thread_id is None:
-    thread_id = f"{briefing_date.isoformat()}+{random.randbytes(4).hex()}"
+    thread_id = f"{briefing_date.isoformat()}"
 
   return {
     "configurable": {

@@ -8,6 +8,7 @@ from pydantic import AwareDatetime, BaseModel, computed_field
 from lmnop_wakeup.audio.workflow import TTSState
 
 from .brief.content_optimizer import ContentOptimizationReport
+from .brief.model import ConsolidatedBriefingScript
 from .brief.script_writer_agent import BriefingScript
 from .events.model import CalendarEvent, CalendarsOfInterest, Schedule
 from .events.prioritizer_agent import PrioritizedEvents
@@ -72,8 +73,8 @@ class State(BaseModel):
   briefing_script: BriefingScript | None = None
   """The script for the briefing, including all sections and their content."""
 
-  consolidated_briefing_script: BriefingScript | None = None
-  """The final script for the briefing, with its dialog consolidated."""
+  consolidated_briefing_script: ConsolidatedBriefingScript | None = None
+  """The final script for the briefing, with lines grouped into speaker segments for TTS."""
 
   tts: TTSState | None = None
   """TTS generation state including audio files and master audio."""
