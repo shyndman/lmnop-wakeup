@@ -292,6 +292,8 @@ class ContentOptimizerOutput(BaseModel):
   @field_validator("estimated_total_duration", mode="before")
   @staticmethod
   def parse_timedelta(v):
+    if not isinstance(v, str):
+      return v
     if m := _timedelta_alt_pattern.match(v):
       hours = int(m.group(2) or 0)
       minutes = int(m.group(3))

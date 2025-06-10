@@ -1,12 +1,11 @@
 import itertools
 import operator
 from datetime import timedelta
-from pathlib import Path
 from typing import Annotated
 
 from pydantic import AwareDatetime, BaseModel, computed_field
 
-from lmnop_wakeup.audio.workflow import TTSWorkflowState
+from lmnop_wakeup.audio.workflow import TTSState
 
 from .brief.content_optimizer import ContentOptimizationReport
 from .brief.script_writer_agent import BriefingScript
@@ -76,7 +75,7 @@ class State(BaseModel):
   consolidated_briefing_script: BriefingScript | None = None
   """The final script for the briefing, with its dialog consolidated."""
 
-  tts: TTSWorkflowState | None = None
+  tts: TTSState | None = None
   """TTS generation state including audio files and master audio."""
 
   @computed_field
@@ -129,15 +128,3 @@ class LocationWeatherState(BaseModel):
   day_start_ts: AwareDatetime
   weather_key: WeatherKey
   reports: list[WeatherReport]
-
-
-class TTSState(BaseModel):
-  """A model representing the state of TTS generation.
-  Tracks individual audio files and the final master audio file.
-  """
-
-  generated_audio_files: list[Path] = []
-  """List of individual audio files generated for each script line."""
-
-  master_audio_path: Path | None = None
-  """Path to the final mastered audio file."""

@@ -8,11 +8,21 @@ from clypi import Command, arg
 
 from .arg import parse_date_arg, parse_location
 from .core.cache import get_cache
+from .core.terminal import is_interactive_terminal
 from .env import assert_env
 from .location.model import CoordinateLocation, LocationName, location_named
 from .paths import BriefingDirectory
 
 logger = structlog.get_logger()
+
+
+def should_prompt_user() -> bool:
+  """Check if we should prompt the user for interactive input.
+
+  Returns True if we're in an interactive terminal, False otherwise.
+  This is used as the default for human-in-the-loop workflow steps.
+  """
+  return is_interactive_terminal()
 
 
 class Script(Command):
@@ -35,16 +45,26 @@ class Script(Command):
 
   @override
   async def run(self):
-    from .workflow import run_workflow
+    from .workflow import WorkflowAbortedByUser, run_workflow
 
     async with get_cache():
       assert_env()
 
-      briefing_script, _state = await run_workflow(
-        briefing_date=self.briefing_date,
-        briefing_location=self.current_location,
-        thread_id=self.thread_id,
-      )
+      # Determine if we should use interactive mode
+      interactive = should_prompt_user() and not self.yes
+
+      try:
+        briefing_script, _state = await run_workflow(
+          briefing_date=self.briefing_date,
+          briefing_location=self.current_location,
+          thread_id=self.thread_id,
+          interactive=interactive,
+        )
+      except WorkflowAbortedByUser as e:
+        logger.info(f"Workflow aborted: {e.message}")
+        print(f"\n[yellow]{e.message}[/yellow]")
+        print("You can resume this workflow later using the same thread ID.")
+        return
 
       if briefing_script is None:
         return

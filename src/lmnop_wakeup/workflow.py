@@ -14,6 +14,7 @@ from langgraph.graph import StateGraph
 from langgraph.store.postgres import AsyncPostgresStore
 from langgraph.types import CachePolicy, RetryPolicy, Send
 from pydantic_extra_types.coordinate import Coordinate
+from rich.prompt import Prompt
 
 from . import APP_DIRS
 from .audio.workflow import TTSWorkflowState, tts_graph
@@ -75,6 +76,36 @@ logger = structlog.get_logger()
 
 FUTURE_EVENTS_TIMEDELTA = timedelta(days=12)
 FUTURE_WEATHER_TIMEDELTA = timedelta(days=3)
+
+
+class WorkflowAbortedByUser(Exception):
+  """Exception raised when user aborts workflow during interactive review."""
+
+  def __init__(self, message: str = "Workflow aborted by user"):
+    self.message = message
+    super().__init__(self.message)
+
+
+def get_user_decision(prompt_text: str) -> Literal["continue", "abort", "rerun"]:
+  """Get user decision for workflow continuation."""
+  rich.print(f"\n[bold blue]{prompt_text}[/bold blue]")
+
+  while True:
+    choice = Prompt.ask(
+      "Choose action [(c)ontinue/(a)bort/(r)erun]",
+      choices=["continue", "c", "abort", "a", "rerun", "r"],
+      default="continue",
+    )
+    # Normalize single letter choices
+    if choice == "c":
+      return "continue"
+    elif choice == "a":
+      return "abort"
+    elif choice == "r":
+      return "rerun"
+    elif choice in ["continue", "abort", "rerun"]:
+      return choice  # type: ignore
+    rich.print("[red]Invalid choice. Please select continue/c, abort/a, or rerun/r.[/red]")
 
 
 @trace()
@@ -327,6 +358,28 @@ async def prioritize_events(state: State, config: RunnableConfig):
 
 
 @trace()
+async def review_prioritized_events(state: State):
+  """Interrupt point after event prioritization for user review."""
+  if state.prioritized_events is None:
+    return {}
+
+  rich.print("\n[bold green]📅 Prioritized Events Review[/bold green]")
+  rich.print(state.prioritized_events.model_dump_json(indent=2))
+
+  decision = get_user_decision("Review the prioritized events above.")
+
+  if decision == "abort":
+    rich.print("[yellow]Workflow aborted by user.[/yellow]")
+    raise WorkflowAbortedByUser("User aborted workflow after reviewing prioritized events")
+  elif decision == "rerun":
+    rich.print("[yellow]Regenerating event prioritization...[/yellow]")
+    return {"prioritized_events": None}
+
+  # Continue - no changes needed
+  return {}
+
+
+@trace()
 async def write_content_optimization(state: State, config: RunnableConfig):
   sectioner = get_content_optimizer(config)
   input = ContentOptimizerInput(
@@ -338,6 +391,27 @@ async def write_content_optimization(state: State, config: RunnableConfig):
   logger.warning(input.model_dump_json(indent=2))
   out = await sectioner.run(input=input)
   return {"content_optimization_report": out}
+
+
+@trace()
+async def review_content_optimization(state: State):
+  """Interrupt point after content optimization for user review."""
+  if state.content_optimization_report is None:
+    return {}
+
+  rich.print("\n[bold green]📊 Content Optimization Review[/bold green]")
+  rich.print(state.content_optimization_report.model_dump_json(indent=2))
+
+  decision = get_user_decision("Review the content optimization suggestions above.")
+
+  if decision == "abort":
+    rich.print("[yellow]Workflow aborted by user.[/yellow]")
+    raise WorkflowAbortedByUser("User aborted workflow after reviewing content optimization")
+  elif decision == "rerun":
+    rich.print("[yellow]Regenerating content optimization...[/yellow]")
+    return {"content_optimization_report": None}
+
+  return {}
 
 
 @trace()
@@ -360,10 +434,56 @@ async def write_briefing_script(state: State, config: RunnableConfig):
 
 
 @trace()
+async def review_briefing_script(state: State):
+  """Interrupt point after script generation for user review."""
+  if state.briefing_script is None:
+    return {}
+
+  rich.print("\n[bold green]📝 Briefing Script Review[/bold green]")
+  # Show script in readable format
+  for line in state.briefing_script.lines:
+    rich.print(f"[bold]{line.character_slug}:[/bold] {line.text}")
+
+  decision = get_user_decision("Review the generated briefing script above.")
+
+  if decision == "abort":
+    rich.print("[yellow]Workflow aborted by user.[/yellow]")
+    raise WorkflowAbortedByUser("User aborted workflow after reviewing briefing script")
+  elif decision == "rerun":
+    rich.print("[yellow]Regenerating briefing script...[/yellow]")
+    return {"briefing_script": None}
+
+  return {}
+
+
+@trace()
 async def consolidate_dialogue(state: State, config: RunnableConfig):
   if state.briefing_script is not None:
     return {"consolidated_briefing_script": state.briefing_script.consolidate_dialogue()}
   return None
+
+
+@trace()
+async def review_final_script(state: State):
+  """Interrupt point after script consolidation for final review."""
+  if state.consolidated_briefing_script is None:
+    return {}
+
+  rich.print("\n[bold green]🎬 Final Script Review[/bold green]")
+  # Show consolidated script
+  for line in state.consolidated_briefing_script.lines:
+    rich.print(f"[bold]{line.character_slug}:[/bold] {line.text}")
+
+  decision = get_user_decision("Review the final consolidated script above before TTS generation.")
+
+  if decision == "abort":
+    rich.print("[yellow]Workflow aborted by user.[/yellow]")
+    raise WorkflowAbortedByUser("User aborted workflow after reviewing final script")
+  elif decision == "rerun":
+    rich.print("[yellow]Regenerating script consolidation...[/yellow]")
+    return {"consolidated_briefing_script": None}
+
+  return {}
 
 
 @trace()
@@ -421,6 +541,33 @@ location_graph_builder.set_finish_point("request_weather")
 location_graph = location_graph_builder.compile()
 
 
+# Routing functions for conditional edges in interactive mode
+
+
+def route_after_prioritized_events_review(state: State) -> str:
+  """Route after prioritized events review."""
+  return "prioritize_events" if state.prioritized_events is None else "write_content_optimization"
+
+
+def route_after_content_optimization_review(state: State) -> str:
+  """Route after content optimization review."""
+  return (
+    "write_content_optimization"
+    if state.content_optimization_report is None
+    else "write_briefing_script"
+  )
+
+
+def route_after_briefing_script_review(state: State) -> str:
+  """Route after briefing script review."""
+  return "write_briefing_script" if state.briefing_script is None else "consolidate_dialogue"
+
+
+def route_after_final_script_review(state: State) -> str:
+  """Route after final script review."""
+  return "consolidate_dialogue" if state.consolidated_briefing_script is None else "generate_tts"
+
+
 async def find_incomplete_thread_for_date(saver, briefing_date: date) -> str | None:
   """Find the most recent incomplete thread for a given date."""
   try:
@@ -467,10 +614,10 @@ def config_for_date(briefing_date: date, thread_id: str | None = None) -> Runnab
   }
 
 
-def build_graph():
+def build_graph(interactive: bool = False):
+  """Build the workflow graph with optional human-in-the-loop review steps."""
   two_hour_cache = CachePolicy(ttl=120 * 60)
 
-  """Build the workflow graph with optional review step."""
   graph_builder = StateGraph(State)
   graph_builder.add_node(
     populate_raw_inputs, cache_policy=two_hour_cache, destinations=("process_location",)
@@ -486,6 +633,13 @@ def build_graph():
   graph_builder.add_node(consolidate_dialogue)
   graph_builder.add_node(generate_tts)
   graph_builder.add_node(schedule_automation_calendar_events, retry=standard_retry)
+
+  # Add review nodes if in interactive mode
+  if interactive:
+    graph_builder.add_node(review_prioritized_events)
+    graph_builder.add_node(review_content_optimization)
+    graph_builder.add_node(review_briefing_script)
+    graph_builder.add_node(review_final_script)
 
   graph_builder.set_entry_point("populate_raw_inputs")
   graph_builder.add_conditional_edges(
@@ -509,10 +663,53 @@ def build_graph():
   graph_builder.add_edge("calculate_schedule", "prioritize_events")
   graph_builder.add_edge("analyze_weather", "prioritize_events")
   graph_builder.add_edge("predict_sunset_beauty", "prioritize_events")
-  graph_builder.add_edge("prioritize_events", "write_content_optimization")
-  graph_builder.add_edge("write_content_optimization", "write_briefing_script")
-  graph_builder.add_edge("write_briefing_script", "consolidate_dialogue")
-  graph_builder.add_edge("consolidate_dialogue", "generate_tts")
+
+  # Wire up the content generation flow based on interactive mode
+  if interactive:
+    # Interactive mode: generation → review → conditional routing
+    graph_builder.add_edge("prioritize_events", "review_prioritized_events")
+    graph_builder.add_conditional_edges(
+      "review_prioritized_events",
+      route_after_prioritized_events_review,
+      {
+        "prioritize_events": "prioritize_events",
+        "write_content_optimization": "write_content_optimization",
+      },
+    )
+
+    graph_builder.add_edge("write_content_optimization", "review_content_optimization")
+    graph_builder.add_conditional_edges(
+      "review_content_optimization",
+      route_after_content_optimization_review,
+      {
+        "write_content_optimization": "write_content_optimization",
+        "write_briefing_script": "write_briefing_script",
+      },
+    )
+
+    graph_builder.add_edge("write_briefing_script", "review_briefing_script")
+    graph_builder.add_conditional_edges(
+      "review_briefing_script",
+      route_after_briefing_script_review,
+      {
+        "write_briefing_script": "write_briefing_script",
+        "consolidate_dialogue": "consolidate_dialogue",
+      },
+    )
+
+    graph_builder.add_edge("consolidate_dialogue", "review_final_script")
+    graph_builder.add_conditional_edges(
+      "review_final_script",
+      route_after_final_script_review,
+      {"consolidate_dialogue": "consolidate_dialogue", "generate_tts": "generate_tts"},
+    )
+  else:
+    # Non-interactive mode: direct linear flow
+    graph_builder.add_edge("prioritize_events", "write_content_optimization")
+    graph_builder.add_edge("write_content_optimization", "write_briefing_script")
+    graph_builder.add_edge("write_briefing_script", "consolidate_dialogue")
+    graph_builder.add_edge("consolidate_dialogue", "generate_tts")
+
   graph_builder.add_edge("generate_tts", "schedule_automation_calendar_events")
   graph_builder.set_finish_point("schedule_automation_calendar_events")
 
@@ -523,11 +720,15 @@ async def run_workflow(
   briefing_date: date,
   briefing_location: CoordinateLocation,
   thread_id: str | None = None,
+  interactive: bool = False,
 ) -> tuple[BriefingScript | None, State]:
   """Run the morning briefing workflow.
 
   Args:
       briefing_date: The date for which to run the briefing.
+      briefing_location: The location for the briefing.
+      thread_id: Optional thread ID to continue existing workflow.
+      interactive: Whether to enable human-in-the-loop interactions.
   """
 
   pg_connection_string = get_postgres_connection_string()
@@ -541,7 +742,7 @@ async def run_workflow(
     await asyncio.gather(store.setup(), saver.setup())
 
     # Build graph with conditional review step
-    graph_builder = build_graph()
+    graph_builder = build_graph(interactive=interactive)
     graph = graph_builder.compile(
       cache=SqliteCache(path=str(APP_DIRS.user_cache_path / "cache.db")),
       checkpointer=saver,

@@ -1,15 +1,28 @@
+from pathlib import Path
+
 import structlog
 from langgraph.graph import StateGraph
 from pydantic import AwareDatetime, BaseModel
 
-from ..brief.script_writer_agent import BriefingScript
+from ..brief.model import BriefingScript
 from ..core.tracing import trace
 from ..paths import BriefingDirectory
-from ..state import TTSState
 from ..tts import TTSOrchestrator
 from .master import master_briefing_audio
 
 logger = structlog.get_logger(__name__)
+
+
+class TTSState(BaseModel):
+  """A model representing the state of TTS generation.
+  Tracks individual audio files and the final master audio file.
+  """
+
+  generated_audio_files: list[Path] = []
+  """List of individual audio files generated for each script line."""
+
+  master_audio_path: Path | None = None
+  """Path to the final mastered audio file."""
 
 
 class TTSWorkflowState(BaseModel):
