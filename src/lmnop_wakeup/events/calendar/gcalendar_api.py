@@ -7,6 +7,8 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 
+from lmnop_wakeup.core.relative_dates import format_relative_date
+
 from ...core.tracing import trace_sync
 from ..model import Calendar, CalendarEvent
 
@@ -44,7 +46,9 @@ def get_services():
 
 
 @trace_sync(name="api: gcal.compute_route_durations")
-def calendar_events_in_range(start_ts: datetime, end_ts: datetime) -> list[Calendar]:
+def calendar_events_in_range(
+  briefing_date: datetime, start_ts: datetime, end_ts: datetime
+) -> list[Calendar]:
   calendars_service, events_service = get_services()
   cal_ents = [calendars_service.get(calendarId=id).execute() for id in CALENDAR_IDS]
   calendars = [
@@ -71,9 +75,13 @@ def calendar_events_in_range(start_ts: datetime, end_ts: datetime) -> list[Calen
       continue
 
     cal_events = [
-      CalendarEvent.model_validate({**raw_event, "event_id": f"g{cal_idx}.{i}"})
+      CalendarEvent.model_validate({**raw_event, "id": f"g{cal_idx}.{i}"})
       for i, raw_event in enumerate(events)
     ]
+    for cal_event in cal_events:
+      cal_event.when_colloquial = format_relative_date(
+        briefing_date.date(), cal_event.start_datetime_aware
+      )
     calendar.events = cal_events
 
   return calendars

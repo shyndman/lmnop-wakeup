@@ -72,6 +72,12 @@ class PrioritizedEvent:
     "UPCOMING_WEEKEND_PLAN, UPCOMING_WEEKNIGHT_PLAN, INFORMATIONAL)",
   )
 
+  when_colloquial: list[str] = Field(
+    default=[],
+    description="Natural-sounding terms that can be used to refer to this event's timing - "
+    "should be copied from the associated CalendarEvent's when_colloquial field",
+  )
+
 
 class EventPrioritizerOutput(BaseModel):
   """Output for the event prioritizer agent."""
@@ -115,6 +121,17 @@ class EventPrioritizerOutput(BaseModel):
   - Unusual or irregular events
   - Late-night activities or events ending unusually late
   """
+
+  @property
+  def event_ids(self) -> set[str]:
+    """Returns the set of all event IDs contained in this prioritized events output."""
+    all_events = []
+    all_events.extend(self.must_mention)
+    all_events.extend(self.could_mention)
+    all_events.extend(self.deprioritized)
+    if self.last_nights_notable:
+      all_events.extend(self.last_nights_notable)
+    return {event.id for event in all_events}
 
 
 type PrioritizedEvents = EventPrioritizerOutput

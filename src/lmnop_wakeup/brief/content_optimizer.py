@@ -158,6 +158,11 @@ class EventBriefEstimation:
     "Accounts for conversational back-and-forth, transitions, and "
     "character interactions.",
   )
+  when_colloquial: list[str] = Field(
+    default=[],
+    description="Natural-sounding terms that can be used to refer to this event's timing - "
+    "should be copied from the associated CalendarEvent's when_colloquial field",
+  )
 
 
 @dataclass
@@ -183,6 +188,9 @@ class SkippedEvent:
     le=10,
     description="Priority score (0-10) for including this event if time becomes "
     "available. Higher scores are rescued first.",
+  )
+  when_colloquial: list[str] = Field(
+    default=[], description="This should be copied from the associated event"
   )
 
 
@@ -298,6 +306,15 @@ class ContentOptimizerOutput(BaseModel):
       seconds = int(m.group(4))
       return timedelta(hours=hours, minutes=minutes, seconds=seconds)
     return v
+
+  @property
+  def event_ids(self) -> set[str]:
+    """Returns the set of all event IDs contained in this content optimization report."""
+    all_event_ids = set()
+    all_event_ids.update(event.id for event in self.must_include)
+    all_event_ids.update(event.id for event in self.recommended_additions)
+    all_event_ids.update(event.id for event in self.skip_for_time)
+    return all_event_ids
 
   def filter_zero_priority_skipped(self) -> "ContentOptimizerOutput":
     """Return a deep copy with skip_for_time events that have rescue_priority=0 filtered out.

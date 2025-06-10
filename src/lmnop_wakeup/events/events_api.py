@@ -108,12 +108,12 @@ async def get_filtered_calendars_with_notes(
   CALENDAR_INSTRUCTIONS, and assigns notes for processing.
   """
   logger.info(f"Fetching Google Calendars between {start_ts} and {end_ts}")
-  google_calendars = gcalendar_api.calendar_events_in_range(start_ts, end_ts)
+  google_calendars = gcalendar_api.calendar_events_in_range(briefing_date, start_ts, end_ts)
   logger.info("Fetched {len(google_calendars)} Google Calendars")
 
   logger.info("Fetching Home Assistant Calendars between {start_ts} and {end_ts}")
   hass_calendars = await hass_calendar_api.calendar_events_in_range(
-    start_ts, end_ts, hass_api_token or get_hass_api_key()
+    briefing_date, start_ts, end_ts, hass_api_token or get_hass_api_key()
   )
   logger.info(f"Fetched {len(hass_calendars)} Home Assistant Calendars")
 

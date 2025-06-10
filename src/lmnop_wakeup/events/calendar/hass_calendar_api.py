@@ -4,6 +4,8 @@ from typing import NewType
 import httpx
 import structlog
 
+from lmnop_wakeup.core.relative_dates import format_relative_date
+
 from ...core.tracing import trace
 from ...env import ApiKey
 from ..model import Calendar, CalendarEvent
@@ -30,6 +32,7 @@ class RestEndpoints:
 
 @trace(name="api: hass.compute_route_durations")
 async def calendar_events_in_range(
+  briefing_date: Datetime,
   start_ts: Datetime,
   end_ts: Datetime,
   hass_api_token: ApiKey,
@@ -58,6 +61,9 @@ async def calendar_events_in_range(
       for i, raw_event in enumerate(events_res.json()):
         event_id = f"h{cal_idx}.{i}"
         cal_event = CalendarEvent.model_validate({**raw_event, "id": event_id})
+        cal_event.when_colloquial = format_relative_date(
+          briefing_date.date(), cal_event.start_datetime_aware
+        )
         cal_events.append(cal_event)
       cal.events = cal_events
 

@@ -72,9 +72,12 @@ class CalendarEvent(BaseModel):
   end: TimeInfo | None = None
   """The end time information of the event. None for all-day events."""
 
-  relative_date_terms: list[str] = []
-  relative_date_terms: list[str] = []
-  """A set of terms that can be used to refer to this event's time and date"""
+  when_colloquial: list[str] = Field(
+    default=[],
+    description="Natural-sounding terms that can be used to refer to this event's timing, "
+    "such as 'tomorrow morning', 'this afternoon', 'next Tuesday' - helps script writers sound "
+    "conversational when mentioning the event",
+  )
 
   extended_properties: ExtendedPropertiesDict | None = None
 
@@ -135,7 +138,7 @@ class CalendarEvent(BaseModel):
       event_time += textwrap.dedent(format_time_info(self.end, "%Y-%m-%d", "%H:%M:%S"))
 
     relative_date_list = "**Casual sounding ways to refer to the date:**\n" + "\n".join(
-      f"        - {desc}" for desc in self.relative_date_terms
+      f"        - {desc}" for desc in self.when_colloquial
     )
     # event_time += f"\nDays until event: {time_until.days}"
 
@@ -257,6 +260,32 @@ class CalendarsOfInterest(BaseModel):
 
       filtered_events = calendar.filter_events_by_range(start_ts, end_ts)
 
+      if filtered_events:
+        filtered_calendar = calendar.model_copy(deep=True)
+        filtered_calendar.events = filtered_events
+        filtered_calendars[entity_id] = filtered_calendar
+
+    return CalendarsOfInterest(calendars_by_id=filtered_calendars)
+
+  def filter_by_event_ids(self, event_ids: set[str]) -> "CalendarsOfInterest":
+    """
+    Returns a copy of CalendarsOfInterest containing only the specified events
+    and their associated calendars.
+
+    Args:
+        event_ids: Set of event IDs to include in the filtered result
+
+    Returns:
+        A new CalendarsOfInterest with only the specified events and calendars
+        that contain those events
+    """
+    filtered_calendars = {}
+
+    for entity_id, calendar in self.calendars_by_id.items():
+      # Filter events to only include those in the event_ids set
+      filtered_events = [event for event in calendar.events if event.id in event_ids]
+
+      # Only include calendars that have at least one matching event
       if filtered_events:
         filtered_calendar = calendar.model_copy(deep=True)
         filtered_calendar.events = filtered_events

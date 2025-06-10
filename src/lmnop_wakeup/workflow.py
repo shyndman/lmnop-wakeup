@@ -432,6 +432,7 @@ async def write_briefing_script(state: State, config: RunnableConfig):
       sunset_prediction=assert_not_none(state.sunset_prediction),
       character_pool=CHARACTER_POOL,
       previous_scripts=[],
+      calendars_of_interest=assert_not_none(state.calendars),
     )
   )
   return {"briefing_script": script}
