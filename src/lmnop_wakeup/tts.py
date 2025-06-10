@@ -77,20 +77,24 @@ class TTSOrchestrator:
     self.config = config or TTSConfig()
     self.processor = TTSProcessor(self.config)
 
-  async def generate_voiceover(
-    self, script: BriefingScript, output_path: Path, print_script: bool = False
-  ) -> None:
-    """Generate voiceover for entire briefing script."""
+  async def generate_individual_tts_files(self, script: BriefingScript, output_path: Path) -> None:
+    """Generate individual TTS audio files for each script line."""
     logger.info(rich_sprint(script))
-
-    if print_script:
-      self._print_script_only(script)
-      return
 
     tasks = self._create_tts_tasks(script, output_path)
 
     logger.info(f"Starting TTS generation for {len(tasks)} script lines")
     await asyncio.gather(*tasks)
+
+  async def generate_voiceover(
+    self, script: BriefingScript, output_path: Path, print_script: bool = False
+  ) -> None:
+    """Generate voiceover for entire briefing script."""
+    if print_script:
+      self._print_script_only(script)
+      return
+
+    await self.generate_individual_tts_files(script, output_path)
 
     logger.info("TTS generation complete, mastering audio")
     master_briefing_audio(output_path)

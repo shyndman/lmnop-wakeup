@@ -16,6 +16,7 @@ from langgraph.types import CachePolicy, RetryPolicy, Send
 from pydantic_extra_types.coordinate import Coordinate
 
 from . import APP_DIRS
+from .audio.workflow import TTSWorkflowState, tts_graph
 from .brief.actors import CHARACTER_POOL
 from .brief.content_optimizer import (
   ContentOptimizerInput,
@@ -366,6 +367,27 @@ async def consolidate_dialogue(state: State, config: RunnableConfig):
 
 
 @trace()
+async def generate_tts(state: State):
+  """Generate TTS audio by invoking the TTS subgraph."""
+  logger.info("Invoking TTS subgraph")
+
+  if state.consolidated_briefing_script is None:
+    raise ValueError("No consolidated briefing script available for TTS generation")
+
+  # Create minimal TTS state
+  tts_state = TTSWorkflowState(
+    consolidated_briefing_script=state.consolidated_briefing_script,
+    day_start_ts=state.day_start_ts,
+  )
+
+  # Invoke TTS subgraph
+  result = TTSWorkflowState.model_validate(await tts_graph.ainvoke(tts_state))
+
+  # Return partial update for the main state
+  return {"tts": result.tts}
+
+
+@trace()
 async def schedule_automation_calendar_events(state: State, config: RunnableConfig):
   schedule = state.schedule
   if schedule is None:
@@ -462,6 +484,7 @@ def build_graph():
   graph_builder.add_node(write_content_optimization, retry=standard_retry)
   graph_builder.add_node(write_briefing_script, retry=standard_retry)
   graph_builder.add_node(consolidate_dialogue)
+  graph_builder.add_node(generate_tts)
   graph_builder.add_node(schedule_automation_calendar_events, retry=standard_retry)
 
   graph_builder.set_entry_point("populate_raw_inputs")
@@ -489,7 +512,8 @@ def build_graph():
   graph_builder.add_edge("prioritize_events", "write_content_optimization")
   graph_builder.add_edge("write_content_optimization", "write_briefing_script")
   graph_builder.add_edge("write_briefing_script", "consolidate_dialogue")
-  graph_builder.add_edge("consolidate_dialogue", "schedule_automation_calendar_events")
+  graph_builder.add_edge("consolidate_dialogue", "generate_tts")
+  graph_builder.add_edge("generate_tts", "schedule_automation_calendar_events")
   graph_builder.set_finish_point("schedule_automation_calendar_events")
 
   return graph_builder

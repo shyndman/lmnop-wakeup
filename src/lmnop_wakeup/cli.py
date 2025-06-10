@@ -5,7 +5,6 @@ from typing import override
 import clypi
 import structlog
 from clypi import Command, arg
-from rich.prompt import Confirm
 
 from .arg import parse_date_arg, parse_location
 from .core.cache import get_cache
@@ -25,8 +24,8 @@ class Script(Command):
     help="name or latlng of the user's location",
   )
   briefing_date: date = arg(inherited=True)
-  review_events: bool = arg(
-    default=False, short="r", help="enable interactive review of prioritized events"
+  yes: bool = arg(
+    default=False, short="y", help="skip all interactive prompts and auto-approve workflow steps"
   )
   thread_id: str | None = arg(
     default=None,
@@ -56,11 +55,6 @@ class Script(Command):
 
       print(clypi.boxed(sb.getvalue(), width=80, align="left"))
       print("")
-
-      if not Confirm.ask("Do you want to produce voiceovers?"):
-        return
-
-      await run_voiceover(self.briefing_date)
 
 
 class Voiceover(Command):

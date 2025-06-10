@@ -9,7 +9,6 @@ from ..env import assert_env
 from ..events.model import Schedule
 from ..location.model import CoordinateLocation, LocationName, location_named
 from ..paths import BriefingDirectory
-from ..tts import run_voiceover
 from .model import BriefingScript
 
 logger = structlog.get_logger(__name__)
@@ -54,9 +53,6 @@ class BriefingService:
         raise ValueError("Failed to generate briefing script")
 
       output_path = self._prepare_output_path(briefing_date)
-
-      logger.info("Generating voiceover for briefing")
-      await run_voiceover(briefing_script, print_script=False, output_path=output_path)
 
       logger.info(f"Briefing generation complete: {output_path}")
       return BriefingResult(output_path=output_path, schedule=final_state.schedule)
