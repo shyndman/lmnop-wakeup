@@ -160,5 +160,26 @@ When making changes, follow the domain boundaries and use existing agent pattern
 - Auto-discovery of incomplete threads for seamless resume
 - PostgreSQL-backed checkpoint persistence
 
+### Script Consolidation & Event Filtering (June 2025)
+**Enhanced Multi-Speaker TTS Optimization:**
+- `BriefingScript.consolidate_dialogue()` now uses two-step process:
+  1. First merges consecutive lines by same speaker with identical style directions
+  2. Then groups merged lines into speaker segments (1-2 speakers max) for TTS
+- Added `_merge_consecutive_same_speaker_lines()` helper that combines text with proper spacing
+- Significantly reduces Gemini TTS API calls while maintaining natural dialogue flow
+
+**Event Filtering Pipeline:**
+- `CalendarsOfInterest.filter_by_event_ids()` filters calendars to only specified events
+- `event_ids` properties on `PrioritizedEvents` and `ContentOptimizationReport` return all contained event IDs
+- `ScriptWriterInput` now includes filtered `CalendarsOfInterest` field
+- Events serialized as markdown (not JSON) for better LLM comprehension
+- Clean data flow: event prioritization → content optimization → calendar filtering → script generation
+
+**Natural Language Timing:**
+- Enhanced `when_colloquial` field descriptions across all event models
+- Contains natural timing references like "tomorrow morning", "this afternoon", "next Tuesday"
+- Downstream models copy these from original `CalendarEvent.when_colloquial` field
+- Enables conversational script generation with natural timing references
+
 ## Interaction Guidelines
 - Always number your questions for easier answering

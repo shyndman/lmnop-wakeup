@@ -45,7 +45,9 @@ async def generate_briefing(request: GenerateRequest):
   try:
     # Wait for generation to complete
     result = await briefing_service.generate_briefing(
-      request.briefing_date, thread_id=request.thread_id
+      request.briefing_date,
+      thread_id=request.thread_id,
+      force_new_thread_id=(request.thread_id is None),
     )
 
     logger.info(f"Briefing generation completed successfully for {request.briefing_date}")

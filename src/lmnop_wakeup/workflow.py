@@ -726,6 +726,7 @@ async def run_workflow(
   briefing_location: CoordinateLocation,
   thread_id: str | None = None,
   interactive: bool = False,
+  force_new_thread_id: bool = False,
 ) -> tuple[ConsolidatedBriefingScript | None, State]:
   """Run the morning briefing workflow.
 
@@ -734,6 +735,8 @@ async def run_workflow(
       briefing_location: The location for the briefing.
       thread_id: Optional thread ID to continue existing workflow.
       interactive: Whether to enable human-in-the-loop interactions.
+      force_new_thread_id: If True, always create a new thread ID instead of
+        auto-discovering incomplete threads.
   """
 
   pg_connection_string = get_postgres_connection_string()
@@ -756,12 +759,15 @@ async def run_workflow(
 
     # Handle thread_id logic: use provided thread_id, or find incomplete thread, or create new
     if thread_id is None:
-      found_thread_id = await find_incomplete_thread_for_date(saver, briefing_date)
-      if found_thread_id:
-        logger.info(f"Continuing incomplete thread: {found_thread_id}")
-        thread_id = found_thread_id
+      if force_new_thread_id:
+        logger.info(f"Forcing new thread creation for {briefing_date}")
       else:
-        logger.info(f"No incomplete threads found for {briefing_date}, creating new thread")
+        found_thread_id = await find_incomplete_thread_for_date(saver, briefing_date)
+        if found_thread_id:
+          logger.info(f"Continuing incomplete thread: {found_thread_id}")
+          thread_id = found_thread_id
+        else:
+          logger.info(f"No incomplete threads found for {briefing_date}, creating new thread")
     else:
       logger.info(f"Using provided thread_id: {thread_id}")
 
