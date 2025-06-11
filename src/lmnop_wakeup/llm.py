@@ -29,7 +29,7 @@ from .env import ApiKey, EnvName, get_litellm_api_key
 
 class ModelName(StrEnum):
   GEMINI_25_FLASH = "gemini-2.5-flash-preview-05-20"
-  GEMINI_25_PRO = "gemini-2.5-pro-preview-03-25"
+  GEMINI_25_PRO = "gemini-2.5-pro-preview-06-05"
   GEMINI_20_FLASH = "gemini-2.0-flash"
   GEMINI_20_FLASH_LITE = "gemini-2.0-flash-lite"
 
