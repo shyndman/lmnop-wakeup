@@ -22,7 +22,7 @@ from .brief.content_optimizer import (
   ContentOptimizerInput,
   get_content_optimizer,
 )
-from .brief.model import ConsolidatedBriefingScript
+from .brief.model import BriefingScript, ConsolidatedBriefingScript
 from .brief.script_writer_agent import (
   ScriptWriterInput,
   get_script_writer_agent,
@@ -56,7 +56,7 @@ from .location.model import (
   location_named,
 )
 from .location.resolver_agent import LocationResolverInput, get_location_resolver_agent
-from .paths import BriefingDirectory
+from .paths import BriefingDirectory, BriefingDirectoryCollection
 from .state import LocationDataState, LocationWeatherState, State
 from .weather.meteorologist_agent import (
   MeteorologistInput,
@@ -79,6 +79,7 @@ logger = structlog.get_logger()
 
 FUTURE_EVENTS_TIMEDELTA = timedelta(days=12)
 FUTURE_WEATHER_TIMEDELTA = timedelta(days=3)
+PREVIOUS_SCRIPTS_COUNT = 1
 
 
 class WorkflowAbortedByUser(Exception):
@@ -418,9 +419,39 @@ async def review_content_optimization(state: State):
   return {}
 
 
+def _load_previous_scripts(briefing_date: date, count: int) -> list[BriefingScript]:
+  """Load previous N consecutive days' scripts from disk, skipping missing ones."""
+
+  previous_scripts = []
+  collection = BriefingDirectoryCollection()
+
+  for days_back in range(1, count + 1):
+    previous_date = briefing_date - timedelta(days=days_back)
+    briefing_dir = collection.get_existing_for_date(previous_date)
+
+    if briefing_dir and briefing_dir.has_brief_json():
+      try:
+        script = briefing_dir.load_script()
+        previous_scripts.append(script)
+        logger.debug("Loaded previous script", date=previous_date.isoformat())
+      except Exception as e:
+        logger.warning(
+          "Failed to load previous script", date=previous_date.isoformat(), error=str(e)
+        )
+    else:
+      logger.debug("No script found for previous date", date=previous_date.isoformat())
+
+  return previous_scripts
+
+
 @trace()
 async def write_briefing_script(state: State, config: RunnableConfig):
   weather_analysis = state.regional_weather.analysis_by_location
+
+  # Load previous scripts from consecutive days
+  briefing_date = state.day_start_ts.date()
+  previous_scripts = _load_previous_scripts(briefing_date, PREVIOUS_SCRIPTS_COUNT)
+
   script = await get_script_writer_agent(config).run(
     input=ScriptWriterInput(
       content_optimizer_report=assert_not_none(state.content_optimization_report),
@@ -431,7 +462,7 @@ async def write_briefing_script(state: State, config: RunnableConfig):
       ),
       sunset_prediction=assert_not_none(state.sunset_prediction),
       character_pool=CHARACTER_POOL,
-      previous_scripts=[],
+      previous_scripts=previous_scripts,
       calendars_of_interest=assert_not_none(state.calendars),
     )
   )
