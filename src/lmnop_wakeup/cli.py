@@ -123,8 +123,77 @@ class Server(Command):
     await run()
 
 
+class ThemeMusic(Command):
+  """Add theme music to an existing briefing"""
+
+  briefing_date: date = arg(inherited=True)
+
+  @override
+  async def run(self):
+    from .audio.theme import ThemeMusicConfig, ThemeMusicMixer
+    from .paths import get_theme_intro_path, get_theme_music_path
+
+    assert_env()
+
+    briefing_dir = BriefingDirectory.for_date(self.briefing_date)
+
+    if not briefing_dir.exists():
+      print(f"No briefing directory found for {self.briefing_date}")
+      return
+
+    if not briefing_dir.briefing_audio_path.exists():
+      print(f"No briefing audio found at {briefing_dir.briefing_audio_path}")
+      return
+
+    # Load the consolidated script for timing
+    try:
+      consolidated_script_path = briefing_dir.consolidated_brief_json_path
+      if consolidated_script_path.exists():
+        from .brief.model import ConsolidatedBriefingScript
+
+        script_content = consolidated_script_path.read_text()
+        script = ConsolidatedBriefingScript.model_validate_json(script_content)
+      else:
+        # Fallback to regular script and consolidate it
+        script = briefing_dir.load_script()
+        script = script.consolidate_dialogue()
+    except Exception as e:
+      print(f"Error loading briefing script: {e}")
+      return
+
+    # Get theme music paths
+    theme_music_path = get_theme_music_path()
+    theme_intro_path = get_theme_intro_path()
+
+    if not theme_music_path.exists():
+      print(f"Theme music file not found at {theme_music_path}")
+      print("You can set a custom theme music path with THEME_MUSIC_PATH environment variable")
+      return
+
+    if not theme_intro_path.exists():
+      print(f"Theme intro file not found at {theme_intro_path}")
+      print("You can set a custom theme intro path with THEME_INTRO_PATH environment variable")
+      return
+
+    # Mix theme music with briefing
+    mixer = ThemeMusicMixer(ThemeMusicConfig())
+
+    try:
+      output_path = mixer.mix_theme_with_briefing(
+        briefing_audio_path=briefing_dir.briefing_audio_path,
+        theme_music_path=theme_music_path,
+        theme_intro_path=theme_intro_path,
+        script=script,
+        audio_files_dir=briefing_dir.base_path,
+        output_path=briefing_dir.master_audio_path,
+      )
+      print(f"Theme music added successfully: {output_path}")
+    except Exception as e:
+      print(f"Error adding theme music: {e}")
+
+
 class Wakeup(Command):
-  subcommand: Script | Voiceover | LoadData | Server
+  subcommand: Script | Voiceover | LoadData | Server | ThemeMusic
 
   briefing_date: date = arg(
     default=date.today() + timedelta(days=1),

@@ -37,8 +37,8 @@ class AudioMaster:
 
   def _export_master_audio(self, combined_audio: AudioSegment, output_dir: Path) -> Path:
     """Export combined audio to MP3 format."""
-    output_path = output_dir / "master_briefing.mp3"
-    combined_audio.export(output_path, "mp3")
+    output_path = output_dir / "briefing.mp3"
+    combined_audio.export(output_path, format="mp3")
     return output_path
 
 

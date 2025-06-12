@@ -1,7 +1,7 @@
 from io import StringIO
 
 import structlog
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from lmnop_wakeup.core.typing import assert_not_none
 
@@ -33,6 +33,7 @@ class ScriptLine(BaseModel):
       character_slug="sarah",
       text="Well folks, it's looking like a beautiful day ahead!",
       character_style_direction="sound professionally efficient with a brisk, informative pace",
+      is_introduction=True,
     )
     ScriptLine(
       character_slug="marcus",
@@ -48,6 +49,11 @@ class ScriptLine(BaseModel):
   )
 
   text: str = Field(..., description="Dialogue text maintaining character voice", min_length=1)
+
+  is_introduction: bool = Field(
+    default=False,
+    description="True if this line is part of the show introduction, used for theme music timing",
+  )
 
   def build_prompt(self) -> str:
     sb = StringIO()
@@ -72,6 +78,9 @@ class SpeakerSegment(BaseModel):
   character_2_slug: str | None = Field(default=None, description="Secondary character (if present)")
   character_2_style_direction: str | None = Field(
     default=None, description="Style direction for character 2"
+  )
+  is_introduction: bool = Field(
+    ..., description="True if this segment contains introduction content"
   )
 
   @property
@@ -151,6 +160,16 @@ class BriefingScript(BaseModel):
     default=[], description="Ordered list of briefing sections", min_length=1
   )
 
+  @model_validator(mode="after")
+  def validate_has_introduction(self) -> "BriefingScript":
+    """Ensure at least one line is marked as introduction for theme music timing."""
+    introduction_lines = [line for line in self.lines if line.is_introduction]
+    if not introduction_lines:
+      raise ValueError(
+        "Briefing script must contain at least one introduction line (is_introduction=True)"
+      )
+    return self
+
   def get_all_characters(self) -> set[str]:
     """Extract all unique character slugs used in the script."""
     return {line.character_slug for section in self.sections for line in section.lines}
@@ -208,6 +227,17 @@ class BriefingScript(BaseModel):
       if not current_segment_lines:
         return
 
+      # Determine if this is an introduction segment
+      segment_is_intro = current_segment_lines[0].is_introduction
+
+      # Validate that all lines in the segment have the same introduction status
+      for line in current_segment_lines:
+        if line.is_introduction != segment_is_intro:
+          raise ValueError(
+            f"All lines in a speaker segment must have the same introduction status. "
+            f"Found mixed intro/non-intro lines in segment with characters: {current_speakers}"
+          )
+
       # Determine character assignments and style directions
       speakers_list = sorted(list(current_speakers))  # Sort for consistent ordering
       character_1_slug = speakers_list[0]
@@ -241,6 +271,7 @@ class BriefingScript(BaseModel):
         character_1_style_direction=assert_not_none(character_1_style_direction),
         character_2_slug=character_2_slug,
         character_2_style_direction=character_2_style_direction,
+        is_introduction=segment_is_intro,
       )
 
       segments.append(segment)
@@ -250,6 +281,7 @@ class BriefingScript(BaseModel):
         lines=len(current_segment_lines),
         character_1=character_1_slug,
         character_2=character_2_slug,
+        is_introduction=segment_is_intro,
       )
 
     for line in merged_lines:
@@ -265,12 +297,19 @@ class BriefingScript(BaseModel):
       # Check if we can add this line to the current segment
       potential_speakers = current_speakers | line_speaker
 
-      if len(potential_speakers) <= 2:
+      # Check if there's an intro/non-intro transition
+      current_segment_is_intro = (
+        current_segment_lines[0].is_introduction if current_segment_lines else False
+      )
+      line_is_intro = line.is_introduction
+      intro_transition = current_segment_is_intro != line_is_intro
+
+      if len(potential_speakers) <= 2 and not intro_transition:
         # We can add this line to the current segment
         current_segment_lines.append(line)
         current_speakers = potential_speakers
       else:
-        # We need to start a new segment (would exceed 2 speakers)
+        # We need to start a new segment (would exceed 2 speakers or intro/non-intro transition)
         finalize_current_segment()
 
         # Start new segment with this line

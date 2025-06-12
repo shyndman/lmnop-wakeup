@@ -3,6 +3,8 @@ import os
 from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import date
+from importlib import resources
+from importlib.resources import files
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -18,6 +20,40 @@ def get_data_path() -> Path:
   if data_path_env:
     return Path(data_path_env)
   return APP_DIRS.user_state_path
+
+
+def get_theme_music_path() -> Path:
+  """Get the path to the looping theme music resource file."""
+  # First check if a custom theme music path is set via environment variable
+  theme_music_env = os.getenv("THEME_MUSIC_PATH")
+  if theme_music_env:
+    return Path(theme_music_env)
+
+  # Default to a resource file in the audio module
+  import lmnop_wakeup.audio
+
+  audio_files = files(lmnop_wakeup.audio)
+  theme_file = audio_files / "theme.mp3"
+
+  with resources.as_file(theme_file) as theme_file:
+    return theme_file
+
+
+def get_theme_intro_path() -> Path:
+  """Get the path to the theme intro music resource file."""
+  # First check if a custom theme intro path is set via environment variable
+  theme_intro_env = os.getenv("THEME_INTRO_PATH")
+  if theme_intro_env:
+    return Path(theme_intro_env)
+
+  # Default to a resource file in the audio module
+  import lmnop_wakeup.audio
+
+  audio_files = files(lmnop_wakeup.audio)
+  theme_intro_file = audio_files / "theme_intro.mp3"
+
+  with resources.as_file(theme_intro_file) as theme_intro_file:
+    return theme_intro_file
 
 
 @dataclass
@@ -45,7 +81,13 @@ class BriefingDirectory:
     return self.base_path / "workflow_state.json"
 
   @property
+  def briefing_audio_path(self) -> Path:
+    """Path to intermediate briefing audio file (before theme music)."""
+    return self.base_path / "briefing.mp3"
+
+  @property
   def master_audio_path(self) -> Path:
+    """Path to final master audio file (with theme music)."""
     return self.base_path / "master_briefing.mp3"
 
   @property

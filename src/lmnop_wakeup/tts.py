@@ -19,7 +19,7 @@ from lmnop_wakeup.brief.model import (
   SpeakerSegment,
 )
 from lmnop_wakeup.core.logging import rich_sprint
-from lmnop_wakeup.core.typing import ensure
+from lmnop_wakeup.core.typing import assert_not_none, ensure
 from lmnop_wakeup.env import get_litellm_api_key, get_litellm_base_url
 
 logger = structlog.get_logger(__name__)
@@ -185,10 +185,13 @@ class TTSProcessor:
 
     # Calculate cost from usage metadata
     usage = response.usage_metadata
+    if usage is None:
+      raise ValueError("Missing usage metadata")
+
     cost = calculate_tts_cost(
       self.config.model_name,
-      usage.prompt_token_count,
-      usage.candidates_token_count,
+      assert_not_none(usage.prompt_token_count),
+      assert_not_none(usage.candidates_token_count),
     )
 
     # Extract audio data
@@ -242,10 +245,12 @@ class TTSProcessor:
 
     # Calculate cost from usage metadata
     usage = response.usage_metadata
+    if not usage:
+      raise ValueError("Missing usage metadata")
     cost = calculate_tts_cost(
       self.config.model_name,
-      usage.prompt_token_count,
-      usage.candidates_token_count,
+      assert_not_none(usage.prompt_token_count),
+      assert_not_none(usage.candidates_token_count),
     )
 
     # Extract audio data
