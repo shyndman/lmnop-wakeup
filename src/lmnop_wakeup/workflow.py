@@ -608,29 +608,58 @@ async def find_incomplete_thread_for_date(saver, briefing_date: date) -> str | N
 
     # List all checkpoints and find threads for this date
     checkpoints = []
+    all_thread_ids = []
     async for checkpoint in saver.alist({}):
       thread_id = checkpoint.config.get("configurable", {}).get("thread_id", "")
+      all_thread_ids.append(thread_id)
       if thread_id.startswith(date_prefix):
         checkpoints.append(checkpoint)
+
+    logger.debug(
+      f"Looking for threads with prefix '{date_prefix}'. Found thread IDs: {all_thread_ids[:10]}"
+    )  # Show first 10
 
     if not checkpoints:
       return None
 
     # Sort by timestamp (most recent first) and check if any are incomplete
-    checkpoints.sort(key=lambda c: c.checkpoint.ts, reverse=True)
+    checkpoints.sort(key=lambda c: c.checkpoint["ts"], reverse=True)
 
     for checkpoint in checkpoints:
       # Check if this checkpoint represents an incomplete workflow
       # A complete workflow should have reached the finish point
-      if checkpoint.next and len(checkpoint.next) > 0:
-        thread_id = checkpoint.config.get("configurable", {}).get("thread_id")
-        logger.info(f"Found incomplete thread for {briefing_date}: {thread_id}")
-        return thread_id
+      thread_id = checkpoint.config.get("configurable", {}).get("thread_id")
+      logger.debug(f"=== Checkpoint dump for thread {thread_id} ===")
+      logger.debug(f"Checkpoint: {checkpoint.checkpoint}")
+      logger.debug(f"Config: {checkpoint.config}")
+      if hasattr(checkpoint, "metadata"):
+        logger.debug(f"Metadata: {checkpoint.metadata}")
+      logger.debug("=== End checkpoint dump ===")
+
+      # For now, let's just return the first one to see what a checkpoint looks like
+      logger.info(f"Found thread for {briefing_date}: {thread_id}")
+      return thread_id
 
     return None
   except Exception as e:
     logger.warning(f"Error finding incomplete threads for {briefing_date}: {e}")
     return None
+
+
+async def is_thread_complete(graph, thread_id: str) -> bool:
+  """Check if a thread is complete by examining its state snapshot."""
+  try:
+    config = {"configurable": {"thread_id": thread_id}}
+    state_snapshot = await graph.aget_state(config)
+
+    # A complete workflow has no next nodes to execute
+    is_complete = not state_snapshot.next
+    logger.debug(f"Thread {thread_id} complete: {is_complete}, next: {state_snapshot.next}")
+    return is_complete
+
+  except Exception as e:
+    logger.warning(f"Error checking if thread {thread_id} is complete: {e}")
+    return False
 
 
 def config_for_date(briefing_date: date, thread_id: str | None = None) -> RunnableConfig:
@@ -794,9 +823,23 @@ async def run_workflow(
           logger.info(f"Continuing incomplete thread: {found_thread_id}")
           thread_id = found_thread_id
         else:
-          logger.info(f"No incomplete threads found for {briefing_date}, creating new thread")
+          logger.info(
+            f"No incomplete threads found for {briefing_date}, checking for complete threads"
+          )
+          # Check if the default thread ID would be complete
+          thread_id = f"{briefing_date.isoformat()}"
     else:
       logger.info(f"Using provided thread_id: {thread_id}")
+
+    # Check if the thread is already complete and create a new one if needed
+    if thread_id and await is_thread_complete(graph, thread_id):
+      logger.info(f"Thread {thread_id} is already complete, creating new thread")
+      # Generate a new unique thread ID by appending a timestamp
+      from datetime import datetime
+
+      timestamp = datetime.now().strftime("%H%M%S")
+      thread_id = f"{briefing_date.isoformat()}-{timestamp}"
+      logger.info(f"Starting new thread: {thread_id}")
 
     config: RunnableConfig = config_for_date(briefing_date, thread_id)
     config["callbacks"] = [CallbackHandler(), PydanticAiCallback()]

@@ -22,16 +22,18 @@ SCOPES = [
 
 
 BIRTHDAY_CALENDAR_ID = "md3ntu1lbq9vqc59fs75svbusg@group.calendar.google.com"
-PERSONAL_CALENDAR_ID = "primary"  # "scotty.hyndman@gmail.com"
-SHARED_CALENDAR_ID = "family16125668672800183011@group.calendar.google.com"
 BLOGTO_CALENDAR_ID = (
   "78a50bde5c29851a307180b7743c529df2a3a656502100e7c8a19bfdeceb326c@group.calendar.google.com"
 )
+HILARY_CALENDAR_ID = "hilary.hacksel@gmail.com"
+PERSONAL_CALENDAR_ID = "primary"  # "scotty.hyndman@gmail.com"
+SHARED_CALENDAR_ID = "family16125668672800183011@group.calendar.google.com"
 CALENDAR_IDS = [
-  PERSONAL_CALENDAR_ID,
   BIRTHDAY_CALENDAR_ID,
-  SHARED_CALENDAR_ID,
   BLOGTO_CALENDAR_ID,
+  HILARY_CALENDAR_ID,
+  PERSONAL_CALENDAR_ID,
+  SHARED_CALENDAR_ID,
 ]
 
 # This does not appear in CALENDAR_IDS, because these are workflow outputs, not inputs

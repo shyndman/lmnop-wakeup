@@ -43,6 +43,10 @@ CALENDAR_INSTRUCTIONS = {
     notes="This is Scott's personal calendar. These are priority events "
     "for wakeups and reminders, unless the event states otherwise."
   ),
+  "hilary.hacksel@gmail.com": CalendarInfo(
+    notes="This is Hilary's personal calendar. These are priority events for wakeups and "
+    "reminders, unless the event states otherwise."
+  ),
   # Scott's birthday calendar
   "md3ntu1lbq9vqc59fs75svbusg@group.calendar.google.com": CalendarInfo(
     notes="This is Scott's birthday calendar. Short reminders for these can start a couple weeks "
