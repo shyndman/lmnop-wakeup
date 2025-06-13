@@ -63,6 +63,13 @@ class ScriptLine(BaseModel):
 
     return sb.getvalue()
 
+  def build_display_text(self) -> str:
+    """Build display text for human review with Rich markup for style directions."""
+    character = self.character_slug
+    text = self.text
+    style = self.character_style_direction
+    return f"[bold]{character}:[/bold] {text} [dim]({style})[/dim]"
+
 
 class SpeakerSegment(BaseModel):
   """
@@ -111,6 +118,22 @@ class SpeakerSegment(BaseModel):
         sb.write(f"{line.character_slug}: {line.text}\n\n")
 
     return sb.getvalue()
+
+  def build_display_text(self) -> str:
+    """Build display text for human review with Rich markup for style directions."""
+    sb = StringIO()
+
+    if self.character_count == 1:
+      sb.write(f"[dim]({self.character_1_style_direction})[/dim]\n")
+      for line in self.lines:
+        sb.write(f"[bold]{line.character_slug}:[/bold] {line.text}\n\n")
+    elif self.character_count == 2:
+      sb.write(f"[dim]({self.character_1_slug}: {self.character_1_style_direction}, ")
+      sb.write(f"{self.character_2_slug}: {self.character_2_style_direction})[/dim]\n")
+      for line in self.lines:
+        sb.write(f"[bold]{line.character_slug}:[/bold] {line.text}\n\n")
+
+    return sb.getvalue().rstrip()
 
 
 class ScriptSection(BaseModel):
@@ -334,6 +357,20 @@ class BriefingScript(BaseModel):
 
     return ConsolidatedBriefingScript(segments=segments)
 
+  def build_display_text(self) -> str:
+    """Build display text for human review with Rich markup for style directions and blank lines."""
+    sb = StringIO()
+
+    for i, line in enumerate(self.lines):
+      if i > 0:
+        sb.write("\n")  # Add blank line between lines
+      character = line.character_slug
+      text = line.text
+      style = line.character_style_direction
+      sb.write(f"[bold]{character}:[/bold] {text} [dim]({style})[/dim]\n")
+
+    return sb.getvalue().rstrip()
+
   def _merge_consecutive_same_speaker_lines(self, lines: list[ScriptLine]) -> list[ScriptLine]:
     """
     Merge consecutive lines by the same speaker with identical style directions.
@@ -401,3 +438,15 @@ class ConsolidatedBriefingScript(BaseModel):
   def get_all_characters(self) -> set[str]:
     """Extract all unique character slugs used in the consolidated script."""
     return {line.character_slug for segment in self.segments for line in segment.lines}
+
+  def build_display_text(self) -> str:
+    """Build display text for human review with Rich markup and blank lines between segments."""
+    sb = StringIO()
+
+    for i, segment in enumerate(self.segments):
+      if i > 0:
+        sb.write("\n")  # Add blank line between segments
+      sb.write(segment.build_display_text())
+      sb.write("\n")
+
+    return sb.getvalue().rstrip()

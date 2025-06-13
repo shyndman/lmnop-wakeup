@@ -1,5 +1,4 @@
 from datetime import date, timedelta
-from io import StringIO
 from typing import override
 
 import clypi
@@ -69,11 +68,13 @@ class Script(Command):
       if briefing_script is None:
         return
 
-      sb = StringIO()
-      for line in briefing_script.lines:
-        sb.write(f"{line.build_prompt()}\n\n")
+      from rich.console import Console
 
-      print(clypi.boxed(sb.getvalue(), width=80, align="left"))
+      console = Console()
+
+      # Use the new display format with Rich markup
+      display_text = briefing_script.build_display_text()
+      console.print(clypi.boxed(display_text, width=80, align="left"))
       print("")
 
 
@@ -192,8 +193,94 @@ class ThemeMusic(Command):
       print(f"Error adding theme music: {e}")
 
 
+class ListPlayers(Command):
+  """List Music Assistant players"""
+
+  @override
+  async def run(self):
+    from rich.console import Console
+    from rich.table import Table
+
+    from .audio.session import MusicAssistantSession
+    from .env import get_music_assistant_url
+
+    console = Console()
+
+    try:
+      music_assistant_url = get_music_assistant_url()
+    except EnvironmentError as e:
+      console.print(f"[red]Configuration error:[/red] {e}")
+      console.print("Please ensure MUSIC_ASSISTANT_URL environment variable is set")
+      return
+
+    console.print(f"🔍 Connecting to Music Assistant at {music_assistant_url}")
+
+    try:
+      async with MusicAssistantSession(music_assistant_url) as client:
+        if hasattr(client, "players") and hasattr(client.players, "all"):
+          players = client.players
+
+          if not players:
+            console.print("[red]No players found[/red]")
+            return
+
+          table = Table(title=f"Music Assistant Players ({len(players)} found)")
+          table.add_column("ID", style="cyan", no_wrap=True)
+          table.add_column("Name", style="magenta")
+          table.add_column("Available", justify="center")
+          table.add_column("Type", style="green")
+          table.add_column("Details", style="dim")
+
+          available_count = 0
+          available_players = []
+
+          for player in players:
+            player_id = player.player_id
+            status = "✅" if player.available else "❌"
+            player_type = getattr(player, "type", "Unknown")
+
+            details_parts = []
+            provider = getattr(player, "provider", "Unknown")
+            details_parts.append(f"Provider: {provider}")
+
+            volume_level = getattr(player, "volume_level", None)
+            if volume_level is not None:
+              details_parts.append(f"Volume: {volume_level}%")
+
+            state = getattr(player, "state", "Unknown")
+            details_parts.append(f"State: {state}")
+
+            details = "\n".join(details_parts)
+
+            table.add_row(player_id, player.name, status, player_type, details)
+
+            if player.available:
+              available_count += 1
+              available_players.append((player_id, player.name))
+
+          console.print(table)
+          console.print(
+            f"\n[bold]Summary:[/bold] {available_count} of {len(players)} players available"
+          )
+
+          if available_players:
+            console.print("\n[green]Available for announcements:[/green]")
+            for player_id, player_name in available_players:
+              console.print(f"  • {player_name} [dim]({player_id})[/dim]")
+          else:
+            console.print(
+              "\n[yellow]⚠️  No players are currently available for announcements[/yellow]"
+            )
+        else:
+          console.print("[red]Unable to access players from Music Assistant[/red]")
+
+    except Exception as e:
+      logger.exception(f"Failed to list players: {e}")
+      console.print(f"[red]Error:[/red] {e}")
+
+
 class Wakeup(Command):
-  subcommand: Script | Voiceover | LoadData | Server | ThemeMusic
+  subcommand: Script | Voiceover | LoadData | Server | ThemeMusic | ListPlayers
 
   briefing_date: date = arg(
     default=date.today() + timedelta(days=1),

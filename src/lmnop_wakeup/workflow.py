@@ -476,9 +476,7 @@ async def review_briefing_script(state: State):
     return {}
 
   rich.print("\n[bold green]📝 Briefing Script Review[/bold green]")
-  # Show script in readable format
-  for line in state.briefing_script.lines:
-    rich.print(f"[bold]{line.character_slug}:[/bold] {line.text}")
+  rich.print(state.briefing_script.build_display_text())
 
   decision = get_user_decision("Review the generated briefing script above.")
 
@@ -506,9 +504,7 @@ async def review_final_script(state: State):
     return {}
 
   rich.print("\n[bold green]🎬 Final Script Review[/bold green]")
-  # Show consolidated script
-  for line in state.consolidated_briefing_script.lines:
-    rich.print(f"[bold]{line.character_slug}:[/bold] {line.text}")
+  rich.print(state.consolidated_briefing_script.build_display_text())
 
   decision = get_user_decision("Review the final consolidated script above before TTS generation.")
 
