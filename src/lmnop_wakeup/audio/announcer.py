@@ -69,7 +69,13 @@ class BriefingAnnouncer:
   async def _validate_player(self, client) -> None:
     """Validate that the configured player exists and is available."""
     try:
-      player = client.players.get(self.player_id)
+      # Find player by ID in the players list
+      player = None
+      for p in client.players:
+        if p.player_id == self.player_id:
+          player = p
+          break
+
       if not player:
         raise PlayerNotFoundError(f"Player '{self.player_id}' not found")
 
@@ -88,8 +94,12 @@ class BriefingAnnouncer:
     try:
       logger.info(f"Playing announcement: {briefing_url}")
 
-      # Start the announcement
-      await client.players.play_announcement(player_id=self.player_id, url=briefing_url)
+      # Start the announcement - send command directly to avoid accessing private _players
+      await client.send_command(
+        "players/cmd/play_announcement",
+        player_id=self.player_id,
+        url=briefing_url,
+      )
 
       # Wait for announcement to complete (simple polling approach for MVP)
       await self._wait_for_announcement_completion(client)
@@ -111,7 +121,13 @@ class BriefingAnnouncer:
 
     while time.time() - start_time < timeout:
       try:
-        player = client.players.get(self.player_id)
+        # Find player by ID in the players list
+        player = None
+        for p in client.players:
+          if p.player_id == self.player_id:
+            player = p
+            break
+
         if not player or not player.announcement_in_progress:
           return  # Announcement completed
 
