@@ -239,6 +239,6 @@ class ThemeMusicMixer:
     # Create the complete audio sequence:
     # 1. Start with theme intro (full volume, no speech)
     # 2. Add background theme with speech overlaid
-    mixed_audio = theme_intro + final_background_theme.overlay(briefing_audio)
+    mixed_audio = theme_intro + briefing_audio.overlay(final_background_theme)
 
     return mixed_audio
