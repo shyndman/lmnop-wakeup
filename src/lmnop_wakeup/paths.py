@@ -23,7 +23,7 @@ def get_data_path() -> Path:
 
 
 def get_theme_music_path() -> Path:
-  """Get the path to the looping theme music resource file."""
+  """Get the path to the looping theme music resource file for audio production."""
   # First check if a custom theme music path is set via environment variable
   theme_music_env = os.getenv("THEME_MUSIC_PATH")
   if theme_music_env:
@@ -40,7 +40,7 @@ def get_theme_music_path() -> Path:
 
 
 def get_theme_intro_path() -> Path:
-  """Get the path to the theme intro music resource file."""
+  """Get the path to the theme intro music resource file for audio production."""
   # First check if a custom theme intro path is set via environment variable
   theme_intro_env = os.getenv("THEME_INTRO_PATH")
   if theme_intro_env:
@@ -82,12 +82,12 @@ class BriefingDirectory:
 
   @property
   def briefing_audio_path(self) -> Path:
-    """Path to intermediate briefing audio file (before theme music)."""
+    """Path to intermediate briefing audio file (before audio production)."""
     return self.base_path / "briefing.mp3"
 
   @property
   def master_audio_path(self) -> Path:
-    """Path to final master audio file (with theme music)."""
+    """Path to final master audio file (with audio production)."""
     return self.base_path / "master_briefing.mp3"
 
   @property

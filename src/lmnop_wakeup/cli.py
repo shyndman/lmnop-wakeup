@@ -132,14 +132,14 @@ class Server(Command):
     await run()
 
 
-class ThemeMusic(Command):
-  """Add theme music to an existing briefing"""
+class AudioProduction(Command):
+  """Add audio production to an existing briefing"""
 
   briefing_date: date = arg(inherited=True)
 
   @override
   async def run(self):
-    from .audio.theme import ThemeMusicConfig, ThemeMusicMixer
+    from .audio.production import AudioProductionConfig, AudioProductionMixer
     from .paths import get_theme_intro_path, get_theme_music_path
 
     assert_env()
@@ -184,11 +184,11 @@ class ThemeMusic(Command):
       print("You can set a custom theme intro path with THEME_INTRO_PATH environment variable")
       return
 
-    # Mix theme music with briefing
-    mixer = ThemeMusicMixer(ThemeMusicConfig())
+    # Mix audio production with briefing
+    mixer = AudioProductionMixer(AudioProductionConfig())
 
     try:
-      output_path = mixer.mix_theme_with_briefing(
+      output_path = mixer.mix_audio_with_briefing(
         briefing_audio_path=briefing_dir.briefing_audio_path,
         theme_music_path=theme_music_path,
         theme_intro_path=theme_intro_path,
@@ -196,10 +196,10 @@ class ThemeMusic(Command):
         audio_files_dir=briefing_dir.base_path,
         output_path=briefing_dir.master_audio_path,
       )
-      print(f"Theme music added successfully: {file_hyperlink(output_path)}")
+      print(f"Audio production completed successfully: {file_hyperlink(output_path)}")
       print(f"Briefing directory: {file_hyperlink(briefing_dir.base_path)}")
     except Exception as e:
-      print(f"Error adding theme music: {e}")
+      print(f"Error in audio production: {e}")
 
 
 class ListPlayers(Command):
@@ -402,7 +402,7 @@ class Announce(Command):
 
 
 class Wakeup(Command):
-  subcommand: Script | Voiceover | LoadData | Server | ThemeMusic | ListPlayers | Announce
+  subcommand: Script | Voiceover | LoadData | Server | AudioProduction | ListPlayers | Announce
 
   briefing_date: date = arg(
     default=date.today() + timedelta(days=1),

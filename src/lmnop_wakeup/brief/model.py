@@ -52,7 +52,9 @@ class ScriptLine(BaseModel):
 
   is_introduction: bool = Field(
     default=False,
-    description="True if this line is part of the show introduction, used for theme music timing",
+    description=(
+      "True if this line is part of the show introduction, used for audio production timing"
+    ),
   )
 
   def build_prompt(self) -> str:
@@ -185,7 +187,7 @@ class BriefingScript(BaseModel):
 
   @model_validator(mode="after")
   def validate_has_introduction(self) -> "BriefingScript":
-    """Ensure at least one line is marked as introduction for theme music timing."""
+    """Ensure at least one line is marked as introduction for audio production timing."""
     introduction_lines = [line for line in self.lines if line.is_introduction]
     if not introduction_lines:
       raise ValueError(

@@ -9,7 +9,7 @@ from ..core.tracing import trace
 from ..paths import BriefingDirectory, get_theme_intro_path, get_theme_music_path
 from ..tts import TTSOrchestrator
 from .master import master_briefing_audio
-from .theme import ThemeMusicConfig, ThemeMusicMixer
+from .production import AudioProductionConfig, AudioProductionMixer
 
 logger = structlog.get_logger(__name__)
 
@@ -28,8 +28,8 @@ class TTSState(BaseModel):
   master_audio_path: Path | None = None
   """Path to the final mastered audio file (with theme music)."""
 
-  theme_music_enabled: bool = True
-  """Whether to add theme music to the briefing."""
+  audio_production_enabled: bool = True
+  """Whether to add audio production to the briefing."""
 
 
 class TTSWorkflowState(BaseModel):
@@ -100,15 +100,15 @@ async def master_tts_audio(state: TTSWorkflowState) -> TTSWorkflowState:
 
 
 @trace()
-async def add_theme_music(state: TTSWorkflowState) -> TTSWorkflowState:
-  """Add theme music to the briefing audio."""
-  logger.info("Starting theme music integration")
+async def add_audio_production(state: TTSWorkflowState) -> TTSWorkflowState:
+  """Add audio production to the briefing audio."""
+  logger.info("Starting audio production")
 
   if not state.tts.briefing_audio_path:
-    raise ValueError("No briefing audio file available for theme music integration")
+    raise ValueError("No briefing audio file available for audio production")
 
-  if not state.tts.theme_music_enabled:
-    logger.info("Theme music disabled, skipping")
+  if not state.tts.audio_production_enabled:
+    logger.info("Audio production disabled, skipping")
     # Copy briefing audio as final master audio
     briefing_date = state.day_start_ts.date()
     briefing_dir = BriefingDirectory.for_date(briefing_date)
@@ -125,8 +125,8 @@ async def add_theme_music(state: TTSWorkflowState) -> TTSWorkflowState:
   # Check if both theme music files exist
   if not theme_music_path.exists() or not theme_intro_path.exists():
     logger.warning(
-      f"Theme music files not found (theme: {theme_music_path.exists()}, "
-      f"intro: {theme_intro_path.exists()}), skipping theme music"
+      f"Audio production files not found (theme: {theme_music_path.exists()}, "
+      f"intro: {theme_intro_path.exists()}), skipping audio production"
     )
     # Copy briefing audio as final master audio
     import shutil
@@ -135,9 +135,9 @@ async def add_theme_music(state: TTSWorkflowState) -> TTSWorkflowState:
     state.tts.master_audio_path = master_audio_path
     return state
 
-  # Mix theme music with briefing audio
-  mixer = ThemeMusicMixer(ThemeMusicConfig())
-  final_audio_path = mixer.mix_theme_with_briefing(
+  # Mix audio production with briefing audio
+  mixer = AudioProductionMixer(AudioProductionConfig())
+  final_audio_path = mixer.mix_audio_with_briefing(
     briefing_audio_path=state.tts.briefing_audio_path,
     theme_music_path=theme_music_path,
     theme_intro_path=theme_intro_path,
@@ -147,23 +147,23 @@ async def add_theme_music(state: TTSWorkflowState) -> TTSWorkflowState:
   )
 
   state.tts.master_audio_path = final_audio_path
-  logger.info(f"Theme music integration completed: {final_audio_path}")
+  logger.info(f"Audio production completed: {final_audio_path}")
 
   return state
 
 
 def build_tts_subgraph() -> StateGraph:
-  """Build the TTS subgraph with individual generation, mastering, and theme music nodes."""
+  """Build the TTS subgraph with individual generation, mastering, and audio production nodes."""
   graph_builder = StateGraph(TTSWorkflowState)
 
   graph_builder.add_node("generate_individual_tts", generate_individual_tts)
   graph_builder.add_node("master_tts_audio", master_tts_audio)
-  graph_builder.add_node("add_theme_music", add_theme_music)
+  graph_builder.add_node("add_audio_production", add_audio_production)
 
   graph_builder.set_entry_point("generate_individual_tts")
   graph_builder.add_edge("generate_individual_tts", "master_tts_audio")
-  graph_builder.add_edge("master_tts_audio", "add_theme_music")
-  graph_builder.set_finish_point("add_theme_music")
+  graph_builder.add_edge("master_tts_audio", "add_audio_production")
+  graph_builder.set_finish_point("add_audio_production")
 
   return graph_builder
 

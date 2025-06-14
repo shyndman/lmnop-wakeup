@@ -12,21 +12,21 @@ logger = structlog.get_logger(__name__)
 
 
 @dataclasses.dataclass
-class ThemeMusicConfig:
-  """Configuration for theme music mixing."""
+class AudioProductionConfig:
+  """Configuration for audio production mixing."""
 
   background_volume_reduction_db: int = -12  # Reduce theme volume by 12dB during speech
   fade_out_duration_ms: int = 2000  # Fade out over 2 seconds
   intro_buffer_ms: int = 500  # Extra time after intro content for fade completion
 
 
-class ThemeMusicMixer:
-  """Mixes theme music with briefing audio using introduction timing."""
+class AudioProductionMixer:
+  """Mixes audio production elements with briefing audio using introduction timing."""
 
-  def __init__(self, config: ThemeMusicConfig | None = None):
-    self.config = config or ThemeMusicConfig()
+  def __init__(self, config: AudioProductionConfig | None = None):
+    self.config = config or AudioProductionConfig()
 
-  def mix_theme_with_briefing(
+  def mix_audio_with_briefing(
     self,
     briefing_audio_path: Path,
     theme_music_path: Path,
@@ -36,7 +36,7 @@ class ThemeMusicMixer:
     output_path: Path,
   ) -> Path:
     """
-    Mix theme music with briefing audio using two-part theme approach.
+    Mix audio production elements with briefing audio using two-part theme approach.
 
     Args:
       briefing_audio_path: Path to the main briefing audio file
@@ -50,7 +50,7 @@ class ThemeMusicMixer:
       Path to the output file
     """
     logger.info(
-      "Starting theme music mixing",
+      "Starting audio production mixing",
       briefing_audio=briefing_audio_path,
       theme_music=theme_music_path,
       theme_intro=theme_intro_path,
@@ -94,7 +94,9 @@ class ThemeMusicMixer:
     mixed_audio.export(str(output_path), format="mp3")
 
     logger.info(
-      "Theme music mixing completed", output_file=output_path, final_duration_ms=len(mixed_audio)
+      "Audio production mixing completed",
+      output_file=output_path,
+      final_duration_ms=len(mixed_audio),
     )
 
     return output_path
