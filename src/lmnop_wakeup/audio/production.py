@@ -15,6 +15,12 @@ logger = structlog.get_logger(__name__)
 class AudioProductionConfig:
   """Configuration for audio production mixing."""
 
+  # Bell sequence settings
+  bell_count: int = 4  # Number of bell rings
+  bell_interval_ms: int = 10000  # 10 seconds between bells
+  bell_to_theme_delay_ms: int = 15000  # 15 seconds after last bell before theme starts
+
+  # Theme music settings
   background_volume_reduction_db: int = -12  # Reduce theme volume by 12dB during speech
   fade_out_duration_ms: int = 2000  # Fade out over 2 seconds
   intro_buffer_ms: int = 500  # Extra time after intro content for fade completion
@@ -29,8 +35,6 @@ class AudioProductionMixer:
   def mix_audio_with_briefing(
     self,
     briefing_audio_path: Path,
-    theme_music_path: Path,
-    theme_intro_path: Path,
     script: "BriefingScript | ConsolidatedBriefingScript",
     audio_files_dir: Path,
     output_path: Path,
@@ -40,8 +44,6 @@ class AudioProductionMixer:
 
     Args:
       briefing_audio_path: Path to the main briefing audio file
-      theme_music_path: Path to the looping theme music MP3 file
-      theme_intro_path: Path to the theme intro MP3 file (plays before speech)
       script: Briefing script with introduction line tags
       audio_files_dir: Directory containing individual TTS audio files
       output_path: Where to save the final mixed audio
@@ -49,18 +51,38 @@ class AudioProductionMixer:
     Returns:
       Path to the output file
     """
+    # Get audio resource paths
+    from ..paths import get_theme_intro_path, get_theme_music_path, get_wakeup_bell_path
+
+    theme_music_path = get_theme_music_path()
+    theme_intro_path = get_theme_intro_path()
+    wakeup_bell_path = get_wakeup_bell_path()
+
     logger.info(
       "Starting audio production mixing",
       briefing_audio=briefing_audio_path,
       theme_music=theme_music_path,
       theme_intro=theme_intro_path,
+      wakeup_bell=wakeup_bell_path,
       output=output_path,
     )
+
+    # Check if all required audio files exist
+    if (
+      not theme_music_path.exists()
+      or not theme_intro_path.exists()
+      or not wakeup_bell_path.exists()
+    ):
+      raise FileNotFoundError(
+        f"Audio production files not found (theme: {theme_music_path.exists()}, "
+        f"intro: {theme_intro_path.exists()}, bell: {wakeup_bell_path.exists()})"
+      )
 
     # Load audio files
     briefing_audio = AudioSegment.from_file(str(briefing_audio_path))
     theme_music = AudioSegment.from_file(str(theme_music_path))
     theme_intro = AudioSegment.from_file(str(theme_intro_path))
+    wakeup_bell = AudioSegment.from_file(str(wakeup_bell_path))
 
     # Calculate introduction timing
     intro_duration_ms = self._calculate_intro_duration(script, audio_files_dir)
@@ -85,9 +107,12 @@ class AudioProductionMixer:
       theme_music, theme_background_duration_needed
     )
 
-    # Create the mixed audio
+    # Create bell sequence
+    bell_sequence = self._create_bell_sequence(wakeup_bell)
+
+    # Create the mixed audio with bell sequence
     mixed_audio = self._create_mixed_audio(
-      briefing_audio, theme_intro, theme_background_segment, intro_duration_ms
+      briefing_audio, theme_intro, theme_background_segment, intro_duration_ms, bell_sequence
     )
 
     # Export the result
@@ -100,6 +125,31 @@ class AudioProductionMixer:
     )
 
     return output_path
+
+  def _create_bell_sequence(self, wakeup_bell: AudioSegment) -> AudioSegment:
+    """Create a sequence of 4 bells, 10 seconds apart, starting at time 0."""
+    bell_sequence = AudioSegment.empty()
+
+    for i in range(self.config.bell_count):
+      # Add silence to position this bell at the correct time
+      bell_position_ms = i * self.config.bell_interval_ms
+
+      if i == 0:
+        # First bell starts immediately
+        bell_sequence = wakeup_bell
+      else:
+        # Calculate silence needed before this bell
+        silence_duration = bell_position_ms - len(bell_sequence)
+        bell_sequence += AudioSegment.silent(duration=silence_duration) + wakeup_bell
+
+    logger.info(
+      "Created bell sequence",
+      bell_count=self.config.bell_count,
+      total_duration_ms=len(bell_sequence),
+      interval_ms=self.config.bell_interval_ms,
+    )
+
+    return bell_sequence
 
   def _calculate_intro_duration(
     self, script: "BriefingScript | ConsolidatedBriefingScript", audio_files_dir: Path
@@ -211,14 +261,19 @@ class AudioProductionMixer:
     theme_intro: AudioSegment,
     theme_background_segment: AudioSegment,
     intro_duration_ms: int,
+    bell_sequence: AudioSegment,
   ) -> AudioSegment:
-    """Create the final mixed audio with theme intro and background music."""
+    """Create the final mixed audio with bell sequence, theme intro and background music."""
 
-    # Phase 1: Theme intro alone (no speech)
+    # Calculate timing offsets
+    bell_sequence_duration = len(bell_sequence)
+    theme_start_offset = bell_sequence_duration + self.config.bell_to_theme_delay_ms
+
+    # Phase 1: Theme intro alone (no speech) - starts after bell sequence + delay
     intro_lead_in_duration = len(theme_intro)
 
     # Phase 2: Theme background music with speech (during intro content)
-    speech_start = intro_lead_in_duration
+    speech_start = theme_start_offset + intro_lead_in_duration
     intro_end = speech_start + intro_duration_ms + self.config.intro_buffer_ms
 
     # Phase 3: Fade out theme background music
@@ -239,8 +294,26 @@ class AudioProductionMixer:
     final_background_theme = theme_background_during_speech + theme_background_fade_out
 
     # Create the complete audio sequence:
-    # 1. Start with theme intro (full volume, no speech)
-    # 2. Add background theme with speech overlaid
-    mixed_audio = theme_intro + briefing_audio.overlay(final_background_theme)
+    # 1. Start with bell sequence
+    # 2. Add silence delay
+    # 3. Add theme intro
+    # 4. Add background theme with speech overlaid
+
+    # Create silence between bells and theme
+    delay_silence = AudioSegment.silent(duration=self.config.bell_to_theme_delay_ms)
+
+    # Create theme section (intro + background with speech)
+    theme_section = theme_intro + briefing_audio.overlay(final_background_theme)
+
+    # Combine all parts
+    mixed_audio = bell_sequence + delay_silence + theme_section
+
+    logger.info(
+      "Created mixed audio with bell sequence",
+      bell_duration_ms=bell_sequence_duration,
+      delay_ms=self.config.bell_to_theme_delay_ms,
+      theme_start_offset_ms=theme_start_offset,
+      total_duration_ms=len(mixed_audio),
+    )
 
     return mixed_audio

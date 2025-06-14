@@ -56,6 +56,23 @@ def get_theme_intro_path() -> Path:
     return theme_intro_file
 
 
+def get_wakeup_bell_path() -> Path:
+  """Get the path to the wakeup bell resource file for audio production."""
+  # First check if a custom wakeup bell path is set via environment variable
+  wakeup_bell_env = os.getenv("WAKEUP_BELL_PATH")
+  if wakeup_bell_env:
+    return Path(wakeup_bell_env)
+
+  # Default to a resource file in the audio module
+  import lmnop_wakeup.audio
+
+  audio_files = files(lmnop_wakeup.audio)
+  wakeup_bell_file = audio_files / "wakeup_bell.mp3"
+
+  with resources.as_file(wakeup_bell_file) as wakeup_bell_file:
+    return wakeup_bell_file
+
+
 @dataclass
 class BriefingDirectory:
   briefing_date: date

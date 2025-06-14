@@ -6,7 +6,7 @@ from pydantic import AwareDatetime, BaseModel
 
 from ..brief.model import BriefingScript, ConsolidatedBriefingScript
 from ..core.tracing import trace
-from ..paths import BriefingDirectory, get_theme_intro_path, get_theme_music_path
+from ..paths import BriefingDirectory
 from ..tts import TTSOrchestrator
 from .master import master_briefing_audio
 from .production import AudioProductionConfig, AudioProductionMixer
@@ -118,33 +118,24 @@ async def add_audio_production(state: TTSWorkflowState) -> TTSWorkflowState:
   # Determine paths
   briefing_date = state.day_start_ts.date()
   briefing_dir = BriefingDirectory.for_date(briefing_date)
-  theme_music_path = get_theme_music_path()
-  theme_intro_path = get_theme_intro_path()
   master_audio_path = briefing_dir.master_audio_path
 
-  # Check if both theme music files exist
-  if not theme_music_path.exists() or not theme_intro_path.exists():
-    logger.warning(
-      f"Audio production files not found (theme: {theme_music_path.exists()}, "
-      f"intro: {theme_intro_path.exists()}), skipping audio production"
+  # Mix audio production with briefing audio
+  mixer = AudioProductionMixer(AudioProductionConfig())
+  try:
+    final_audio_path = mixer.mix_audio_with_briefing(
+      briefing_audio_path=state.tts.briefing_audio_path,
+      script=state.consolidated_briefing_script,
+      audio_files_dir=briefing_dir.base_path,
+      output_path=master_audio_path,
     )
+  except FileNotFoundError as e:
+    logger.warning(f"Audio production files not found: {e}, skipping audio production")
     # Copy briefing audio as final master audio
     import shutil
 
     shutil.copy2(state.tts.briefing_audio_path, master_audio_path)
-    state.tts.master_audio_path = master_audio_path
-    return state
-
-  # Mix audio production with briefing audio
-  mixer = AudioProductionMixer(AudioProductionConfig())
-  final_audio_path = mixer.mix_audio_with_briefing(
-    briefing_audio_path=state.tts.briefing_audio_path,
-    theme_music_path=theme_music_path,
-    theme_intro_path=theme_intro_path,
-    script=state.consolidated_briefing_script,
-    audio_files_dir=briefing_dir.base_path,
-    output_path=master_audio_path,
-  )
+    final_audio_path = master_audio_path
 
   state.tts.master_audio_path = final_audio_path
   logger.info(f"Audio production completed: {final_audio_path}")

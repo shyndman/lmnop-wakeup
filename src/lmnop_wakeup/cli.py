@@ -81,8 +81,8 @@ class Script(Command):
       briefing_dir = BriefingDirectory.for_date(self.briefing_date)
       print("Generated files:")
       print(f"  Briefing directory: {file_hyperlink(briefing_dir.base_path)}")
-      print(f"  State: {file_hyperlink(briefing_dir.state_json_path)}")
-      print(f"  Script: {file_hyperlink(briefing_dir.script_json_path)}")
+      print(f"  State: {file_hyperlink(briefing_dir.workflow_state_path)}")
+      print(f"  Script: {file_hyperlink(briefing_dir.brief_json_path)}")
       if briefing_dir.consolidated_brief_json_path.exists():
         print(f"  Consolidated: {file_hyperlink(briefing_dir.consolidated_brief_json_path)}")
       if briefing_dir.master_audio_path.exists():
@@ -140,7 +140,6 @@ class AudioProduction(Command):
   @override
   async def run(self):
     from .audio.production import AudioProductionConfig, AudioProductionMixer
-    from .paths import get_theme_intro_path, get_theme_music_path
 
     assert_env()
 
@@ -170,28 +169,12 @@ class AudioProduction(Command):
       print(f"Error loading briefing script: {e}")
       return
 
-    # Get theme music paths
-    theme_music_path = get_theme_music_path()
-    theme_intro_path = get_theme_intro_path()
-
-    if not theme_music_path.exists():
-      print(f"Theme music file not found at {file_hyperlink(theme_music_path)}")
-      print("You can set a custom theme music path with THEME_MUSIC_PATH environment variable")
-      return
-
-    if not theme_intro_path.exists():
-      print(f"Theme intro file not found at {file_hyperlink(theme_intro_path)}")
-      print("You can set a custom theme intro path with THEME_INTRO_PATH environment variable")
-      return
-
     # Mix audio production with briefing
     mixer = AudioProductionMixer(AudioProductionConfig())
 
     try:
       output_path = mixer.mix_audio_with_briefing(
         briefing_audio_path=briefing_dir.briefing_audio_path,
-        theme_music_path=theme_music_path,
-        theme_intro_path=theme_intro_path,
         script=script,
         audio_files_dir=briefing_dir.base_path,
         output_path=briefing_dir.master_audio_path,
