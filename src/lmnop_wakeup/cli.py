@@ -226,70 +226,183 @@ class ListPlayers(Command):
 
     try:
       async with MusicAssistantSession(music_assistant_url) as client:
-        if hasattr(client, "players") and hasattr(client.players, "all"):
-          players = client.players
+        # Get all players from the players collection
+        all_players = list(client.players)
 
-          if not players:
-            console.print("[red]No players found[/red]")
-            return
+        if not all_players:
+          console.print("[red]No players found[/red]")
+          return
 
-          table = Table(title=f"Music Assistant Players ({len(players)} found)")
-          table.add_column("ID", style="cyan", no_wrap=True)
-          table.add_column("Name", style="magenta")
-          table.add_column("Available", justify="center")
-          table.add_column("Type", style="green")
-          table.add_column("Details", style="dim")
+        table = Table(title=f"Music Assistant Players ({len(all_players)} found)")
+        table.add_column("ID", style="cyan", no_wrap=True)
+        table.add_column("Name", style="magenta")
+        table.add_column("Available", justify="center")
+        table.add_column("Type", style="green")
+        table.add_column("Details", style="dim")
 
-          available_count = 0
-          available_players = []
+        available_count = 0
+        available_players = []
 
-          for player in players:
-            player_id = player.player_id
-            status = "✅" if player.available else "❌"
-            player_type = getattr(player, "type", "Unknown")
+        for player in all_players:
+          player_id = player.player_id
+          status = "✅" if player.available else "❌"
+          player_type = getattr(player, "type", "Unknown")
 
-            details_parts = []
-            provider = getattr(player, "provider", "Unknown")
-            details_parts.append(f"Provider: {provider}")
+          details_parts = []
+          provider = getattr(player, "provider", "Unknown")
+          details_parts.append(f"Provider: {provider}")
 
-            volume_level = getattr(player, "volume_level", None)
-            if volume_level is not None:
-              details_parts.append(f"Volume: {volume_level}%")
+          volume_level = getattr(player, "volume_level", None)
+          if volume_level is not None:
+            details_parts.append(f"Volume: {volume_level}%")
 
-            state = getattr(player, "state", "Unknown")
-            details_parts.append(f"State: {state}")
+          state = getattr(player, "state", "Unknown")
+          details_parts.append(f"State: {state}")
 
-            details = "\n".join(details_parts)
+          details = "\n".join(details_parts)
 
-            table.add_row(player_id, player.name, status, player_type, details)
+          table.add_row(player_id, player.name, status, player_type, details)
 
-            if player.available:
-              available_count += 1
-              available_players.append((player_id, player.name))
+          if player.available:
+            available_count += 1
+            available_players.append((player_id, player.name))
 
-          console.print(table)
-          console.print(
-            f"\n[bold]Summary:[/bold] {available_count} of {len(players)} players available"
-          )
+        console.print(table)
+        console.print(
+          f"\n[bold]Summary:[/bold] {available_count} of {len(all_players)} players available"
+        )
 
-          if available_players:
-            console.print("\n[green]Available for announcements:[/green]")
-            for player_id, player_name in available_players:
-              console.print(f"  • {player_name} [dim]({player_id})[/dim]")
-          else:
-            console.print(
-              "\n[yellow]⚠️  No players are currently available for announcements[/yellow]"
-            )
+        if available_players:
+          console.print("\n[green]Available for announcements:[/green]")
+          for player_id, player_name in available_players:
+            console.print(f"  • {player_name} [dim]({player_id})[/dim]")
         else:
-          console.print("[red]Unable to access players from Music Assistant[/red]")
+          console.print(
+            "\n[yellow]⚠️  No players are currently available for announcements[/yellow]"
+          )
 
     except Exception as e:
       logger.exception(f"Failed to list players: {e}")
       console.print(f"[red]Error:[/red] {e}")
 
 
+class Announce(Command):
+  """Announce briefing via Music Assistant"""
+
+  briefing_date: date = arg(inherited=True)
+  player_id: str | None = arg(
+    default=None, help="Music Assistant player ID (overrides environment default)"
+  )
+
+  @override
+  async def run(self):
+    from rich.console import Console
+
+    from .audio.announcer import (
+      AnnouncementFailedError,
+      BriefingAnnouncer,
+      MusicAssistantConnectionError,
+      PlayerNotFoundError,
+    )
+    from .env import (
+      get_music_assistant_player_id,
+      get_music_assistant_url,
+      get_wakeup_server_base_url,
+    )
+    from .paths import BriefingDirectory
+
+    console = Console()
+
+    # Check if briefing audio exists
+    briefing_dir = BriefingDirectory.for_date(self.briefing_date)
+    if not briefing_dir.has_master_audio():
+      console.print(f"[red]Error:[/red] No audio file found for {self.briefing_date}")
+      console.print(f"Expected audio at: {file_hyperlink(briefing_dir.master_audio_path)}")
+      console.print("Generate the briefing first using the main workflow.")
+      return
+
+    # Get configuration
+    try:
+      music_assistant_url = get_music_assistant_url()
+      server_base_url = get_wakeup_server_base_url()
+      player_id = self.player_id or get_music_assistant_player_id()
+    except EnvironmentError as e:
+      console.print(f"[red]Configuration error:[/red] {e}")
+      console.print("Required environment variables:")
+      console.print("  • MUSIC_ASSISTANT_URL")
+      console.print("  • WAKEUP_SERVER_BASE_URL")
+      console.print("  • MUSIC_ASSISTANT_PLAYER_ID (or use --player-id)")
+      return
+
+    # Construct briefing URL
+    briefing_url = f"{server_base_url}/briefing/{self.briefing_date}/audio"
+
+    console.print(f"🎵 Announcing briefing for {self.briefing_date}")
+    console.print(f"Player: {player_id}")
+    console.print(f"Audio URL: {briefing_url}")
+
+    # Start temporary server for the announcement
+    console.print("🚀 Starting temporary server...")
+
+    import asyncio
+
+    import uvicorn
+
+    from .server import app
+
+    # Create server config
+    config = uvicorn.Config(
+      app=app,
+      host="0.0.0.0",
+      port=8002,
+      log_config=None,
+      log_level="error",  # Minimize server output
+    )
+    server = uvicorn.Server(config)
+
+    try:
+      # Start server in background
+      server_task = asyncio.create_task(server.serve())
+
+      # Give server a moment to start
+      await asyncio.sleep(2)
+      console.print("✅ Server started")
+
+      # Make the announcement
+      announcer = BriefingAnnouncer(music_assistant_url, player_id)
+      await announcer.announce(briefing_url)
+      console.print("[green]✅ Briefing announced successfully![/green]")
+
+    except MusicAssistantConnectionError as e:
+      console.print(f"[red]Connection error:[/red] {e}")
+      console.print(f"Failed to connect to Music Assistant at {music_assistant_url}")
+
+    except PlayerNotFoundError as e:
+      console.print(f"[red]Player error:[/red] {e}")
+      console.print(f"Player '{player_id}' not found or unavailable")
+      console.print("Use 'opr wakeup list-players' to see available players")
+
+    except AnnouncementFailedError as e:
+      console.print(f"[red]Announcement failed:[/red] {e}")
+
+    except Exception as e:
+      logger.exception(f"Unexpected error during announcement: {e}")
+      console.print(f"[red]Unexpected error:[/red] {e}")
+
+    finally:
+      # Always shut down the server
+      console.print("🛑 Shutting down server...")
+      server.should_exit = True
+      server_task.cancel()  # type: ignore
+      try:
+        await server_task  # type: ignore
+      except asyncio.CancelledError:
+        pass
+      console.print("✅ Server stopped")
+
+
 class Wakeup(Command):
-  subcommand: Script | Voiceover | LoadData | Server | ThemeMusic | ListPlayers
+  subcommand: Script | Voiceover | LoadData | Server | ThemeMusic | ListPlayers | Announce
 
   briefing_date: date = arg(
     default=date.today() + timedelta(days=1),
