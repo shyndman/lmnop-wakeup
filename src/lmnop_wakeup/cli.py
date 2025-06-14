@@ -348,7 +348,7 @@ class Announce(Command):
       server_task = asyncio.create_task(server.serve())
 
       # Give server a moment to start
-      await asyncio.sleep(2)
+      await asyncio.sleep(2.0)
       console.print("✅ Server started")
 
       # Make the announcement

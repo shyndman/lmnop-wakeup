@@ -329,12 +329,25 @@ class BriefingScript(BaseModel):
       line_is_intro = line.is_introduction
       intro_transition = current_segment_is_intro != line_is_intro
 
-      if len(potential_speakers) <= 2 and not intro_transition:
+      # Check if style directions are consistent for speakers already in the segment
+      style_direction_mismatch = False
+      if line.character_slug in current_speakers:
+        # This character is already in the segment, check if style matches
+        for existing_line in current_segment_lines:
+          if (
+            existing_line.character_slug == line.character_slug
+            and existing_line.character_style_direction != line.character_style_direction
+          ):
+            style_direction_mismatch = True
+            break
+
+      if len(potential_speakers) <= 2 and not intro_transition and not style_direction_mismatch:
         # We can add this line to the current segment
         current_segment_lines.append(line)
         current_speakers = potential_speakers
       else:
-        # We need to start a new segment (would exceed 2 speakers or intro/non-intro transition)
+        # We need to start a new segment
+        # (would exceed 2 speakers, intro/non-intro transition, or style mismatch)
         finalize_current_segment()
 
         # Start new segment with this line
@@ -355,6 +368,7 @@ class BriefingScript(BaseModel):
       segments=total_segments,
       total_segment_lines=total_segment_lines,
       consolidation_ratio=round(consolidation_ratio, 3),
+      note="Segments respect style direction changes",
     )
 
     return ConsolidatedBriefingScript(segments=segments)

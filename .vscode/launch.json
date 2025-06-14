@@ -15,10 +15,9 @@
         "python"
       ],
       "args": [
-        "script",
+        "audio-production",
         "--briefing-date",
-        "2025-06-01",
-        "--review-events"
+        "2025-06-14",
       ],
       "justMyCode": false,
       "envFile": "${workspaceFolder}/.env.res",

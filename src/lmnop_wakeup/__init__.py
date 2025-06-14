@@ -1,3 +1,4 @@
+import os
 from importlib.metadata import version
 
 import nest_asyncio
@@ -10,7 +11,7 @@ from .core.tracing import initialize_tracing
 nest_asyncio.apply()
 
 initialize_tracing()
-initialize_logging()
+initialize_logging(log_level=os.getenv("LOG_LEVEL", "DEBUG").upper())
 
 PACKAGE = __name__.split(".")[0]
 __version__ = version(PACKAGE)
