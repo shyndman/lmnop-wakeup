@@ -7,7 +7,7 @@ from clypi import Command, arg
 
 from .arg import parse_date_arg, parse_location
 from .core.cache import get_cache
-from .core.terminal import is_interactive_terminal
+from .core.terminal import file_hyperlink, is_interactive_terminal
 from .env import assert_env
 from .location.model import CoordinateLocation, LocationName, location_named
 from .paths import BriefingDirectory
@@ -77,6 +77,18 @@ class Script(Command):
       console.print(clypi.boxed(display_text, width=80, align="left"))
       print("")
 
+      # Log paths to generated files
+      briefing_dir = BriefingDirectory.for_date(self.briefing_date)
+      print("Generated files:")
+      print(f"  Briefing directory: {file_hyperlink(briefing_dir.base_path)}")
+      print(f"  State: {file_hyperlink(briefing_dir.state_json_path)}")
+      print(f"  Script: {file_hyperlink(briefing_dir.script_json_path)}")
+      if briefing_dir.consolidated_brief_json_path.exists():
+        print(f"  Consolidated: {file_hyperlink(briefing_dir.consolidated_brief_json_path)}")
+      if briefing_dir.master_audio_path.exists():
+        print(f"  Audio: {file_hyperlink(briefing_dir.master_audio_path)}")
+      print("")
+
 
 class Voiceover(Command):
   print_script: bool = arg(default=False, help="do not output the audio, just print the script")
@@ -86,18 +98,14 @@ class Voiceover(Command):
   async def run(self):
     assert_env()
 
-    await run_voiceover(self.briefing_date)
+    from .tts import run_voiceover
 
+    briefing_dir = BriefingDirectory.for_date(self.briefing_date)
+    briefing_dir.ensure_exists()
 
-async def run_voiceover(date):
-  from .tts import run_voiceover
+    briefing_script = briefing_dir.load_script()
 
-  briefing_dir = BriefingDirectory.for_date(date)
-  briefing_dir.ensure_exists()
-
-  briefing_script = briefing_dir.load_script()
-
-  await run_voiceover(briefing_script, print_script=False, output_path=briefing_dir.base_path)
+    await run_voiceover(briefing_script, print_script=False, output_path=briefing_dir.base_path)
 
 
 class LoadData(Command):
@@ -143,7 +151,7 @@ class ThemeMusic(Command):
       return
 
     if not briefing_dir.briefing_audio_path.exists():
-      print(f"No briefing audio found at {briefing_dir.briefing_audio_path}")
+      print(f"No briefing audio found at {file_hyperlink(briefing_dir.briefing_audio_path)}")
       return
 
     # Load the consolidated script for timing
@@ -167,12 +175,12 @@ class ThemeMusic(Command):
     theme_intro_path = get_theme_intro_path()
 
     if not theme_music_path.exists():
-      print(f"Theme music file not found at {theme_music_path}")
+      print(f"Theme music file not found at {file_hyperlink(theme_music_path)}")
       print("You can set a custom theme music path with THEME_MUSIC_PATH environment variable")
       return
 
     if not theme_intro_path.exists():
-      print(f"Theme intro file not found at {theme_intro_path}")
+      print(f"Theme intro file not found at {file_hyperlink(theme_intro_path)}")
       print("You can set a custom theme intro path with THEME_INTRO_PATH environment variable")
       return
 
@@ -188,7 +196,8 @@ class ThemeMusic(Command):
         audio_files_dir=briefing_dir.base_path,
         output_path=briefing_dir.master_audio_path,
       )
-      print(f"Theme music added successfully: {output_path}")
+      print(f"Theme music added successfully: {file_hyperlink(output_path)}")
+      print(f"Briefing directory: {file_hyperlink(briefing_dir.base_path)}")
     except Exception as e:
       print(f"Error adding theme music: {e}")
 
