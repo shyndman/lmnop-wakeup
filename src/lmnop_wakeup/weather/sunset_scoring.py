@@ -1,5 +1,8 @@
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
+from typing import Tuple
 
+import pandas as pd
+import pvlib
 from pydantic import BaseModel, Field, field_validator
 
 # Pydantic v2 Models for Sunset Analysis
@@ -141,7 +144,10 @@ class SunsetHourlyAnalysis(BaseModel):
 
   time: str = Field(..., description="Time in HH:MM format")
   iso_time: str = Field(..., description="Full ISO timestamp")
+  sun_elevation: float = Field(..., description="Sun elevation angle in degrees")
+  elevation_weight: float = Field(..., description="Scoring weight based on sun elevation")
   total_score: float = Field(..., description="Total sunset score")
+  raw_score: float = Field(..., description="Score before elevation weighting")
   visibility_score: float = Field(..., description="Visibility component")
   cloud_score: float = Field(..., description="Cloud component")
   air_quality_score: float = Field(..., description="Air quality component")
@@ -162,6 +168,7 @@ class SunsetLocationInfo(BaseModel):
 class SunsetConditionsSummary(BaseModel):
   """Summary of weather conditions at peak sunset time."""
 
+  sun_elevation: float = Field(..., description="Sun elevation angle at peak time")
   visibility_km: float = Field(..., description="Visibility in kilometers")
   cloud_low: float = Field(..., description="Low cloud coverage %")
   cloud_mid: float = Field(..., description="Mid cloud coverage %")
@@ -180,14 +187,144 @@ class SunsetAnalysisResult(BaseModel):
 
   peak_score: float = Field(..., description="Highest sunset quality score in analysis window")
   peak_time: str = Field(..., description="Time of peak conditions (HH:MM)")
+  peak_sun_elevation: float = Field(..., description="Sun elevation angle at peak time")
   rating: str = Field(..., description="Qualitative rating (Exceptional, Very Good, etc.)")
   sunset_time: str = Field(..., description="Actual sunset time (HH:MM)")
+  golden_hour_start: str = Field(..., description="Golden hour start time (HH:MM)")
+  golden_hour_end: str = Field(..., description="Golden hour end time (HH:MM)")
   hourly_analysis: list[SunsetHourlyAnalysis] = Field(..., description="Hour-by-hour analysis")
   conditions_summary: SunsetConditionsSummary = Field(
     ..., description="Weather summary at peak time"
   )
   location: SunsetLocationInfo = Field(..., description="Geographic location")
   flags: list[str] = Field(..., description="Special condition flags")
+
+
+# Golden Hour Calculation Functions
+
+
+def calculate_sun_position(
+  dt: datetime, latitude: float, longitude: float, timezone: str
+) -> Tuple[float, float]:
+  """
+  Calculate sun elevation and azimuth angles for a given time and location.
+
+  Args:
+      dt: Datetime (timezone-aware)
+      latitude: Location latitude
+      longitude: Location longitude
+      timezone: Timezone string
+
+  Returns:
+      Tuple of (elevation_angle, azimuth_angle) in degrees
+  """
+  # Create pandas DatetimeIndex for pvlib
+  times = pd.DatetimeIndex([dt], tz=timezone)
+
+  # Calculate solar position
+  solar_position = pvlib.solarposition.get_solarposition(
+    times, latitude, longitude, method="nrel_numpy"
+  )
+
+  elevation = solar_position["elevation"].iloc[0]
+  azimuth = solar_position["azimuth"].iloc[0]
+
+  return elevation, azimuth
+
+
+def find_golden_hour_window(
+  sunset_date: date,
+  latitude: float,
+  longitude: float,
+  timezone: str,
+  upper_elevation: float = 6.0,
+  lower_elevation: float = -4.0,
+) -> Tuple[datetime, datetime]:
+  """
+  Find the golden hour window based on sun elevation angles.
+
+  Golden hour occurs when sun elevation is between 6° and -4°.
+  Blue hour occurs when sun elevation is between -4° and -6°.
+
+  Args:
+      sunset_date: Date to analyze
+      latitude: Location latitude
+      longitude: Location longitude
+      timezone: Timezone string
+      upper_elevation: Upper bound of golden hour (default 6°)
+      lower_elevation: Lower bound of golden hour (default -4°)
+
+  Returns:
+      Tuple of (start_time, end_time) for golden hour window
+  """
+  # Start search 3 hours before midnight to ensure we catch evening golden hour
+  search_start = datetime.combine(sunset_date, datetime.min.time()).replace(
+    hour=15, tzinfo=pd.Timestamp.now(tz=timezone).tzinfo
+  )
+  search_end = search_start.replace(hour=23, minute=59)
+
+  # Generate minute-by-minute timestamps
+  time_range = pd.date_range(search_start, search_end, freq="1min")
+
+  # Calculate sun positions for all timestamps
+  solar_position = pvlib.solarposition.get_solarposition(
+    time_range, latitude, longitude, method="nrel_numpy"
+  )
+
+  elevations = solar_position["elevation"].values
+
+  # Find when sun crosses upper and lower elevation thresholds
+  golden_hour_start = None
+  golden_hour_end = None
+
+  for i in range(len(elevations)):
+    if golden_hour_start is None and elevations[i] <= upper_elevation:
+      golden_hour_start = time_range[i].to_pydatetime()
+
+    if golden_hour_start is not None and elevations[i] <= lower_elevation:
+      golden_hour_end = time_range[i].to_pydatetime()
+      break
+
+  # Handle edge cases
+  if golden_hour_start is None:
+    # Sun never drops below upper elevation (polar summer)
+    golden_hour_start = search_start
+
+  if golden_hour_end is None:
+    # Sun never drops below lower elevation
+    golden_hour_end = search_end
+
+  return golden_hour_start, golden_hour_end
+
+
+def calculate_elevation_weight(elevation: float) -> float:
+  """
+  Calculate scoring weight based on sun elevation angle.
+
+  Optimal viewing is when sun is between 0° and 3° elevation.
+  Weight decreases as we move away from this range.
+
+  Args:
+      elevation: Sun elevation angle in degrees
+
+  Returns:
+      Weight multiplier (0.5 to 1.0)
+  """
+  if 0 <= elevation <= 3:
+    # Optimal range - full weight
+    return 1.0
+  elif -2 <= elevation < 0:
+    # Very good - slight reduction
+    return 0.95
+  elif 3 < elevation <= 6:
+    # Good but getting high - gradual reduction
+    return 1.0 - (elevation - 3) * 0.1  # 0.7 to 1.0
+  elif -4 <= elevation < -2:
+    # Getting dark but still good - gradual reduction
+    return 0.9 + (elevation + 2) * 0.1  # 0.7 to 0.9
+  else:
+    # Outside golden hour range
+    return 0.5
 
 
 # Core Analysis Functions
@@ -267,9 +404,10 @@ def analyze_sunset_conditions(
   # Parse sunset time
   sunset_time = datetime.fromisoformat(sunset_time_str.replace("Z", "+00:00"))
 
-  # Create 4-hour analysis window (2 hours before to 1 hour after sunset)
-  start_time = sunset_time - timedelta(hours=2)
-  end_time = sunset_time + timedelta(hours=1)
+  # Calculate golden hour window based on sun elevation
+  start_time, end_time = find_golden_hour_window(
+    target_date, weather.latitude, weather.longitude, weather.timezone
+  )
 
   # Extract hourly data
   hourly_times = [datetime.fromisoformat(t.replace("Z", "+00:00")) for t in weather.hourly.time]
@@ -291,15 +429,28 @@ def analyze_sunset_conditions(
   peak_score = 0
   peak_time = None
   peak_conditions = None
+  peak_elevation = None
 
   for i, time_idx in enumerate(analysis_indices):
     hour_conditions = extract_hour_conditions(weather.hourly, air_quality.hourly, time_idx)
     scores = calculate_hourly_score(hour_conditions)
 
+    # Calculate sun elevation for this hour
+    sun_elevation, _ = calculate_sun_position(
+      analysis_times[i], weather.latitude, weather.longitude, weather.timezone
+    )
+
+    # Apply elevation-based weighting
+    elevation_weight = calculate_elevation_weight(sun_elevation)
+    weighted_score = scores.total_score * elevation_weight
+
     analysis_hour = SunsetHourlyAnalysis(
       time=analysis_times[i].strftime("%H:%M"),
       iso_time=analysis_times[i].isoformat(),
-      total_score=scores.total_score,
+      sun_elevation=round(sun_elevation, 2),
+      elevation_weight=round(elevation_weight, 2),
+      total_score=round(weighted_score, 1),
+      raw_score=round(scores.total_score, 1),
       visibility_score=scores.visibility_score,
       cloud_score=scores.cloud_score,
       air_quality_score=scores.air_quality_score,
@@ -311,10 +462,11 @@ def analyze_sunset_conditions(
 
     hourly_analysis.append(analysis_hour)
 
-    if scores.total_score > peak_score:
-      peak_score = scores.total_score
+    if weighted_score > peak_score:
+      peak_score = weighted_score
       peak_time = analysis_times[i].strftime("%H:%M")
       peak_conditions = hour_conditions
+      peak_elevation = sun_elevation
 
   # Determine rating
   rating = get_rating_from_score(peak_score)
@@ -326,6 +478,7 @@ def analyze_sunset_conditions(
 
   # Generate summary conditions
   conditions_summary = SunsetConditionsSummary(
+    sun_elevation=round(peak_elevation, 2) if peak_elevation is not None else 0.0,
     visibility_km=round(peak_conditions.visibility_km, 1),
     cloud_low=peak_conditions.cloud_low,
     cloud_mid=peak_conditions.cloud_mid,
@@ -350,8 +503,11 @@ def analyze_sunset_conditions(
   return SunsetAnalysisResult(
     peak_score=round(peak_score, 1),
     peak_time=peak_time,
+    peak_sun_elevation=round(peak_elevation, 2) if peak_elevation is not None else 0.0,
     rating=rating,
     sunset_time=sunset_time.strftime("%H:%M"),
+    golden_hour_start=start_time.strftime("%H:%M"),
+    golden_hour_end=end_time.strftime("%H:%M"),
     hourly_analysis=hourly_analysis,
     conditions_summary=conditions_summary,
     location=location,
@@ -537,6 +693,16 @@ def generate_analysis_flags(
 ) -> list[str]:
   """Generate analysis flags for special conditions."""
   flags = []
+
+  # Check sun elevation at peak time
+  if hourly_analysis:
+    peak_analysis = max(hourly_analysis, key=lambda x: x.total_score)
+    if 0 <= peak_analysis.sun_elevation <= 3:
+      flags.append("optimal_sun_elevation")
+    elif peak_analysis.sun_elevation > 6:
+      flags.append("sun_too_high")
+    elif peak_analysis.sun_elevation < -4:
+      flags.append("past_golden_hour")
 
   # Check for overcast penalty
   if peak_conditions.total_cloud_coverage >= 100:
