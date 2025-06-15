@@ -409,8 +409,12 @@ def analyze_sunset_conditions(
     target_date, weather.latitude, weather.longitude, weather.timezone
   )
 
-  # Extract hourly data
-  hourly_times = [datetime.fromisoformat(t.replace("Z", "+00:00")) for t in weather.hourly.time]
+  # Extract hourly data and convert to location timezone
+  location_tz = pd.Timestamp.now(tz=weather.timezone).tzinfo
+  hourly_times = [
+    datetime.fromisoformat(t.replace("Z", "+00:00")).astimezone(location_tz)
+    for t in weather.hourly.time
+  ]
 
   # Find relevant hourly indices
   analysis_indices = []
