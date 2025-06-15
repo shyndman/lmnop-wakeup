@@ -1,5 +1,4 @@
 from datetime import date, datetime
-from typing import Tuple
 
 import pandas as pd
 import pvlib
@@ -205,7 +204,7 @@ class SunsetAnalysisResult(BaseModel):
 
 def calculate_sun_position(
   dt: datetime, latitude: float, longitude: float, timezone: str
-) -> Tuple[float, float]:
+) -> tuple[float, float]:
   """
   Calculate sun elevation and azimuth angles for a given time and location.
 
@@ -239,7 +238,7 @@ def find_golden_hour_window(
   timezone: str,
   upper_elevation: float = 6.0,
   lower_elevation: float = -4.0,
-) -> Tuple[datetime, datetime]:
+) -> tuple[datetime, datetime]:
   """
   Find the golden hour window based on sun elevation angles.
 

@@ -139,7 +139,7 @@ class AudioProduction(Command):
 
   @override
   async def run(self):
-    from .audio.production import AudioProductionConfig, AudioProductionMixer
+    from .audio.production import AudioProductionMixer
 
     assert_env()
 
@@ -170,7 +170,7 @@ class AudioProduction(Command):
       return
 
     # Mix audio production with briefing
-    mixer = AudioProductionMixer(AudioProductionConfig())
+    mixer = AudioProductionMixer()
 
     try:
       output_path = mixer.mix_audio_with_briefing(

@@ -22,23 +22,6 @@ def get_data_path() -> Path:
   return APP_DIRS.user_state_path
 
 
-def get_theme_music_path() -> Path:
-  """Get the path to the looping theme music resource file for audio production."""
-  # First check if a custom theme music path is set via environment variable
-  theme_music_env = os.getenv("THEME_MUSIC_PATH")
-  if theme_music_env:
-    return Path(theme_music_env)
-
-  # Default to a resource file in the audio module
-  import lmnop_wakeup.audio
-
-  audio_files = files(lmnop_wakeup.audio)
-  theme_file = audio_files / "theme.mp3"
-
-  with resources.as_file(theme_file) as theme_file:
-    return theme_file
-
-
 def get_theme_intro_path() -> Path:
   """Get the path to the theme intro music resource file for audio production."""
   # First check if a custom theme intro path is set via environment variable

@@ -9,7 +9,7 @@ from ..core.tracing import trace
 from ..paths import BriefingDirectory
 from ..tts import TTSOrchestrator
 from .master import master_briefing_audio
-from .production import AudioProductionConfig, AudioProductionMixer
+from .production import AudioProductionMixer
 
 logger = structlog.get_logger(__name__)
 
@@ -121,7 +121,7 @@ async def add_audio_production(state: TTSWorkflowState) -> TTSWorkflowState:
   master_audio_path = briefing_dir.master_audio_path
 
   # Mix audio production with briefing audio
-  mixer = AudioProductionMixer(AudioProductionConfig())
+  mixer = AudioProductionMixer()
   try:
     final_audio_path = mixer.mix_audio_with_briefing(
       briefing_audio_path=state.tts.briefing_audio_path,
