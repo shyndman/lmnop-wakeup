@@ -50,6 +50,7 @@ dependencies = [
     "structlog>=25.4.0",
     "ujson>=5.10.0",
     "psycopg[binary,pool]>=3.2.9",
+    "pvlib>=0.13.0",
 ]
 license = {text = "MIT"}
 
