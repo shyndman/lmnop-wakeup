@@ -1,4 +1,6 @@
 import asyncio
+import json
+from collections.abc import Generator
 from datetime import date, datetime, timedelta
 from typing import Any, Literal, cast
 
@@ -12,6 +14,8 @@ from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
 from langgraph.graph import StateGraph
 from langgraph.store.postgres import AsyncPostgresStore
 from langgraph.types import CachePolicy, RetryPolicy, Send
+from pydantic import Field
+from pydantic.dataclasses import dataclass
 from pydantic_extra_types.coordinate import Coordinate
 from rich.prompt import Prompt
 
@@ -38,7 +42,7 @@ from .events.calendar.gcalendar_api import (
   update_calendar_event,
 )
 from .events.events_api import get_filtered_calendars_with_notes
-from .events.model import CalendarEvent, CalendarsOfInterest
+from .events.model import CalendarEvent, CalendarsOfInterest, EventRouteOptions, ModeRejectionResult
 from .events.prioritizer_agent import (
   EventPrioritizerInput,
   RegionalWeatherReports,
@@ -539,25 +543,250 @@ async def generate_tts(state: State):
   return {"tts": result.tts}
 
 
+@dataclass
+class FailedNotification:
+  """Record of a failed notification attempt."""
+
+  event_id: str
+  event_summary: str
+  event_time: datetime
+  notification_type: str  # "travel", "meeting", or "wakeup"
+  error_message: str
+  attempted_at: datetime = Field(default_factory=datetime.now)
+
+
+@dataclass
+class NotificationDigest:
+  """Digest of failed notification attempts."""
+
+  briefing_date: date
+  generated_at: datetime = Field(default_factory=datetime.now)
+  total_events_attempted: int = 0
+  total_failures: int = 0
+  failed_notifications: list[FailedNotification] = Field(default_factory=list)
+
+
+def _generate_all_automation_events(state: State) -> Generator[CalendarEvent, None, None]:
+  """Generate all automation events for the briefing.
+
+  Creates:
+  - Wake-up event: lmnop:wakeup({date})
+  - Travel notifications: lmnop:notify.travel({event, location, mode, duration_min})
+    20min before departure
+  - Hilary's work meetings: lmnop:notify.meeting({person, event}) - 2min before start
+  """
+  if not state.schedule:
+    return
+
+  # Wake-up event
+  yield CalendarEvent(
+    id=f"up{state.schedule.date.isoformat().replace('-', '')}",
+    summary=f"lmnop:wakeup({state.schedule.date.isoformat()})",
+    start=TimeInfo(dateTime=state.schedule.wakeup_time),
+    end=TimeInfo(dateTime=state.schedule.wakeup_time + timedelta(minutes=5)),
+  )
+
+  # Travel notifications
+  yield from _generate_travel_notifications(state)
+
+  # Hilary's work notifications
+  yield from _generate_hilary_notifications(state)
+
+
+def _generate_travel_notifications(state: State) -> Generator[CalendarEvent, None, None]:
+  """Generate travel departure notifications."""
+  if not state.schedule or not state.schedule.event_travel_routes:
+    return
+
+  home_location = get_home_location()
+
+  for route in state.schedule.event_travel_routes:
+    if route.origin != home_location:
+      continue
+
+    related_event = _find_event_by_id(state, route.related_event_id[0])
+    if not related_event or related_event.start_datetime_aware.date() != state.schedule.date:
+      continue
+
+    yield from _generate_route_notifications(route, related_event, state.schedule.date)
+
+
+def _generate_route_notifications(
+  route: EventRouteOptions, event: CalendarEvent, briefing_date: date
+) -> Generator[CalendarEvent, None, None]:
+  """Generate notifications for each valid transportation mode."""
+  modes = [
+    ("bike", route.bike),
+    ("drive", route.drive),
+    ("transit", route.transit),
+    ("walk", route.walk),
+  ]
+
+  for mode, details in modes:
+    if isinstance(details, ModeRejectionResult):
+      continue
+
+    departure = event.start_datetime_aware - timedelta(minutes=details.duration_minutes)
+    notification_time = departure - timedelta(minutes=20)
+
+    summary_data = {
+      "event": event.summary,
+      "location": event.location or "Unknown",
+      "mode": mode,
+      "duration_min": details.duration_minutes,
+    }
+
+    yield CalendarEvent(
+      id=f"notify_travel_{event.id}_{mode}_{briefing_date.isoformat().replace('-', '')}",
+      summary=f"lmnop:notify.travel({json.dumps(summary_data, separators=(',', ':'))})",
+      start=TimeInfo(dateTime=notification_time),
+      end=TimeInfo(dateTime=notification_time + timedelta(minutes=1)),
+    )
+
+
+def _generate_hilary_notifications(state: State) -> Generator[CalendarEvent, None, None]:
+  """Generate meeting notifications for Hilary's work calendar."""
+  if not state.calendars:
+    return
+
+  hilary_calendar = state.calendars.calendars_by_id.get("calendar.hilary_s_work")
+  if not hilary_calendar:
+    return
+
+  schedule = assert_not_none(state.schedule)
+  briefing_date = schedule.date
+
+  for event in hilary_calendar.events:
+    if event.is_all_day() or event.start_datetime_aware.date() != briefing_date:
+      continue
+
+    notification_time = event.start_datetime_aware - timedelta(minutes=2)
+    summary_data = {"person": "Hilary", "event": event.summary}
+
+    yield CalendarEvent(
+      id=f"notify_hilary_{event.id}_{briefing_date.isoformat().replace('-', '')}",
+      summary=f"lmnop:notify.meeting({json.dumps(summary_data, separators=(',', ':'))})",
+      start=TimeInfo(dateTime=notification_time),
+      end=TimeInfo(dateTime=notification_time + timedelta(minutes=1)),
+    )
+
+
+async def _handle_automation_event(
+  calendar_id: str, event: CalendarEvent
+) -> tuple[bool, str | None]:
+  """Create or update a single automation event.
+
+  Returns:
+    Tuple of (success, error_message). error_message is None if successful.
+  """
+  try:
+    existing = get_calendar_event(calendar_id, event.id)
+
+    if existing:
+      rich.print(f"Event {event.id} already exists, updating.")
+      update_calendar_event(calendar_id, event)
+    else:
+      rich.print(f"Event {event.id} is new, inserting.")
+      insert_calendar_event(calendar_id, event)
+
+    return True, None
+  except Exception as e:
+    error_message = f"Failed to handle event {event.id}: {str(e)}"
+    rich.print(f"[red]{error_message}[/red]")
+    return False, error_message
+
+
+def _find_event_by_id(state: State, event_id: str) -> CalendarEvent | None:
+  """Find a calendar event by ID across all calendars."""
+  if not state.calendars:
+    return None
+
+  for calendar in state.calendars.calendars_by_id.values():
+    for event in calendar.events:
+      if event.id == event_id:
+        return event
+
+  return None
+
+
+def get_home_location() -> CoordinateLocation:
+  """Get the home location coordinates."""
+  return location_named(LocationName.home)
+
+
+def _extract_notification_type(event_summary: str) -> str:
+  """Extract notification type from event summary."""
+  if "lmnop:wakeup" in event_summary:
+    return "wakeup"
+  elif "lmnop:notify.travel" in event_summary:
+    return "travel"
+  elif "lmnop:notify.meeting" in event_summary:
+    return "meeting"
+  else:
+    return "unknown"
+
+
 @trace()
 async def schedule_automation_calendar_events(state: State, config: RunnableConfig):
-  schedule = state.schedule
-  if schedule is None:
+  """Schedule all automation calendar events for the briefing."""
+  if not state.schedule:
     raise ValueError("No schedule available to write calendar events")
 
-  wakeup_event = CalendarEvent(
-    id=f"up{schedule.date.isoformat().replace('-', '')}",
-    summary=f"lmnop:wakeup({schedule.date.isoformat()})",
-    start=TimeInfo(dateTime=schedule.wakeup_time),
-    end=TimeInfo(dateTime=schedule.wakeup_time + timedelta(minutes=5)),
-  )
-  maybe_event = get_calendar_event(AUTOMATION_SCHEDULER_CALENDAR_ID, wakeup_event.id)
-  if maybe_event:
-    rich.print(f"Event {wakeup_event.id} already exists in calendar, updating.")
-    update_calendar_event(calendar_id=AUTOMATION_SCHEDULER_CALENDAR_ID, event=wakeup_event)
-  else:
-    rich.print(f"Event {wakeup_event.id} is new, inserting.")
-    insert_calendar_event(calendar_id=AUTOMATION_SCHEDULER_CALENDAR_ID, event=wakeup_event)
+  # Collect all events and track failures
+  events = list(_generate_all_automation_events(state))
+  failed_notifications: list[FailedNotification] = []
+
+  # Process each event
+  for event in events:
+    success, error_message = await _handle_automation_event(AUTOMATION_SCHEDULER_CALENDAR_ID, event)
+
+    if not success and error_message:
+      failed_notification = FailedNotification(
+        event_id=event.id,
+        event_summary=event.summary,
+        event_time=event.start.to_aware_datetime(),
+        notification_type=_extract_notification_type(event.summary),
+        error_message=error_message,
+      )
+      failed_notifications.append(failed_notification)
+
+  # Write digest if there are failures
+  if failed_notifications:
+    digest = NotificationDigest(
+      briefing_date=state.schedule.date,
+      total_events_attempted=len(events),
+      total_failures=len(failed_notifications),
+      failed_notifications=failed_notifications,
+    )
+
+    # Write digest to briefing directory
+    briefing_dir = BriefingDirectory.for_date(state.schedule.date)
+    briefing_dir.ensure_exists()
+
+    # Convert to dict for JSON serialization
+    digest_dict = {
+      "briefing_date": digest.briefing_date.isoformat(),
+      "generated_at": digest.generated_at.isoformat(),
+      "total_events_attempted": digest.total_events_attempted,
+      "total_failures": digest.total_failures,
+      "failed_notifications": [
+        {
+          "event_id": fn.event_id,
+          "event_summary": fn.event_summary,
+          "event_time": fn.event_time.isoformat(),
+          "notification_type": fn.notification_type,
+          "error_message": fn.error_message,
+          "attempted_at": fn.attempted_at.isoformat(),
+        }
+        for fn in digest.failed_notifications
+      ],
+    }
+
+    briefing_dir.failed_notifications_digest_path.write_text(json.dumps(digest_dict, indent=2))
+
+    rich.print(
+      f"[yellow]Wrote {len(failed_notifications)} failed notifications to digest file[/yellow]"
+    )
 
 
 standard_retry = RetryPolicy(max_attempts=3)

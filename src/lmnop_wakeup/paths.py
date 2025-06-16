@@ -91,6 +91,11 @@ class BriefingDirectory:
     return self.base_path / "master_briefing.mp3"
 
   @property
+  def failed_notifications_digest_path(self) -> Path:
+    """Path to failed notifications digest file."""
+    return self.base_path / "failed_notifications.json"
+
+  @property
   def wav_files(self) -> list[Path]:
     """Get all WAV files sorted by numeric filename."""
     if not self.base_path.exists():
