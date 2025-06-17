@@ -225,8 +225,8 @@ def calculate_sun_position(
     times, latitude, longitude, method="nrel_numpy"
   )
 
-  elevation = solar_position["elevation"].iloc[0]
-  azimuth = solar_position["azimuth"].iloc[0]
+  elevation = solar_position["elevation"].iloc[0]  # type: ignore
+  azimuth = solar_position["azimuth"].iloc[0]  # type: ignore
 
   return elevation, azimuth
 
@@ -270,7 +270,7 @@ def find_golden_hour_window(
     time_range, latitude, longitude, method="nrel_numpy"
   )
 
-  elevations = solar_position["elevation"].values
+  elevations = solar_position["elevation"].values  # type: ignore
 
   # Find when sun crosses upper and lower elevation thresholds
   golden_hour_start = None
