@@ -20,7 +20,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          lfs: true
+          lfs: 'true'
+          persist-credentials: 'true'
+
+      - run: git lfs pull
+
       - name: Log in to the Container registry
         if: github.event_name != 'pull_request'
         uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1
@@ -43,6 +47,7 @@ jobs:
         id: push
         uses: docker/build-push-action@v6
         with:
+          context: .
           platforms: linux/amd64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
