@@ -1,4 +1,6 @@
 import asyncio
+from datetime import datetime
+from decimal import Decimal
 from pathlib import Path
 
 import rich
@@ -18,6 +20,7 @@ from lmnop_wakeup.brief.model import (
   ScriptLine,
   SpeakerSegment,
 )
+from lmnop_wakeup.core.cost_tracking import AgentCost, CostCategory
 from lmnop_wakeup.core.logging import rich_sprint
 from lmnop_wakeup.core.typing import assert_not_none, ensure
 from lmnop_wakeup.env import get_litellm_api_key, get_litellm_base_url
@@ -60,7 +63,7 @@ def calculate_words_per_minute(text: str, audio_file_path: Path) -> float:
   return wpm
 
 
-def calculate_tts_cost(model_name: str, input_tokens: int, output_tokens: int) -> float:
+def calculate_tts_cost(model_name: str, input_tokens: int, output_tokens: int) -> Decimal:
   """Calculate the cost of a TTS request based on model and token usage.
 
   Args:
@@ -69,17 +72,17 @@ def calculate_tts_cost(model_name: str, input_tokens: int, output_tokens: int) -
       output_tokens: Number of output tokens used
 
   Returns:
-      Total cost in USD
+      Total cost in USD as Decimal for precise calculations
   """
   # Pricing per 1M tokens as of Dec 2024
   pricing = {
     "gemini-2.5-flash-preview-tts": {
-      "input_per_1m": 0.50,
-      "output_per_1m": 10.00,
+      "input_per_1m": Decimal("0.50"),
+      "output_per_1m": Decimal("10.00"),
     },
     "gemini-2.5-pro-preview-tts": {
-      "input_per_1m": 1.00,
-      "output_per_1m": 20.00,
+      "input_per_1m": Decimal("1.00"),
+      "output_per_1m": Decimal("20.00"),
     },
   }
 
@@ -91,9 +94,9 @@ def calculate_tts_cost(model_name: str, input_tokens: int, output_tokens: int) -
 
   rates = pricing[model_key]
 
-  # Calculate cost (tokens / 1M * price_per_1M)
-  input_cost = (input_tokens / 1_000_000) * rates["input_per_1m"]
-  output_cost = (output_tokens / 1_000_000) * rates["output_per_1m"]
+  # Calculate cost (tokens / 1M * price_per_1M) using Decimal for precision
+  input_cost = (Decimal(input_tokens) / Decimal("1000000")) * rates["input_per_1m"]
+  output_cost = (Decimal(output_tokens) / Decimal("1000000")) * rates["output_per_1m"]
   total_cost = input_cost + output_cost
 
   logger.debug(
@@ -101,9 +104,9 @@ def calculate_tts_cost(model_name: str, input_tokens: int, output_tokens: int) -
     model=model_name,
     input_tokens=input_tokens,
     output_tokens=output_tokens,
-    input_cost_usd=round(input_cost, 6),
-    output_cost_usd=round(output_cost, 6),
-    total_cost_usd=round(total_cost, 6),
+    input_cost_usd=float(input_cost.quantize(Decimal("0.000001"))),
+    output_cost_usd=float(output_cost.quantize(Decimal("0.000001"))),
+    total_cost_usd=float(total_cost.quantize(Decimal("0.000001"))),
   )
 
   return total_cost
@@ -162,7 +165,7 @@ class TTSProcessor:
     part: int,
     output_path: Path,
     rate_limiter: Limiter,
-  ) -> float:
+  ) -> AgentCost:
     """Process a single script line into audio."""
     speech_config = self.speech_config_builder.build_config({line.character_slug})
 
@@ -188,10 +191,22 @@ class TTSProcessor:
     if usage is None:
       raise ValueError("Missing usage metadata")
 
-    cost = calculate_tts_cost(
+    cost_usd = calculate_tts_cost(
       self.config.model_name,
       assert_not_none(usage.prompt_token_count),
       assert_not_none(usage.candidates_token_count),
+    )
+
+    # Create cost record
+    agent_cost = AgentCost(
+      agent_name=f"tts-{line.character_slug}",
+      model_name=self.config.model_name,
+      input_tokens=assert_not_none(usage.prompt_token_count),
+      output_tokens=assert_not_none(usage.candidates_token_count),
+      cost_usd=cost_usd,
+      timestamp=datetime.now(),
+      category=CostCategory.TTS,
+      metadata={"character": line.character_slug, "part": part},
     )
 
     # Extract audio data
@@ -208,10 +223,19 @@ class TTSProcessor:
     # Calculate and log words per minute and cost
     wpm = calculate_words_per_minute(line.text, output_file)
     logger.info(
-      f"Generated audio for part {part}: {wpm:.1f} WPM, ${cost:.4f} ({line.character_slug})"
+      f"TTS call completed: tts-{line.character_slug}",
+      agent=f"tts-{line.character_slug}",
+      model=self.config.model_name,
+      cost_usd=float(cost_usd.quantize(Decimal("0.000001"))),
+      input_tokens=agent_cost.input_tokens,
+      output_tokens=agent_cost.output_tokens,
+      total_tokens=agent_cost.input_tokens + agent_cost.output_tokens,
+      wpm=round(wpm, 1),
+      part=part,
+      character=line.character_slug,
     )
 
-    return cost
+    return agent_cost
 
   async def process_speaker_segment(
     self,
@@ -219,7 +243,7 @@ class TTSProcessor:
     part: int,
     output_path: Path,
     rate_limiter: Limiter,
-  ) -> float:
+  ) -> AgentCost:
     """Process a speaker segment into audio using multi-speaker TTS."""
     speech_config = self.speech_config_builder.build_config(segment.speakers)
 
@@ -247,10 +271,23 @@ class TTSProcessor:
     usage = response.usage_metadata
     if not usage:
       raise ValueError("Missing usage metadata")
-    cost = calculate_tts_cost(
+    cost_usd = calculate_tts_cost(
       self.config.model_name,
       assert_not_none(usage.prompt_token_count),
       assert_not_none(usage.candidates_token_count),
+    )
+
+    speakers_str = ", ".join(segment.speakers)
+    # Create cost record
+    agent_cost = AgentCost(
+      agent_name="tts-segment",
+      model_name=self.config.model_name,
+      input_tokens=assert_not_none(usage.prompt_token_count),
+      output_tokens=assert_not_none(usage.candidates_token_count),
+      cost_usd=cost_usd,
+      timestamp=datetime.now(),
+      category=CostCategory.TTS,
+      metadata={"speakers": speakers_str, "part": part, "character_count": segment.character_count},
     )
 
     # Extract audio data
@@ -268,16 +305,28 @@ class TTSProcessor:
     # Combine text from all lines in the segment
     combined_text = " ".join(line.text for line in segment.lines)
     wpm = calculate_words_per_minute(combined_text, output_file)
-    logger.info(f"Generated audio for segment {part}: {wpm:.1f} WPM, ${cost:.4f} ({speakers_str})")
+    logger.info(
+      "TTS call completed: tts-segment",
+      agent="tts-segment",
+      model=self.config.model_name,
+      cost_usd=float(cost_usd.quantize(Decimal("0.000001"))),
+      input_tokens=agent_cost.input_tokens,
+      output_tokens=agent_cost.output_tokens,
+      total_tokens=agent_cost.input_tokens + agent_cost.output_tokens,
+      wpm=round(wpm, 1),
+      part=part,
+      speakers=speakers_str,
+      character_count=segment.character_count,
+    )
 
-    return cost
+    return agent_cost
 
 
 class TTSOrchestrator:
   def __init__(self, config: TTSConfig | None = None):
     self.config = config or TTSConfig()
     self.processor = TTSProcessor(self.config)
-    self.total_cost = 0.0
+    self.agent_costs: list[AgentCost] = []
 
   async def generate_individual_tts_files(
     self, script: BriefingScript | ConsolidatedBriefingScript, output_path: Path
@@ -292,14 +341,15 @@ class TTSOrchestrator:
       tasks = self._create_tts_tasks(script, output_path)
       logger.info(f"Starting TTS generation for {len(tasks)} script lines")
 
-    costs = await asyncio.gather(*tasks)
-    self.total_cost = sum(costs)
+    agent_costs = await asyncio.gather(*tasks)
+    self.agent_costs = agent_costs
+    total_cost = sum(cost.cost_usd for cost in agent_costs)
 
     # Log overall statistics with cost
     stats = calculate_overall_statistics(output_path)
     total_files = stats["total_files"]
     total_duration = stats["total_duration_minutes"]
-    logger.info(f"TTS complete: {total_files} files, {total_duration} min, ${self.total_cost:.4f}")
+    logger.info(f"TTS complete: {total_files} files, {total_duration} min, ${total_cost:.4f}")
 
   async def generate_voiceover(
     self,

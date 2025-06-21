@@ -31,6 +31,7 @@ from .brief.script_writer_agent import (
   ScriptWriterInput,
   get_script_writer_agent,
 )
+from .core.cost_tracking import CostTracker
 from .core.date import TimeInfo, end_of_local_day, start_of_local_day
 from .core.tracing import langfuse_span, trace
 from .core.typing import assert_not_none, ensure
@@ -84,6 +85,34 @@ logger = structlog.get_logger()
 FUTURE_EVENTS_TIMEDELTA = timedelta(days=12)
 FUTURE_WEATHER_TIMEDELTA = timedelta(days=3)
 PREVIOUS_SCRIPTS_COUNT = 1
+
+
+def _to_base32hex(s: str) -> str:
+  """Convert a string to valid base32hex (lowercase a-v and 0-9 only).
+
+  Uses a simple hash-based approach to ensure consistent conversion.
+  """
+  import hashlib
+
+  # Create a hash of the input string
+  hash_bytes = hashlib.sha256(s.encode()).digest()
+
+  # Convert to base32hex (uses lowercase a-v and 0-9)
+  # Python's base32 uses uppercase and includes 2-7, so we need to convert
+  result = []
+  for byte in hash_bytes[:20]:  # Use first 20 bytes for a 32-char result
+    # Map each 4-bit value to base32hex charset
+    high = byte >> 4
+    low = byte & 0x0F
+
+    # Convert to base32hex characters (0-9 = 0-9, 10-21 = a-v)
+    for val in [high, low]:
+      if val < 10:
+        result.append(str(val))
+      else:
+        result.append(chr(ord("a") + val - 10))
+
+  return "".join(result)
 
 
 class WorkflowAbortedByUser(Exception):
@@ -227,18 +256,21 @@ async def resolve_location(state: LocationDataState, config: RunnableConfig):
     named_locations=list(NAMED_LOCATIONS.values()),
   )
 
-  result = await location_resolver.run(input)
+  agent_result = await location_resolver.run_with_cost(input)
+  result = agent_result.output
 
   if result.special_location_id is not None:
     if result.special_location_id not in LocationName:
       raise ValueError(f"Special location {result.special_location_id} is not a valid LocationName")
     return {
       "resolved_location": location_named(LocationName(result.special_location_id)),
+      "agent_costs": [agent_result.cost],
     }
 
   if isinstance(result.geocoded_location, ResolvedLocation):
     return {
       "resolved_location": result.geocoded_location,
+      "agent_costs": [agent_result.cost],
     }
 
   raise ValueError(result.failure_reason or "Unknown location resolution failure")
@@ -301,7 +333,7 @@ async def send_locations_to_analysis_tasks(state: State):
 @trace()
 async def calculate_schedule(state: State, config: RunnableConfig):
   weather_report = state.regional_weather.reports_for_location(state.briefing_day_location)[0]
-  output = await get_scheduler_agent(config).run(
+  agent_result = await get_scheduler_agent(config).run_with_cost(
     SchedulerInput(
       scheduling_date=state.day_start_ts,
       home_location=state.briefing_day_location,
@@ -309,12 +341,12 @@ async def calculate_schedule(state: State, config: RunnableConfig):
       hourly_weather_api_result=assert_not_none(weather_report.comfort_api_result),
     )
   )
-  return {"schedule": output.schedule}
+  return {"schedule": agent_result.output.schedule, "agent_costs": [agent_result.cost]}
 
 
 @trace()
 async def analyze_weather(state: LocationWeatherState, config: RunnableConfig):
-  analysis = await get_meteorologist_agent(config).run(
+  agent_result = await get_meteorologist_agent(config).run_with_cost(
     MeteorologistInput(
       report_date=state.day_start_ts,
       weather_report=state.reports,
@@ -322,8 +354,9 @@ async def analyze_weather(state: LocationWeatherState, config: RunnableConfig):
   )
   return {
     "regional_weather": RegionalWeatherReports(
-      analysis_by_location={state.weather_key: analysis},
-    )
+      analysis_by_location={state.weather_key: agent_result.output},
+    ),
+    "agent_costs": [agent_result.cost],
   }
 
 
@@ -347,15 +380,19 @@ async def predict_sunset_beauty(state: State, config: RunnableConfig):
     SunsetAirQualityAPIResponse.model_validate_json(weather_report.air_quality_api_result),
   )
 
-  sunset_prediction = await get_sunset_oracle_agent(config).run(
+  agent_result = await get_sunset_oracle_agent(config).run_with_cost(
     SunsetOracleInput(prediction_date=state.day_start_ts, sunset_analysis=sunset_analysis)
   )
-  return {"sunset_analysis": sunset_analysis, "sunset_prediction": sunset_prediction}
+  return {
+    "sunset_analysis": sunset_analysis,
+    "sunset_prediction": agent_result.output,
+    "agent_costs": [agent_result.cost],
+  }
 
 
 @trace()
 async def prioritize_events(state: State, config: RunnableConfig):
-  prioritized_events = await get_event_prioritizer_agent(config).run(
+  agent_result = await get_event_prioritizer_agent(config).run_with_cost(
     EventPrioritizerInput(
       schedule=assert_not_none(state.schedule),
       calendars_of_interest=assert_not_none(state.calendars),
@@ -363,7 +400,7 @@ async def prioritize_events(state: State, config: RunnableConfig):
       yesterdays_events=assert_not_none(state.yesterdays_events),
     )
   )
-  return {"prioritized_events": prioritized_events}
+  return {"prioritized_events": agent_result.output, "agent_costs": [agent_result.cost]}
 
 
 @trace()
@@ -398,8 +435,8 @@ async def write_content_optimization(state: State, config: RunnableConfig):
     sunset_predication=assert_not_none(state.sunset_prediction),
   )
   logger.warning(input.model_dump_json(indent=2))
-  out = await sectioner.run(input=input)
-  return {"content_optimization_report": out}
+  agent_result = await sectioner.run_with_cost(input=input)
+  return {"content_optimization_report": agent_result.output, "agent_costs": [agent_result.cost]}
 
 
 @trace()
@@ -456,7 +493,7 @@ async def write_briefing_script(state: State, config: RunnableConfig):
   briefing_date = state.day_start_ts.date()
   previous_scripts = _load_previous_scripts(briefing_date, PREVIOUS_SCRIPTS_COUNT)
 
-  script = await get_script_writer_agent(config).run(
+  agent_result = await get_script_writer_agent(config).run_with_cost(
     input=ScriptWriterInput(
       content_optimizer_report=assert_not_none(state.content_optimization_report),
       prioritized_events=assert_not_none(state.prioritized_events),
@@ -470,7 +507,7 @@ async def write_briefing_script(state: State, config: RunnableConfig):
       calendars_of_interest=assert_not_none(state.calendars),
     )
   )
-  return {"briefing_script": script}
+  return {"briefing_script": agent_result.output, "agent_costs": [agent_result.cost]}
 
 
 @trace()
@@ -539,8 +576,55 @@ async def generate_tts(state: State):
   # Invoke TTS subgraph
   result = TTSWorkflowState.model_validate(await tts_graph.ainvoke(tts_state))
 
-  # Return partial update for the main state
-  return {"tts": result.tts}
+  # Return partial update for the main state, including TTS costs
+  return {"tts": result.tts, "agent_costs": result.tts.agent_costs}
+
+
+@trace()
+async def generate_cost_report(state: State):
+  """Generate and save cost report for the workflow."""
+  if not state.agent_costs:
+    logger.info("No agent costs to report")
+    return {}
+
+  # Create cost tracker and add all costs
+  cost_tracker = CostTracker()
+  for cost in state.agent_costs:
+    cost_tracker.add_cost(cost)
+
+  # Generate report
+  report = cost_tracker.generate_report(include_details=True)
+  metrics = cost_tracker.get_metrics()
+
+  # Log summary metrics
+  logger.info(
+    "Workflow cost summary",
+    total_cost_usd=round(metrics.total_cost_usd, 4),
+    total_tokens=metrics.total_input_tokens + metrics.total_output_tokens,
+    agent_calls=metrics.agent_call_count,
+    tts_calls=metrics.tts_call_count,
+    total_duration_seconds=round(metrics.total_duration_seconds, 1),
+  )
+
+  # Print to console
+  logger.info("Cost Report Generated")
+  rich.print(report)
+
+  # Save to briefing directory
+  briefing_date = state.day_start_ts.date()
+  briefing_dir = BriefingDirectory.for_date(briefing_date)
+  briefing_dir.ensure_exists()
+
+  cost_report_path = briefing_dir.base_path / "cost_report.json"
+  cost_tracker.save_to_file(cost_report_path)
+
+  # Also save human-readable report
+  text_report_path = briefing_dir.base_path / "cost_report.txt"
+  text_report_path.write_text(report)
+
+  logger.info(f"Cost report saved to {cost_report_path} and {text_report_path}")
+
+  return {}
 
 
 @dataclass
@@ -579,8 +663,9 @@ def _generate_all_automation_events(state: State) -> Generator[CalendarEvent, No
     return
 
   # Wake-up event
+  event_id_source = f"wakeup-{state.schedule.date.isoformat()}"
   yield CalendarEvent(
-    id=f"up{state.schedule.date.isoformat().replace('-', '')}",
+    id=_to_base32hex(event_id_source),
     summary=f"lmnop:wakeup({state.schedule.date.isoformat()})",
     start=TimeInfo(dateTime=state.schedule.wakeup_time),
     end=TimeInfo(dateTime=state.schedule.wakeup_time + timedelta(minutes=5)),
@@ -636,8 +721,9 @@ def _generate_route_notifications(
       "duration_min": details.duration_minutes,
     }
 
+    event_id_source = f"notify-travel-{event.id}-{mode}-{briefing_date.isoformat()}"
     yield CalendarEvent(
-      id=f"notify_travel_{event.id}_{mode}_{briefing_date.isoformat().replace('-', '')}",
+      id=_to_base32hex(event_id_source),
       summary=f"lmnop:notify.travel({json.dumps(summary_data, separators=(',', ':'))})",
       start=TimeInfo(dateTime=notification_time),
       end=TimeInfo(dateTime=notification_time + timedelta(minutes=1)),
@@ -663,8 +749,9 @@ def _generate_hilary_notifications(state: State) -> Generator[CalendarEvent, Non
     notification_time = event.start_datetime_aware - timedelta(minutes=2)
     summary_data = {"person": "Hilary", "event": event.summary}
 
+    event_id_source = f"notify-hilary-{event.id}-{briefing_date.isoformat()}"
     yield CalendarEvent(
-      id=f"notify_hilary_{event.id}_{briefing_date.isoformat().replace('-', '')}",
+      id=_to_base32hex(event_id_source),
       summary=f"lmnop:notify.meeting({json.dumps(summary_data, separators=(',', ':'))})",
       start=TimeInfo(dateTime=notification_time),
       end=TimeInfo(dateTime=notification_time + timedelta(minutes=1)),
@@ -923,6 +1010,7 @@ def build_graph(interactive: bool = False):
   graph_builder.add_node(consolidate_dialogue)
   graph_builder.add_node(generate_tts)
   graph_builder.add_node(schedule_automation_calendar_events, retry=standard_retry)
+  graph_builder.add_node(generate_cost_report)
 
   # Add review nodes if in interactive mode
   if interactive:
@@ -1001,7 +1089,8 @@ def build_graph(interactive: bool = False):
     graph_builder.add_edge("consolidate_dialogue", "generate_tts")
 
   graph_builder.add_edge("generate_tts", "schedule_automation_calendar_events")
-  graph_builder.set_finish_point("schedule_automation_calendar_events")
+  graph_builder.add_edge("schedule_automation_calendar_events", "generate_cost_report")
+  graph_builder.set_finish_point("generate_cost_report")
 
   return graph_builder
 

@@ -10,6 +10,7 @@ from lmnop_wakeup.audio.workflow import TTSState
 from .brief.content_optimizer import ContentOptimizationReport
 from .brief.model import ConsolidatedBriefingScript
 from .brief.script_writer_agent import BriefingScript
+from .core.cost_tracking import AgentCost
 from .events.model import CalendarEvent, CalendarsOfInterest, Schedule
 from .events.prioritizer_agent import PrioritizedEvents
 from .location.model import ReferencedLocations, ResolvedLocation
@@ -78,6 +79,33 @@ class State(BaseModel):
 
   tts: TTSState | None = None
   """TTS generation state including audio files and master audio."""
+
+  agent_costs: Annotated[list[AgentCost], operator.add] = []
+  """Accumulated costs from all agent calls throughout the workflow."""
+
+  @computed_field
+  @property
+  def total_agent_cost(self) -> float:
+    """Total cost of all agent calls in USD."""
+    return sum(cost.cost_usd for cost in self.agent_costs)
+
+  @computed_field
+  @property
+  def cost_by_agent_type(self) -> dict[str, float]:
+    """Cost breakdown by agent type."""
+    costs: dict[str, float] = {}
+    for cost in self.agent_costs:
+      costs[cost.agent_name] = costs.get(cost.agent_name, 0.0) + cost.cost_usd
+    return costs
+
+  @computed_field
+  @property
+  def cost_by_model(self) -> dict[str, float]:
+    """Cost breakdown by model."""
+    costs: dict[str, float] = {}
+    for cost in self.agent_costs:
+      costs[cost.model_name] = costs.get(cost.model_name, 0.0) + cost.cost_usd
+    return costs
 
   @computed_field
   @property

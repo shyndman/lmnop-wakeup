@@ -5,6 +5,7 @@ from io import StringIO
 import logfire
 import rich
 import structlog
+from langchain_core.globals import set_debug, set_verbose
 from structlog.types import Processor
 from structlog.typing import EventDict
 
@@ -86,6 +87,12 @@ def initialize_logging(json_logs: bool = False, log_level: str = "DEBUG"):
   root_logger = logging.getLogger()
   root_logger.addHandler(handler)
   root_logger.setLevel(log_level.upper())
+
+  # Disable verbose logging
+  set_verbose(log_level.upper() == "TRACE")
+
+  # Disable debug logging
+  set_debug(log_level.upper() in {"TRACE", "DEBUG"})
 
   for _log in ["uvicorn", "uvicorn.error"]:
     # Clear the log handlers for uvicorn loggers, and enable propagation

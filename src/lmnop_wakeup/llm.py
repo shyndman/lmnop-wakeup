@@ -1,10 +1,14 @@
 import os
+import time
 import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from datetime import datetime
+from decimal import Decimal
 from enum import StrEnum
 from typing import Any, cast
 
+import structlog
 from google import genai
 from google.genai.types import HttpOptions
 from langchain.callbacks.base import AsyncCallbackHandler
@@ -23,8 +27,11 @@ from pydantic_ai.models.google import GoogleModel
 from pydantic_ai.providers.google import GoogleProvider
 from pydantic_ai.settings import ModelSettings
 
+from .core.cost_tracking import AgentCost, calculate_agent_cost
 from .core.tracing import langfuse_span
 from .env import ApiKey, EnvName, get_litellm_api_key
+
+logger = structlog.get_logger(__name__)
 
 
 class ModelName(StrEnum):
@@ -90,6 +97,14 @@ class LangfuseAgentInput(ABC, BaseModel):
   @abstractmethod
   def to_prompt_variable_map(self) -> dict[str, str]:
     raise NotImplementedError("to_prompt_variable_map must be implemented in subclasses")
+
+
+@dataclass
+class AgentResult[Output: BaseModel]:
+  """Result from an agent call including output and cost information."""
+
+  output: Output
+  cost: AgentCost
 
 
 @dataclass
@@ -271,6 +286,137 @@ class LmnopAgent[Input: LangfuseAgentInput, Output: BaseModel]:
         span.set_attribute("output.value", result.output)
 
         return result.output
+
+  async def run_with_cost(self, input: Input) -> AgentResult[Output]:
+    """Run the agent with the given inputs, returning both output and cost information.
+
+    Args:
+      inputs: Input data matching the Input TypedDict type
+
+    Returns:
+      AgentResult containing both output and cost information
+    """
+    start_time = time.time()
+
+    with langfuse_span(name=f"run {self.prompt_name}", prompt=self._raw_prompt) as span:
+      async with self._agent.run_mcp_servers():
+        # Set input attribute on span
+        span.set_attribute("input.value", input)
+
+        # Create context and run agent
+        system_prompt, user_prompt = self._prepare_prompts(input)
+        if self._callback is not None:
+          run_id = await self._callback.before_run(str(self._model_name), system_prompt)
+        else:
+          run_id = None
+
+        ctx = AgentContext(input=input, instructions_prompt=system_prompt, user_prompt=user_prompt)
+        result = await self._run_internal(ctx, run_id)
+        if self._callback is not None and run_id is not None:
+          await self._callback.after_run(run_id, str(result.all_messages_json(), encoding="utf-8"))
+
+        # Calculate cost from usage
+        usage = result.usage()
+
+        # Extract cached tokens from usage details if available
+        cached_tokens = 0
+        if hasattr(usage, "details") and usage.details:
+          logger.debug(
+            "Usage details for cache token extraction",
+            agent=self.prompt_name,
+            usage_details=usage.details,
+            usage_details_keys=list(usage.details.keys()) if usage.details else None,
+          )
+          # Check various possible field names for cached tokens
+          # Google Gemini API uses "cachedContentTokenCount" as per official schema
+          # LiteLLM might transform field names, so check multiple variants
+          cached_tokens = (
+            usage.details.get("cachedContentTokenCount", 0)
+            or usage.details.get("cached_content_token_count", 0)  # snake_case variant
+            or usage.details.get(
+              "text_cached_tokens", 0
+            )  # LiteLLM variant matching text_prompt_tokens pattern
+            or usage.details.get("cached_tokens", 0)  # fallback
+            or usage.details.get("cache_read_tokens", 0)  # fallback
+            or usage.details.get("cached_input_tokens", 0)  # fallback
+            or 0
+          )
+          if cached_tokens > 0:
+            logger.debug(
+              "Cache tokens detected",
+              agent=self.prompt_name,
+              cached_tokens=cached_tokens,
+              extraction_source="usage.details",
+            )
+        else:
+          logger.debug(
+            "No usage details available for cache token extraction",
+            agent=self.prompt_name,
+            has_details_attr=hasattr(usage, "details"),
+            details_value=getattr(usage, "details", None),
+          )
+
+        input_tokens = usage.request_tokens or 0
+        output_tokens = usage.response_tokens or 0
+
+        cost_usd = calculate_agent_cost(
+          str(self._model_name), input_tokens, output_tokens, cached_tokens
+        )
+
+        duration = time.time() - start_time
+
+        # Create cost record
+        agent_cost = AgentCost(
+          agent_name=self.prompt_name,
+          model_name=str(self._model_name),
+          input_tokens=input_tokens,
+          output_tokens=output_tokens,
+          cached_tokens=cached_tokens,
+          cost_usd=cost_usd,
+          timestamp=datetime.now(),
+          duration_seconds=duration,
+          retry_count=0,  # TODO: Track retries from pydantic-ai
+        )
+
+        # Log comprehensive cost information
+        log_data = {
+          "agent": self.prompt_name,
+          "model": str(self._model_name),
+          "cost_usd": float(cost_usd.quantize(Decimal("0.000001"))),
+          "input_tokens": input_tokens,
+          "output_tokens": output_tokens,
+          "total_tokens": input_tokens + output_tokens,
+          "duration_seconds": round(duration, 2),
+          "tokens_per_second": round((input_tokens + output_tokens) / duration, 1)
+          if duration > 0
+          else 0,
+        }
+
+        # Add cache information if available
+        if cached_tokens > 0:
+          log_data["cached_tokens"] = cached_tokens
+          # Calculate cache savings based on actual pricing difference
+          full_price_cost = calculate_agent_cost(
+            str(self._model_name), input_tokens, output_tokens, 0
+          )
+          actual_cost = calculate_agent_cost(
+            str(self._model_name), input_tokens, output_tokens, cached_tokens
+          )
+          cache_savings = full_price_cost - actual_cost
+          log_data["cache_savings_usd"] = float(cache_savings.quantize(Decimal("0.000001")))
+
+        logger.info(f"Agent call completed: {self.prompt_name}", **log_data)
+
+        # Set output and cost attributes on span using Langfuse standard attributes
+        span.set_attribute("output.value", result.output)
+        span.set_attribute("gen_ai.usage.cost", float(cost_usd))
+        span.set_attribute("llm.token_count.input", input_tokens)
+        span.set_attribute("llm.token_count.output", output_tokens)
+        span.set_attribute("llm.token_count.total", input_tokens + output_tokens)
+        if cached_tokens > 0:
+          span.set_attribute("llm.token_count.cached", cached_tokens)
+
+        return AgentResult(output=result.output, cost=agent_cost)
 
   async def _run_internal(self, ctx: AgentContext, run_id: uuid.UUID | None = None):
     try:

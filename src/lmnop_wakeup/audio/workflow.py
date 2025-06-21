@@ -5,6 +5,7 @@ from langgraph.graph import StateGraph
 from pydantic import AwareDatetime, BaseModel
 
 from ..brief.model import ConsolidatedBriefingScript
+from ..core.cost_tracking import AgentCost
 from ..core.tracing import trace
 from ..paths import BriefingDirectory
 from ..tts import TTSOrchestrator
@@ -30,6 +31,9 @@ class TTSState(BaseModel):
 
   audio_production_enabled: bool = True
   """Whether to add audio production to the briefing."""
+
+  agent_costs: list[AgentCost] = []
+  """Costs from TTS generation."""
 
 
 class TTSWorkflowState(BaseModel):
@@ -68,6 +72,7 @@ async def generate_individual_tts(state: TTSWorkflowState) -> TTSWorkflowState:
       audio_files.append(audio_file)
 
   state.tts.generated_audio_files = audio_files
+  state.tts.agent_costs = orchestrator.agent_costs
   logger.info(f"Generated {len(audio_files)} individual TTS files")
 
   return state
