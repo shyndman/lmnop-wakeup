@@ -63,6 +63,7 @@ from .location.model import (
 from .location.resolver_agent import LocationResolverInput, get_location_resolver_agent
 from .paths import BriefingDirectory, BriefingDirectoryCollection
 from .state import LocationDataState, LocationWeatherState, State
+from .tasks.tasks_api import get_tasks_of_interest
 from .weather.meteorologist_agent import (
   MeteorologistInput,
   get_meteorologist_agent,
@@ -171,6 +172,12 @@ async def populate_raw_inputs(state: State):
     }
   )
 
+  tasks = await get_tasks_of_interest(
+    briefing_date=cast(datetime, state.day_start_ts),
+    start_ts=cast(datetime, state.day_start_ts) - timedelta(days=1),
+    end_ts=span_end,
+  )
+
   location = state.briefing_day_location
   key = weather_key_for_location(location)
   regional_weather = RegionalWeatherReports(
@@ -182,6 +189,7 @@ async def populate_raw_inputs(state: State):
   return {
     "event_consideration_range_end": span_end,
     "calendars": calendars,
+    "tasks": tasks,
     "regional_weather": regional_weather,
   }
 

@@ -14,6 +14,7 @@ from .core.cost_tracking import AgentCost
 from .events.model import CalendarEvent, CalendarsOfInterest, Schedule
 from .events.prioritizer_agent import PrioritizedEvents
 from .location.model import ReferencedLocations, ResolvedLocation
+from .tasks.model import TasksOfInterest
 from .weather.model import RegionalWeatherReports, WeatherKey, WeatherReport
 from .weather.sunset_oracle_agent import SunsetPrediction
 from .weather.sunset_scoring import SunsetAnalysisResult
@@ -43,6 +44,9 @@ class State(BaseModel):
 
   calendars: CalendarsOfInterest | None = None
   """Calendar data containing events, appointments, birthdays, etc"""
+
+  tasks: TasksOfInterest | None = None
+  """Task lists containing to-dos, reminders, and action items"""
 
   referenced_locations: Annotated[ReferencedLocations, operator.add] = ReferencedLocations()
   """Stores the locations from various sources. Exposes convenience methods for requesting
