@@ -15,6 +15,18 @@ from .model import Task, TaskId, TaskList, TaskListId
 logger = structlog.get_logger()
 
 
+def _format_datetime_for_api(dt: datetime) -> str:
+  """Format datetime for Google Tasks API.
+
+  If datetime has timezone info, use as-is.
+  Otherwise append 'Z' for UTC.
+  """
+  if dt.tzinfo is not None:
+    return dt.isoformat()
+  else:
+    return dt.isoformat() + "Z"
+
+
 def get_service():
   """Get authenticated Google Tasks service."""
   return build("tasks", "v1", credentials=authenticate())
@@ -66,9 +78,9 @@ def get_tasks_in_list(
   }
 
   if due_min:
-    params["dueMin"] = due_min.isoformat() + "Z"
+    params["dueMin"] = _format_datetime_for_api(due_min)
   if due_max:
-    params["dueMax"] = due_max.isoformat() + "Z"
+    params["dueMax"] = _format_datetime_for_api(due_max)
 
   result = service.tasks().list(**params).execute()
   tasks = result.get("items", [])
