@@ -1,6 +1,7 @@
 import itertools
 import operator
 from datetime import timedelta
+from decimal import Decimal
 from typing import Annotated
 
 from pydantic import AwareDatetime, BaseModel, computed_field
@@ -89,26 +90,26 @@ class State(BaseModel):
 
   @computed_field
   @property
-  def total_agent_cost(self) -> float:
+  def total_agent_cost(self) -> Decimal:
     """Total cost of all agent calls in USD."""
-    return sum(cost.cost_usd for cost in self.agent_costs)
+    return sum((cost.cost_usd for cost in self.agent_costs), Decimal("0"))
 
   @computed_field
   @property
-  def cost_by_agent_type(self) -> dict[str, float]:
+  def cost_by_agent_type(self) -> dict[str, Decimal]:
     """Cost breakdown by agent type."""
-    costs: dict[str, float] = {}
+    costs: dict[str, Decimal] = {}
     for cost in self.agent_costs:
-      costs[cost.agent_name] = costs.get(cost.agent_name, 0.0) + cost.cost_usd
+      costs[cost.agent_name] = costs.get(cost.agent_name, Decimal("0")) + cost.cost_usd
     return costs
 
   @computed_field
   @property
-  def cost_by_model(self) -> dict[str, float]:
+  def cost_by_model(self) -> dict[str, Decimal]:
     """Cost breakdown by model."""
-    costs: dict[str, float] = {}
+    costs: dict[str, Decimal] = {}
     for cost in self.agent_costs:
-      costs[cost.model_name] = costs.get(cost.model_name, 0.0) + cost.cost_usd
+      costs[cost.model_name] = costs.get(cost.model_name, Decimal("0")) + cost.cost_usd
     return costs
 
   @computed_field
