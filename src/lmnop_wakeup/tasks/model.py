@@ -9,6 +9,7 @@ from typing import Any, Literal, NewType
 from pydantic import AwareDatetime, BaseModel, Field
 
 from ..core.date import TimeInfo, format_time_info, start_of_local_day
+from ..core.typing import assert_not_none
 
 TaskId = NewType("TaskId", str)
 TaskListId = NewType("TaskListId", str)
@@ -65,7 +66,8 @@ class Task(BaseModel):
     """Return the number of days this task is overdue (0 if not overdue)."""
     if not self.is_overdue(as_of):
       return 0
-    due_date = self.due.date if self.due.date else self.due.to_aware_datetime().date()
+    due = assert_not_none(self.due)
+    due_date = due.date if due.date else due.to_aware_datetime().date()
     return (as_of.date() - due_date).days
 
   def priority_icon(self) -> str:

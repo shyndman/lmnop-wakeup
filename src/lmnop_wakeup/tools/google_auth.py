@@ -3,6 +3,7 @@
 import os.path
 
 import structlog
+from google.auth.external_account_authorized_user import Credentials as ExternalCredentials
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -18,7 +19,7 @@ SCOPES = [
 ]
 
 
-def authenticate() -> Credentials:
+def authenticate() -> Credentials | ExternalCredentials:
   """Returns Google API credentials, sending the user to SSO if required."""
   credentials = None
 

@@ -1,4 +1,5 @@
 from datetime import date, datetime
+from typing import cast
 
 import pandas as pd
 import pvlib
@@ -278,10 +279,10 @@ def find_golden_hour_window(
 
   for i in range(len(elevations)):
     if golden_hour_start is None and elevations[i] <= upper_elevation:
-      golden_hour_start = time_range[i].to_pydatetime()
+      golden_hour_start = cast(pd.Timestamp, time_range[i]).to_pydatetime()
 
     if golden_hour_start is not None and elevations[i] <= lower_elevation:
-      golden_hour_end = time_range[i].to_pydatetime()
+      golden_hour_end = cast(pd.Timestamp, time_range[i]).to_pydatetime()
       break
 
   # Handle edge cases
