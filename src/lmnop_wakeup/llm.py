@@ -246,7 +246,7 @@ class LmnopAgent[Input: LangfuseAgentInput, Output: BaseModel]:
       deps_type=AgentContext[Input],
       output_type=output_type,
       model_settings={"timeout": 60, **ModelSettings(res.config)},
-      retries=5,
+      retries=10,
       instrument=True,
       mcp_servers=mcp_servers,
     )
