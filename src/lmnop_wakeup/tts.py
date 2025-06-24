@@ -194,7 +194,7 @@ class TTSProcessor:
     cost_usd = calculate_tts_cost(
       self.config.model_name,
       assert_not_none(usage.prompt_token_count),
-      assert_not_none(usage.candidates_token_count),
+      usage.candidates_token_count or 0,
     )
 
     # Create cost record
@@ -202,7 +202,7 @@ class TTSProcessor:
       agent_name=f"tts-{line.character_slug}",
       model_name=self.config.model_name,
       input_tokens=assert_not_none(usage.prompt_token_count),
-      output_tokens=assert_not_none(usage.candidates_token_count),
+      output_tokens=usage.candidates_token_count or 0,
       cost_usd=cost_usd,
       timestamp=datetime.now(),
       category=CostCategory.TTS,
@@ -274,7 +274,7 @@ class TTSProcessor:
     cost_usd = calculate_tts_cost(
       self.config.model_name,
       assert_not_none(usage.prompt_token_count),
-      assert_not_none(usage.candidates_token_count),
+      usage.candidates_token_count or 0,
     )
 
     speakers_str = ", ".join(segment.speakers)
@@ -283,7 +283,7 @@ class TTSProcessor:
       agent_name="tts-segment",
       model_name=self.config.model_name,
       input_tokens=assert_not_none(usage.prompt_token_count),
-      output_tokens=assert_not_none(usage.candidates_token_count),
+      output_tokens=usage.candidates_token_count or 0,
       cost_usd=cost_usd,
       timestamp=datetime.now(),
       category=CostCategory.TTS,
