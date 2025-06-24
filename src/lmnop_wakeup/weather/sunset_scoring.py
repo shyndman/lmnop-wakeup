@@ -186,15 +186,17 @@ class SunsetAnalysisResult(BaseModel):
   """Complete sunset analysis results for LLM agent consumption."""
 
   peak_score: float = Field(..., description="Highest sunset quality score in analysis window")
-  peak_time: str = Field(..., description="Time of peak conditions (HH:MM)")
+  peak_time: str | None = Field(
+    ..., description="Time of peak conditions (HH:MM), None if no viable viewing time"
+  )
   peak_sun_elevation: float = Field(..., description="Sun elevation angle at peak time")
   rating: str = Field(..., description="Qualitative rating (Exceptional, Very Good, etc.)")
   sunset_time: str = Field(..., description="Actual sunset time (HH:MM)")
   golden_hour_start: str = Field(..., description="Golden hour start time (HH:MM)")
   golden_hour_end: str = Field(..., description="Golden hour end time (HH:MM)")
   hourly_analysis: list[SunsetHourlyAnalysis] = Field(..., description="Hour-by-hour analysis")
-  conditions_summary: SunsetConditionsSummary = Field(
-    ..., description="Weather summary at peak time"
+  conditions_summary: SunsetConditionsSummary | None = Field(
+    ..., description="Weather summary at peak time, None if no viable viewing conditions"
   )
   location: SunsetLocationInfo = Field(..., description="Geographic location")
   flags: list[str] = Field(..., description="Special condition flags")
@@ -475,26 +477,23 @@ def analyze_sunset_conditions(
   # Determine rating
   rating = get_rating_from_score(peak_score)
 
-  if peak_conditions is None:
-    raise ValueError("No valid peak conditions found in analysis window")
-  if peak_time is None:
-    raise ValueError("No valid peak time found in analysis window")
-
-  # Generate summary conditions
-  conditions_summary = SunsetConditionsSummary(
-    sun_elevation=round(peak_elevation, 2) if peak_elevation is not None else 0.0,
-    visibility_km=round(peak_conditions.visibility_km, 1),
-    cloud_low=peak_conditions.cloud_low,
-    cloud_mid=peak_conditions.cloud_mid,
-    cloud_high=peak_conditions.cloud_high,
-    total_cloud_coverage=peak_conditions.total_cloud_coverage,
-    precipitation_mm=peak_conditions.precipitation,
-    pressure_hpa=peak_conditions.pressure,
-    temperature_c=peak_conditions.temperature,
-    pm10=peak_conditions.pm10,
-    pm2_5=peak_conditions.pm2_5,
-    aqi=peak_conditions.aqi,
-  )
+  # Generate summary conditions (only if peak conditions exist)
+  conditions_summary = None
+  if peak_conditions is not None:
+    conditions_summary = SunsetConditionsSummary(
+      sun_elevation=round(peak_elevation, 2) if peak_elevation is not None else 0.0,
+      visibility_km=round(peak_conditions.visibility_km, 1),
+      cloud_low=peak_conditions.cloud_low,
+      cloud_mid=peak_conditions.cloud_mid,
+      cloud_high=peak_conditions.cloud_high,
+      total_cloud_coverage=peak_conditions.total_cloud_coverage,
+      precipitation_mm=peak_conditions.precipitation,
+      pressure_hpa=peak_conditions.pressure,
+      temperature_c=peak_conditions.temperature,
+      pm10=peak_conditions.pm10,
+      pm2_5=peak_conditions.pm2_5,
+      aqi=peak_conditions.aqi,
+    )
 
   # Generate analysis flags
   flags = generate_analysis_flags(hourly_analysis, peak_conditions)
@@ -693,7 +692,7 @@ def get_rating_from_score(score: float) -> str:
 
 
 def generate_analysis_flags(
-  hourly_analysis: list[SunsetHourlyAnalysis], peak_conditions: SunsetHourConditions
+  hourly_analysis: list[SunsetHourlyAnalysis], peak_conditions: SunsetHourConditions | None
 ) -> list[str]:
   """Generate analysis flags for special conditions."""
   flags = []
@@ -707,6 +706,11 @@ def generate_analysis_flags(
       flags.append("sun_too_high")
     elif peak_analysis.sun_elevation < -4:
       flags.append("past_golden_hour")
+
+  # When no peak conditions exist, add appropriate flags
+  if peak_conditions is None:
+    flags.append("no_viable_viewing_conditions")
+    return flags
 
   # Check for overcast penalty
   if peak_conditions.total_cloud_coverage >= 100:
@@ -799,7 +803,10 @@ def test_sunset_analysis():
     print(f"Rating: {result.rating}")
     print(f"Peak Time: {result.peak_time}")
     print(f"Air Quality Score: {result.hourly_analysis[0].air_quality_score}")
-    print(f"PM2.5: {result.conditions_summary.pm2_5} μg/m³")
+    if result.conditions_summary:
+      print(f"PM2.5: {result.conditions_summary.pm2_5} μg/m³")
+    else:
+      print("PM2.5: N/A (no viable viewing conditions)")
     print(f"Flags: {', '.join(result.flags)}")
 
     return result
