@@ -35,8 +35,10 @@ logger = structlog.get_logger(__name__)
 
 
 class ModelName(StrEnum):
-  GEMINI_25_FLASH = "gemini-2.5-flash-preview-05-20"
-  GEMINI_25_PRO = "gemini-2.5-pro-preview-06-05"
+  GEMINI_25_PRO = "gemini-2.5-pro"
+  GEMINI_25_FLASH = "gemini-2.5-flash"
+  GEMINI_25_FLASH_LITE = "gemini-2.5-flash-lite-preview-06-17"
+
   GEMINI_20_FLASH = "gemini-2.0-flash"
   GEMINI_20_FLASH_LITE = "gemini-2.0-flash-lite"
 

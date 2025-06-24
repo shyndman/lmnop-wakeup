@@ -47,7 +47,7 @@ def get_event_summarizer_agent(config: RunnableConfig | None = None) -> EventSum
 
   agent = LmnopAgent[EventSummarizerInput, EventSummarizerOutput].create(
     "event_summarizer",
-    model_name=ModelName.GEMINI_20_FLASH_LITE,
+    model_name=ModelName.GEMINI_25_FLASH_LITE,
     input_type=EventSummarizerInput,
     output_type=EventSummarizerOutput,
     callback=extract_pydantic_ai_callback(config) if config else None,
