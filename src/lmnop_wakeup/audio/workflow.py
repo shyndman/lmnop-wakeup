@@ -2,6 +2,7 @@ from pathlib import Path
 
 import structlog
 from langgraph.graph import StateGraph
+from langgraph.types import RetryPolicy
 from pydantic import AwareDatetime, BaseModel
 
 from ..brief.model import ConsolidatedBriefingScript
@@ -152,9 +153,9 @@ def build_tts_subgraph() -> StateGraph:
   """Build the TTS subgraph with individual generation, mastering, and audio production nodes."""
   graph_builder = StateGraph(TTSWorkflowState)
 
-  graph_builder.add_node("generate_individual_tts", generate_individual_tts)
-  graph_builder.add_node("master_tts_audio", master_tts_audio)
-  graph_builder.add_node("add_audio_production", add_audio_production)
+  graph_builder.add_node(generate_individual_tts, retry=RetryPolicy(max_attempts=3))
+  graph_builder.add_node(master_tts_audio)
+  graph_builder.add_node(add_audio_production)
 
   graph_builder.set_entry_point("generate_individual_tts")
   graph_builder.add_edge("generate_individual_tts", "master_tts_audio")

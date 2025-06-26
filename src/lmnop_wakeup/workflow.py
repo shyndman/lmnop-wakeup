@@ -1023,7 +1023,7 @@ def build_graph(interactive: bool = False):
   graph_builder.add_node(write_content_optimization, retry=standard_retry)
   graph_builder.add_node(write_briefing_script, retry=standard_retry)
   graph_builder.add_node(consolidate_dialogue)
-  graph_builder.add_node(generate_tts)
+  graph_builder.add_node(generate_tts, retry=standard_retry)
   graph_builder.add_node(schedule_automation_calendar_events, retry=standard_retry)
   graph_builder.add_node(generate_cost_report)
 
