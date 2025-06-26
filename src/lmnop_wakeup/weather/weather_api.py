@@ -107,6 +107,9 @@ async def _get_weather_and_air_quality_data(
       "timezone": "auto",
       "start_date": (isodate := report_start_ts.strftime("%Y-%m-%d")),
       "end_date": isodate,
+      # TODO(Pirate-Weather/pirateweather/issues/473): This is a suggested workaround to the issue,
+      # and can be removed once it is resolved
+      "exclude": "hrrr",
     }
     request_details.append((aq_url, aq_params))
 
@@ -131,6 +134,9 @@ async def _get_weather_and_air_quality_data(
       "timezone": "auto",
       "start_date": (isodate := report_start_ts.strftime("%Y-%m-%d")),
       "end_date": isodate,
+      # TODO(Pirate-Weather/pirateweather/issues/473): This is a suggested workaround to the issue,
+      # and can be removed once it is resolved
+      "exclude": "hrrr",
     }
     request_details.append((outdoor_comfort_url, outdoor_comfort_params))
 
