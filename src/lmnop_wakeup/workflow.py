@@ -435,7 +435,7 @@ async def review_prioritized_events(state: State):
 
 @trace()
 async def write_content_optimization(state: State, config: RunnableConfig):
-  sectioner = get_content_optimizer(config)
+  content_optimizer = get_content_optimizer(config)
   input = ContentOptimizerInput(
     schedule=assert_not_none(state.schedule),
     prioritized_events=assert_not_none(state.prioritized_events),
@@ -443,7 +443,7 @@ async def write_content_optimization(state: State, config: RunnableConfig):
     sunset_predication=assert_not_none(state.sunset_prediction),
   )
   logger.warning(input.model_dump_json(indent=2))
-  agent_result = await sectioner.run_with_cost(input=input)
+  agent_result = await content_optimizer.run_with_cost(input=input)
   return {"content_optimization_report": agent_result.output, "agent_costs": [agent_result.cost]}
 
 

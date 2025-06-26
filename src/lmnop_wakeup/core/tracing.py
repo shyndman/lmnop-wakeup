@@ -82,6 +82,7 @@ class LangfuseSpanContext:
       if _session_id is not None:
         span.set_attribute("langfuse.session.id", _session_id)
       if self.prompt is not None:
+        logger.info(f"Recording prompt: {self.prompt.name}")
         span.set_attribute("langfuse.prompt.name", self.prompt.name)
         span.set_attribute("langfuse.prompt.version", self.prompt.version)
 
