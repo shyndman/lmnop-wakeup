@@ -1,5 +1,6 @@
 import asyncio
 import json
+import os
 from collections.abc import Generator
 from datetime import date, datetime, timedelta
 from typing import Any, Literal, cast
@@ -82,6 +83,12 @@ from .weather.weather_api import get_weather_report
 
 type RouteKey = tuple[str, Coordinate]
 logger = structlog.get_logger()
+
+
+def _should_enable_debug() -> bool:
+  """Check if Langraph debug logging should be enabled based on environment variable."""
+  return os.getenv("LANGRAPH_DEBUG", "false").lower() in ("true", "1", "yes")
+
 
 FUTURE_EVENTS_TIMEDELTA = timedelta(days=12)
 FUTURE_WEATHER_TIMEDELTA = timedelta(days=3)
@@ -1188,7 +1195,7 @@ async def run_workflow(
           None,  # No initial state - continue from checkpoint
           config=config,
           checkpoint_during=True,
-          debug=True,
+          debug=_should_enable_debug(),
         )
       else:
         logger.info("Starting new workflow with initial state")
@@ -1201,7 +1208,7 @@ async def run_workflow(
           ),
           config=config,
           checkpoint_during=True,
-          debug=True,
+          debug=_should_enable_debug(),
         )
       final_state = State.model_validate(result)
       rich.print(final_state.model_dump())

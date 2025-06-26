@@ -113,6 +113,10 @@ Sophisticated multi-character voice synthesis in `src/lmnop_wakeup/audio/`:
 - Environment setup in `src/lmnop_wakeup/env.py`
 - Type-safe configuration with validation
 
+**Environment Variables:**
+- `LOG_LEVEL` - Controls overall logging verbosity (TRACE, DEBUG, INFO, WARNING, ERROR)
+- `LANGRAPH_DEBUG` - Controls Langraph state dumping (true/false, default: false)
+
 ### Caching Strategy  
 Multi-tier caching approach:
 - Redis for shared/persistent data (`aiocache` integration)
