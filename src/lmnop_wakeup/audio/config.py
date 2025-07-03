@@ -3,7 +3,7 @@ import dataclasses
 
 @dataclasses.dataclass
 class TTSConfig:
-  rate_limit_per_minute: float = 8.0
+  rate_limit_per_minute: float = 4.0
   model_name: str = "gemini-2.5-flash-preview-tts"
   audio_channels: int = 1
   audio_rate: int = 24000

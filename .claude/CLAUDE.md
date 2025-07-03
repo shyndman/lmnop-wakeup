@@ -14,6 +14,18 @@ uv add --dev .
 uv build
 ```
 
+**Required Services:**
+- PostgreSQL (for workflow checkpointing)
+- Redis (for caching, optional but recommended)
+- 1Password CLI (`opr`) for API key management
+
+**Key Python Dependencies:**
+- `pydub-ng` - Audio file manipulation and concatenation
+- `eyeD3` - ID3 tag management for MP3 files
+- `langgraph` - Workflow orchestration
+- `pydantic-ai` - AI agent framework
+- `google-genai` - Gemini AI integration
+
 **Code Quality:**
 ```bash
 # Format and lint code
@@ -39,7 +51,10 @@ opr uv run pytest tests/test_weather_api.py
 # Generate daily briefing script (primary use case)
 opr wakeup --briefing-date 2025-06-10 --current-location home
 
-# Generate voiceover from existing script
+# Resume an interrupted workflow
+opr wakeup --briefing-date 2025-06-10 --thread-id <thread-id>
+
+# Generate voiceover from existing script (obsolete - TTS now in main workflow)
 opr wakeup voiceover --briefing-date 2025-06-10
 
 # Load external data
@@ -50,9 +65,95 @@ opr wakeup server
 
 # Test weather integration
 opr wakeup weather
+
+# View available characters
+opr wakeup characters
+
+# Announce briefing on Music Assistant
+opr wakeup announce --briefing-date 2025-06-10
 ```
 
 **Important:** All `wakeup` commands MUST be run with `opr` (1Password CLI) to load required API keys from 1Password vault.
+
+**Output Directory Structure:**
+```
+{DATA_PATH or user_state_path}/
+└── 2025-06-10/                    # Date-based directory
+    ├── brief.json                 # BriefingScript model
+    ├── consolidated_brief.json    # ConsolidatedBriefingScript model
+    ├── workflow_state.json        # Full workflow state dump
+    ├── cost_report.json          # Cost tracking data
+    ├── 0.wav, 1.wav, ...         # Individual TTS segments
+    ├── briefing.mp3              # Combined audio (with ID3 tags)
+    └── master_briefing.mp3       # Final audio with bells (with ID3 tags)
+```
+
+## Directory Structure & Responsibilities
+
+```
+src/lmnop_wakeup/
+├── audio/                      # Audio generation and processing
+│   ├── master.py              # Combines WAV files into MP3
+│   ├── production.py          # Adds bells and production elements
+│   ├── workflow.py            # TTS workflow subgraph
+│   ├── id3_tags.py           # ID3 metadata tagging
+│   ├── announcer.py          # Music Assistant integration
+│   └── cover.png             # Podcast cover art
+├── brief/                     # Script generation
+│   ├── model.py              # BriefingScript, ConsolidatedBriefingScript models
+│   ├── actors.py             # Character definitions (CHARACTER_POOL)
+│   ├── script_writer_agent.py # Main script generation agent
+│   └── content_optimizer.py  # Pre-script content analysis
+├── core/                      # Shared utilities
+│   ├── date.py               # Date/time helpers, get_ordinal_suffix()
+│   ├── cache.py              # Caching decorators
+│   ├── cost_tracking.py      # API cost tracking
+│   └── tracing.py            # Observability helpers
+├── events/                    # Calendar event handling
+│   ├── model.py              # CalendarEvent, Schedule models
+│   ├── events_api.py         # Calendar data fetching
+│   ├── prioritizer_agent.py  # Event importance ranking
+│   └── scheduler_agent.py    # Schedule optimization
+├── location/                  # Location services
+│   ├── model.py              # Location type hierarchy, NAMED_LOCATIONS
+│   └── resolver_agent.py     # Address to coordinate resolution
+├── weather/                   # Weather analysis
+│   ├── model.py              # WeatherReport, WeatherAnalysis
+│   ├── weather_api.py        # Pirate Weather integration
+│   ├── meteorologist_agent.py # Weather interpretation
+│   └── sunset_oracle_agent.py # Sunset quality prediction
+├── tools/                     # External service clients
+│   ├── hass_api.py           # Home Assistant integration
+│   └── geocoding_api.py      # Google Maps integration
+├── cli/                       # Command-line interface
+│   ├── briefing.py           # Main briefing command
+│   ├── audio.py              # Audio-related commands
+│   └── prompts.py            # Langfuse prompt commands
+├── workflow.py               # Main LangGraph workflow definition
+├── state.py                  # Central State model
+├── paths.py                  # File path utilities, BriefingDirectory
+├── env.py                    # Environment configuration
+├── llm.py                    # AI model configuration
+└── tts.py                    # Text-to-speech orchestration
+
+tests/                        # Test files mirroring src structure
+├── test_id3_tags.py
+├── test_weather_api.py
+└── ...
+
+scripts/
+├── fmt.sh                    # Code formatting script
+└── ...
+
+src/pirate_weather_api_client/ # Generated OpenAPI client
+```
+
+**Key Files:**
+- `workflow.py` - Entry point for understanding the main pipeline
+- `state.py` - Central state definition showing all data flow
+- `paths.py` - File I/O patterns and directory management
+- `brief/model.py` - Core script data structures
+- `audio/workflow.py` - TTS subgraph implementation
 
 ## Architecture Overview
 
@@ -105,6 +206,10 @@ Sophisticated multi-character voice synthesis in `src/lmnop_wakeup/audio/`:
 - Audio file management and concatenation  
 - Rate-limited API integration
 - Master audio track generation
+- ID3 tagging for podcast metadata (title, artist, album, cover art)
+  - Tags added to both intermediate (`briefing.mp3`) and final (`master_briefing.mp3`) files
+  - Podcast cover art embedded from `src/lmnop_wakeup/audio/cover.png`
+  - Full script included in comment field for debugging
 
 ## Project-Specific Patterns
 
@@ -184,6 +289,15 @@ When making changes, follow the domain boundaries and use existing agent pattern
 - Contains natural timing references like "tomorrow morning", "this afternoon", "next Tuesday"
 - Downstream models copy these from original `CalendarEvent.when_colloquial` field
 - Enables conversational script generation with natural timing references
+
+### ID3 Tagging (July 2025)
+**Podcast Metadata for Music Assistant:**
+- `BriefingID3Tags` model encapsulates all podcast metadata
+- ID3Tagger class handles eyeD3 integration for MP3 tagging
+- Tags include: title with date, artist ("lmnop"), album ("Daily Briefings"), genre, cover art
+- Full briefing script embedded in comment field as markdown
+- Cover art loaded from `src/lmnop_wakeup/audio/cover.png`
+- Applied during audio mastering and production mixing stages
 
 ## Interaction Guidelines
 - Always number your questions for easier answering
