@@ -92,8 +92,12 @@ async def master_tts_audio(state: TTSWorkflowState) -> TTSWorkflowState:
   briefing_dir = BriefingDirectory.for_date(briefing_date)
   output_path = briefing_dir.base_path
 
-  # Master the audio to intermediate file
-  briefing_audio_path = master_briefing_audio(output_path)
+  # Master the audio to intermediate file with ID3 tags
+  briefing_audio_path = master_briefing_audio(
+    output_path,
+    script=state.consolidated_briefing_script,
+    briefing_date=briefing_date,
+  )
 
   # Set the briefing audio path
   if briefing_audio_path.exists():
@@ -134,6 +138,7 @@ async def add_audio_production(state: TTSWorkflowState) -> TTSWorkflowState:
       script=state.consolidated_briefing_script,
       audio_files_dir=briefing_dir.base_path,
       output_path=master_audio_path,
+      briefing_date=briefing_date,
     )
   except FileNotFoundError as e:
     logger.warning(f"Audio production files not found: {e}, skipping audio production")

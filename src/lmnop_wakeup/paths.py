@@ -56,6 +56,23 @@ def get_wakeup_bell_path() -> Path:
     return wakeup_bell_file
 
 
+def get_podcast_cover_path() -> Path:
+  """Get the path to the podcast cover image resource file."""
+  # First check if a custom cover path is set via environment variable
+  cover_path_env = os.getenv("PODCAST_COVER_PATH")
+  if cover_path_env:
+    return Path(cover_path_env)
+
+  # Default to a resource file in the audio module
+  import lmnop_wakeup.audio
+
+  audio_files = files(lmnop_wakeup.audio)
+  cover_file = audio_files / "cover.png"
+
+  with resources.as_file(cover_file) as cover_file:
+    return cover_file
+
+
 @dataclass
 class BriefingDirectory:
   briefing_date: date

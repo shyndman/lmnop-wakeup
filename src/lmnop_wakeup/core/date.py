@@ -125,3 +125,11 @@ def end_of_local_day(dt) -> AwareDatetime:
     return Datetime.combine(dt, time.max, tzinfo=LOCAL_TIMEZONE)
 
   return dt.replace(hour=23, minute=59, second=59, microsecond=999999, tzinfo=LOCAL_TIMEZONE)
+
+
+def get_ordinal_suffix(day: int) -> str:
+  """Get the ordinal suffix for a day number (e.g., 1 -> 'st', 2 -> 'nd')."""
+  if 11 <= day <= 13:
+    return "th"
+  suffix_map = {1: "st", 2: "nd", 3: "rd"}
+  return suffix_map.get(day % 10, "th")

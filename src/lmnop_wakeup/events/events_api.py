@@ -91,10 +91,11 @@ CALENDAR_INSTRUCTIONS = {
   ),
   # Waste collection schedule
   "calendar.toronto_on": CalendarInfo(
-    notes="This is Toronto's waste collection schedule. It is important that we're told the day "
-    "before so we can have the bins out when the trucks come around, in the early morning. These "
-    "are high priority, but only ever require a short mention. Language-wise, GreenBin also "
-    "goes by organics, YardWaste=leaves and twig collection, "
+    notes="This is Toronto's waste collection schedule. While the events are marked as all day, "
+    "the trucks ALWAYS come by in the early morning. Sometimes before 7 AM. As such, it is "
+    "important that we are notified the day before so we can have the bins out when the trucks "
+    "come around, in the early morning. These are high priority, but only ever require a short "
+    "mention. Language-wise, GreenBin also goes by organics, YardWaste=leaves and twig collection, "
     "yard clippings, etc. BlueBin=Recycling, cardboard",
   ),
 }

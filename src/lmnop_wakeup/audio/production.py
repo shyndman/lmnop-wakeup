@@ -1,9 +1,12 @@
+from datetime import date
 from pathlib import Path
 
 import structlog
 from pydub import AudioSegment
 
 from ..brief.model import ConsolidatedBriefingScript
+from ..paths import get_podcast_cover_path
+from .id3_tags import BriefingID3Tags, ID3Tagger
 
 logger = structlog.get_logger(__name__)
 
@@ -20,6 +23,8 @@ class AudioProductionMixer:
     script: ConsolidatedBriefingScript,
     audio_files_dir: Path,
     output_path: Path,
+    briefing_date: date | None = None,
+    location_name: str | None = None,
   ) -> Path:
     """
     Mix audio production elements with briefing audio using two-part theme approach.
@@ -65,6 +70,10 @@ class AudioProductionMixer:
 
     # Export the result
     mixed_audio.export(str(output_path), format="mp3")
+
+    # Add ID3 tags if we have the necessary data
+    if briefing_date:
+      self._add_id3_tags(output_path, script, briefing_date, location_name)
 
     logger.info(
       "Audio production mixing completed",
@@ -118,3 +127,29 @@ class AudioProductionMixer:
     )
 
     return mixed_audio
+
+  def _add_id3_tags(
+    self,
+    audio_path: Path,
+    script: ConsolidatedBriefingScript,
+    briefing_date: date,
+    location_name: str | None = None,
+  ) -> None:
+    """Add ID3 tags to the audio file."""
+    try:
+      tags = BriefingID3Tags.from_briefing_data(briefing_date, script, location_name)
+      tagger = ID3Tagger()
+
+      # Try to get the cover image
+      cover_path = None
+      try:
+        cover_path = get_podcast_cover_path()
+        if not cover_path.exists():
+          logger.warning(f"Podcast cover not found at {cover_path}")
+          cover_path = None
+      except Exception as e:
+        logger.warning(f"Could not load podcast cover: {e}")
+
+      tagger.add_tags_to_file(audio_path, tags, cover_path)
+    except Exception as e:
+      logger.error(f"Failed to add ID3 tags: {e}")
