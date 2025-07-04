@@ -12,7 +12,7 @@ EXPOSE 8002
 
 # Add health check using the FastAPI health endpoint
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD curl --fail http://localhost:8000/health || exit 1
+  CMD curl --fail http://localhost:8002/health || exit 1
 
 # Run the server subcommand
 CMD ["/app/.venv/bin/wakeup", "server"]
