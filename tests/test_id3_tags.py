@@ -81,7 +81,7 @@ def test_briefing_id3_tags_from_briefing_data(sample_script):
   assert tags.album == "Daily Briefings"
   assert tags.release_date == briefing_date
   assert tags.year == 2025
-  assert tags.genre == "News & Politics"
+  assert tags.genre == "Podcast"
   assert tags.publisher == "LMNOP Wake Up"
 
   # Check the markdown formatted comment
@@ -105,7 +105,7 @@ def test_id3_tagger_add_tags(sample_mp3_file, sample_script):
   assert read_tags["title"] == "The Morning Briefing: July 3rd, 2025"
   assert read_tags["artist"] == "lmnop"
   assert read_tags["album"] == "Daily Briefings"
-  assert read_tags["genre"] == "News & Politics"
+  assert read_tags["genre"] == "Podcast"
   assert "2025" in read_tags["release_date"]
   assert len(read_tags["comments"]) > 0
   assert read_tags["publisher"] == "LMNOP Wake Up"

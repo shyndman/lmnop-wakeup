@@ -1,4 +1,5 @@
 import datetime
+import mimetypes
 from pathlib import Path
 from typing import Any, cast
 
@@ -7,7 +8,7 @@ import eyed3.id3
 import structlog
 from eyed3.core import AudioFile
 from eyed3.id3 import Genre, Tag
-from eyed3.id3.tag import CommentsAccessor
+from eyed3.id3.tag import CommentsAccessor, ImagesAccessor, UserTextsAccessor
 from pydantic import BaseModel, Field
 
 from lmnop_wakeup.brief.model import ConsolidatedBriefingScript
@@ -26,7 +27,7 @@ class BriefingID3Tags(BaseModel):
   album: str = Field(default="Daily Briefings", description="Podcast series name")
   album_artist: str = Field(default="lmnop", description="Album artist")
   release_date: datetime.date = Field(..., description="Date of the briefing")
-  genre: str = Field(default="News & Politics", description="Podcast genre")
+  genre: str = Field(default="Podcast", description="Podcast genre")
   year: int = Field(..., description="Year of release")
   comment: str = Field(..., description="Full script in markdown format")
   publisher: str = Field(default="LMNOP Wake Up", description="Publisher information")
@@ -88,6 +89,15 @@ class ID3Tagger:
       raise ValueError(f"File must be an MP3: {mp3_path}")
 
     logger.info(f"Adding ID3 tags to {mp3_path}")
+    logger.debug(
+      "Tag values to write",
+      title=tags.title,
+      artist=tags.artist,
+      album=tags.album,
+      genre=tags.genre,
+      release_date=tags.release_date,
+      comment_length=len(tags.comment),
+    )
 
     # Load the MP3 file
     audiofile: AudioFile | None = eyed3.load(str(mp3_path))
@@ -106,10 +116,18 @@ class ID3Tagger:
     tag.album_artist = tags.album_artist
     tag.genre = tags.genre
     # Convert datetime.date to string format that eyeD3 accepts
-    date_string = tags.release_date.strftime("%Y-%m-%d")
-    tag.recording_date = date_string
-    tag.release_date = date_string
-    tag.original_release_date = date_string
+    release_date_string = tags.release_date.strftime("%Y-%m-%d")
+    recording_date_string = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    tag.recording_date = recording_date_string
+    tag.release_date = release_date_string
+    tag.original_release_date = release_date_string
+
+    logger.debug(
+      "Date tags",
+      recording_date=recording_date_string,
+      release_date=release_date_string,
+    )
 
     # Add comment (full script)
     cast(CommentsAccessor, tag.comments).set(tags.comment)
@@ -118,25 +136,64 @@ class ID3Tagger:
     tag.publisher = tags.publisher
 
     # Add podcast-specific tags
-    if user_text_frames := tag.user_text_frames:
-      user_text_frames.set("PODCAST", "1")
-      user_text_frames.set("PODCASTURL", "https://github.com/shyndman/lmnop_wakeup")
+    user_text_frames = cast(UserTextsAccessor, tag.user_text_frames)
+    user_text_frames.set("PODCAST", "1")
+    user_text_frames.set("PODCASTURL", "https://github.com/shyndman/lmnop_wakeup")
 
     # Add cover art if provided
     if cover_image_path and cover_image_path.exists():
+      # Detect MIME type
+      mime_type, _ = mimetypes.guess_type(str(cover_image_path))
+      if mime_type is None:
+        mime_type = "image/png"  # Default fallback
+
+      logger.debug(
+        "Adding cover image",
+        path=cover_image_path,
+        size=cover_image_path.stat().st_size,
+        mime_type=mime_type,
+      )
+
       with open(cover_image_path, "rb") as img_file:
-        if images := tag.images:
-          images.set(
-            type_=3,  # Front cover
-            img_data=img_file.read(),
-            mime_type="image/png",
-            description="Podcast Cover",
-          )
+        img_data = img_file.read()
+
+        # Remove the problematic conditional check
+        cast(ImagesAccessor, tag.images).set(
+          type_=3,  # Front cover
+          img_data=img_data,
+          mime_type=mime_type,
+          description="Podcast Cover",
+        )
+
+        logger.debug("Cover image data added to tag")
+    else:
+      logger.warning(
+        "No cover image to add",
+        cover_image_path=cover_image_path,
+        exists=cover_image_path.exists() if cover_image_path else False,
+      )
 
     # Save the tags
     tag.save(version=eyed3.id3.ID3_V2_4)
 
-    logger.info(f"Successfully added ID3 tags to {mp3_path}")
+    logger.info(f"Successfully saved ID3 tags to {mp3_path}")
+
+    # Verify and log what was actually written
+    try:
+      written_tags = self.read_tags_from_file(mp3_path)
+      logger.info(
+        "ID3 tags verification",
+        mp3_path=mp3_path,
+        title=written_tags.get("title"),
+        artist=written_tags.get("artist"),
+        album=written_tags.get("album"),
+        genre=written_tags.get("genre"),
+        release_date=written_tags.get("release_date"),
+        has_cover_art=written_tags.get("has_cover_art"),
+        publisher=written_tags.get("publisher"),
+      )
+    except Exception as e:
+      logger.warning(f"Failed to verify written tags: {e}")
 
   def read_tags_from_file(self, mp3_path: Path) -> dict[str, Any]:
     """Read ID3 tags from an MP3 file for verification."""
