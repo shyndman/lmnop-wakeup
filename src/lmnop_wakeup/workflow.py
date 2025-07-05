@@ -671,6 +671,8 @@ def _generate_all_automation_events(state: State) -> Generator[CalendarEvent, No
   - Travel notifications: lmnop:notify.travel({event, location, mode, duration_min})
     20min before departure
   - Hilary's work meetings: lmnop:notify.meeting({person, event}) - 2min before start
+  - Sunset notifications: lmnop:notify.sunset({sunset_time, peak_score, rating})
+    15min before sunset when score >= 50%
   """
   if not state.schedule:
     return
@@ -689,6 +691,9 @@ def _generate_all_automation_events(state: State) -> Generator[CalendarEvent, No
 
   # Hilary's work notifications
   yield from _generate_hilary_notifications(state)
+
+  # Sunset notifications
+  yield from _generate_sunset_notifications(state)
 
 
 def _generate_travel_notifications(state: State) -> Generator[CalendarEvent, None, None]:
@@ -769,6 +774,40 @@ def _generate_hilary_notifications(state: State) -> Generator[CalendarEvent, Non
       start=TimeInfo(dateTime=notification_time),
       end=TimeInfo(dateTime=notification_time + timedelta(minutes=1)),
     )
+
+
+def _generate_sunset_notifications(state: State) -> Generator[CalendarEvent, None, None]:
+  """Generate sunset notifications for high-quality sunsets."""
+  if not state.sunset_analysis or state.sunset_analysis.peak_score < 50.0:
+    return
+
+  # Parse sunset time (format: "HH:MM")
+  try:
+    # TODO(shyndman): Why in the world are these strings?
+    sunset_hour, sunset_minute = map(int, state.sunset_analysis.sunset_time.split(":"))
+    sunset_datetime = state.day_start_ts.replace(
+      hour=sunset_hour, minute=sunset_minute, second=0, microsecond=0
+    )
+  except (ValueError, AttributeError):
+    # Skip if we can't parse the sunset time
+    return
+
+  # Notification time: 15 minutes before sunset
+  notification_time = sunset_datetime - timedelta(minutes=15)
+
+  summary_data = {
+    "sunset_time": state.sunset_analysis.sunset_time,
+    "peak_score": state.sunset_analysis.peak_score,
+    "rating": state.sunset_analysis.rating,
+  }
+
+  event_id_source = f"notify-sunset-{sunset_datetime.isoformat()}"
+  yield CalendarEvent(
+    id=_to_base32hex(event_id_source),
+    summary=f"lmnop:notify.sunset({json.dumps(summary_data, separators=(',', ':'))})",
+    start=TimeInfo(dateTime=notification_time),
+    end=TimeInfo(dateTime=notification_time + timedelta(minutes=1)),
+  )
 
 
 async def _handle_automation_event(
