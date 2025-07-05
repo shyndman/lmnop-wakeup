@@ -1,3 +1,4 @@
+import shutil
 from pathlib import Path
 
 import structlog
@@ -8,6 +9,7 @@ from pydantic import AwareDatetime, BaseModel
 from ..brief.model import ConsolidatedBriefingScript
 from ..core.cost_tracking import AgentCost
 from ..core.tracing import trace
+from ..env import get_final_out_path
 from ..paths import BriefingDirectory
 from ..tts import TTSOrchestrator
 from .master import master_briefing_audio
@@ -123,6 +125,19 @@ async def add_audio_production(state: TTSWorkflowState) -> TTSWorkflowState:
     briefing_date = state.day_start_ts.date()
     briefing_dir = BriefingDirectory.for_date(briefing_date)
     state.tts.master_audio_path = state.tts.briefing_audio_path
+
+    # Copy master audio to final output location for Music Assistant
+    try:
+      final_out_path = get_final_out_path()
+      final_filename = f"{briefing_date}.mp3"
+      final_destination = final_out_path / final_filename
+
+      shutil.copy2(state.tts.master_audio_path, final_destination)
+      logger.info(f"Copied master audio to final output: {final_destination}")
+    except Exception as e:
+      logger.error(f"Failed to copy master audio to final output: {e}")
+      # Don't fail the workflow, just log the error
+
     return state
 
   # Determine paths
@@ -143,13 +158,23 @@ async def add_audio_production(state: TTSWorkflowState) -> TTSWorkflowState:
   except FileNotFoundError as e:
     logger.warning(f"Audio production files not found: {e}, skipping audio production")
     # Copy briefing audio as final master audio
-    import shutil
-
     shutil.copy2(state.tts.briefing_audio_path, master_audio_path)
     final_audio_path = master_audio_path
 
   state.tts.master_audio_path = final_audio_path
   logger.info(f"Audio production completed: {final_audio_path}")
+
+  # Copy master audio to final output location for Music Assistant
+  try:
+    final_out_path = get_final_out_path()
+    final_filename = f"{briefing_date}.mp3"
+    final_destination = final_out_path / final_filename
+
+    shutil.copy2(final_audio_path, final_destination)
+    logger.info(f"Copied master audio to final output: {final_destination}")
+  except Exception as e:
+    logger.error(f"Failed to copy master audio to final output: {e}")
+    # Don't fail the workflow, just log the error
 
   return state
 

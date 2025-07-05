@@ -11,7 +11,7 @@ from rich.console import Console
 from ..arg import parse_location
 from ..core.cache import get_cache
 from ..core.terminal import file_hyperlink
-from ..env import assert_env
+from ..env import assert_env, get_final_out_path
 from ..location.model import CoordinateLocation, LocationName, location_named
 from ..paths import BriefingDirectory
 from .shared import should_prompt_user
@@ -43,6 +43,7 @@ class Script(Command):
 
     async with get_cache():
       assert_env()
+      get_final_out_path()  # Validate final output path and create directory if needed
 
       # Determine if we should use interactive mode
       interactive = should_prompt_user() and not self.yes

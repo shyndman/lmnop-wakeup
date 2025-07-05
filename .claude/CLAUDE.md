@@ -35,6 +35,9 @@ uv tool run ruff check --fix
 uv tool run ruff format
 
 # Type checking is configured via pyproject.toml with pyright
+
+# Test imports and code
+uv run python -c "from lmnop_wakeup.env import get_final_out_path; print('Import successful')"
 ```
 
 **Testing:**

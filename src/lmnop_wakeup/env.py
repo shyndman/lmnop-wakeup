@@ -1,5 +1,6 @@
 import os
 from enum import StrEnum
+from pathlib import Path
 from typing import NewType
 
 from .core.typing import assert_not_none
@@ -39,6 +40,8 @@ class EnvName(StrEnum):
   """The environment variable name for the Music Assistant player ID."""
   WAKEUP_SERVER_BASE_URL = "WAKEUP_SERVER_BASE_URL"
   """The environment variable name for the base URL that Music Assistant can reach back to."""
+  FINAL_OUT_PATH = "FINAL_OUT_PATH"
+  """The environment variable name for the directory where final briefing files are copied."""
 
 
 def get_postgres_connection_string() -> str:
@@ -201,6 +204,35 @@ def get_wakeup_server_base_url() -> str:
       f"Required environment variable {EnvName.WAKEUP_SERVER_BASE_URL} not provided"
     )
   return assert_not_none(os.getenv(EnvName.WAKEUP_SERVER_BASE_URL))
+
+
+def get_final_out_path() -> Path:
+  """
+  Retrieves and validates the final output path from environment variables.
+
+  Returns:
+    The final output path as a Path object.
+
+  Raises:
+    EnvironmentError: If the FINAL_OUT_PATH environment variable is not set or the path is invalid.
+  """
+  if EnvName.FINAL_OUT_PATH not in os.environ:
+    raise EnvironmentError(f"Required environment variable {EnvName.FINAL_OUT_PATH} not provided")
+
+  path_str = assert_not_none(os.getenv(EnvName.FINAL_OUT_PATH))
+  final_path = Path(path_str)
+
+  # Create directory if it doesn't exist
+  try:
+    final_path.mkdir(parents=True, exist_ok=True)
+  except (OSError, PermissionError) as e:
+    raise EnvironmentError(f"Cannot create or access final output directory {final_path}: {e}")
+
+  # Check if directory is writable
+  if not os.access(final_path, os.W_OK):
+    raise EnvironmentError(f"Final output directory {final_path} is not writable")
+
+  return final_path
 
 
 def assert_env():
