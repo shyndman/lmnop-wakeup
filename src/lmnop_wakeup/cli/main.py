@@ -8,6 +8,7 @@ from clypi import Command, arg
 from ..arg import parse_date_arg
 from .audio import Announce, AudioProduction, ListPlayers
 from .briefing import LoadData, Script, Server, Voiceover
+from .debug import Debug
 from .prompts import DumpPrompts
 from .tasks import Tasks
 
@@ -25,6 +26,7 @@ class Wakeup(Command):
     | Announce
     | Tasks
     | DumpPrompts
+    | Debug
   )
 
   briefing_date: date = arg(

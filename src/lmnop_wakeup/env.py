@@ -243,5 +243,8 @@ def assert_env():
     EnvironmentError: If any required environment variable is not set.
   """
   for name in list(EnvName):
+    if name == EnvName.FINAL_OUT_PATH:
+      continue
+
     if name not in os.environ:
       raise EnvironmentError(f"Required environment variable {name} not provided")
