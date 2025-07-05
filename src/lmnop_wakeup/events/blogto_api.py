@@ -13,9 +13,7 @@ from ..core.date import TimeInfo
 from .calendar.gcalendar_api import (
   BLOGTO_CALENDAR_ID,
   CalendarEvent,
-  get_calendar_event,
-  insert_calendar_event,
-  update_calendar_event,
+  upsert_calendar_event,
 )
 from .event_summarizer_agent import EventSummarizerInput, get_event_summarizer_agent
 
@@ -125,13 +123,8 @@ async def add_upcoming_blogto_events(day_count: int = 21) -> None:
       },
     )
 
-    maybe_event = get_calendar_event(BLOGTO_CALENDAR_ID, str(bto_event.id))
-    if maybe_event:
-      rich.print(f"Event {bto_event.id} already exists in calendar, updating.")
-      update_calendar_event(calendar_id=BLOGTO_CALENDAR_ID, event=event)
-    else:
-      rich.print(event)
-      insert_calendar_event(calendar_id=BLOGTO_CALENDAR_ID, event=event)
+    upsert_calendar_event(calendar_id=BLOGTO_CALENDAR_ID, event=event)
+    rich.print(f"Event {bto_event.id} upserted successfully.")
 
 
 @cached(ttl=60 * 60 * 12)

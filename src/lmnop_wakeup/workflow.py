@@ -39,9 +39,7 @@ from .core.typing import assert_not_none, ensure
 from .env import get_postgres_connection_string
 from .events.calendar.gcalendar_api import (
   AUTOMATION_SCHEDULER_CALENDAR_ID,
-  get_calendar_event,
-  insert_calendar_event,
-  update_calendar_event,
+  upsert_calendar_event,
 )
 from .events.events_api import get_filtered_calendars_with_notes
 from .events.model import CalendarEvent, CalendarsOfInterest, EventRouteOptions, ModeRejectionResult
@@ -782,15 +780,8 @@ async def _handle_automation_event(
     Tuple of (success, error_message). error_message is None if successful.
   """
   try:
-    existing = get_calendar_event(calendar_id, event.id)
-
-    if existing:
-      rich.print(f"Event {event.id} already exists, updating.")
-      update_calendar_event(calendar_id, event)
-    else:
-      rich.print(f"Event {event.id} is new, inserting.")
-      insert_calendar_event(calendar_id, event)
-
+    upsert_calendar_event(calendar_id, event)
+    rich.print(f"Event {event.id} upserted successfully.")
     return True, None
   except Exception as e:
     error_message = f"Failed to handle event {event.id}: {str(e)}"

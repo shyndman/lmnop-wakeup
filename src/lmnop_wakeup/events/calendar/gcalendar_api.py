@@ -81,6 +81,16 @@ def calendar_events_in_range(
 
 
 def get_calendar_event(calendar_id: str, event_id: str) -> CalendarEvent | None:
+  """
+  Retrieve a calendar event by ID.
+
+  Args:
+    calendar_id: The Google Calendar ID
+    event_id: The event ID (must follow Google Calendar ID requirements)
+
+  Returns:
+    CalendarEvent if found, None otherwise
+  """
   _, events_service = get_services()
   try:
     event = events_service.get(calendarId=calendar_id, eventId=event_id).execute()
@@ -91,6 +101,13 @@ def get_calendar_event(calendar_id: str, event_id: str) -> CalendarEvent | None:
 
 
 def insert_calendar_event(calendar_id: str, event: CalendarEvent):
+  """
+  Insert a new calendar event.
+
+  Args:
+    calendar_id: The Google Calendar ID
+    event: The event to insert (event.id must follow Google Calendar ID requirements)
+  """
   _, events_service = get_services()
   event = events_service.insert(
     calendarId=calendar_id,
@@ -99,9 +116,60 @@ def insert_calendar_event(calendar_id: str, event: CalendarEvent):
 
 
 def update_calendar_event(calendar_id: str, event: CalendarEvent):
+  """
+  Update an existing calendar event.
+
+  Args:
+    calendar_id: The Google Calendar ID
+    event: The event to update (event.id must exist in the calendar)
+  """
   _, events_service = get_services()
   event = events_service.update(
     calendarId=calendar_id,
     eventId=event.id,
     body=event.model_dump(),
   ).execute()
+
+
+def upsert_calendar_event(calendar_id: str, event: CalendarEvent) -> CalendarEvent:
+  """
+  Insert or update a calendar event (upsert operation).
+
+  This function follows the established pattern used throughout the codebase:
+  1. Check if the event exists using get_calendar_event()
+  2. If it exists, update it with update_calendar_event()
+  3. If it doesn't exist, insert it with insert_calendar_event()
+
+  Args:
+    calendar_id: The Google Calendar ID
+    event: The event to upsert (event.id must follow Google Calendar ID requirements)
+
+  Returns:
+    The final event (either inserted or updated)
+
+  Note:
+    Google Calendar Event ID Requirements:
+    - Characters: lowercase letters a-v and digits 0-9 (base32hex encoding)
+    - Length: between 5 and 1024 characters
+    - Must be unique per calendar
+    - Recommendation: Use UUID algorithm (RFC4122) to minimize collision risk
+  """
+  existing_event = get_calendar_event(calendar_id, event.id)
+
+  if existing_event:
+    logger.debug(f"Updating existing event {event.id} in calendar {calendar_id}")
+    update_calendar_event(calendar_id, event)
+    action = "updated"
+  else:
+    logger.debug(f"Inserting new event {event.id} in calendar {calendar_id}")
+    insert_calendar_event(calendar_id, event)
+    action = "inserted"
+
+  logger.info(
+    f"Successfully {action} event",
+    event_id=event.id,
+    calendar_id=calendar_id,
+    summary=event.summary,
+  )
+
+  return event

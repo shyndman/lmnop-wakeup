@@ -201,6 +201,14 @@ Data flows through workflow as additive State updates using `Annotated` aggregat
 - Google Gemini AI for multiple specialized agents
 - Text-to-speech synthesis with character voices
 
+**Google Calendar Event ID Requirements:**
+When creating calendar events, event IDs must follow these requirements:
+- **Characters**: lowercase letters a-v and digits 0-9 (base32hex encoding, per RFC2938)
+- **Length**: between 5 and 1024 characters
+- **Uniqueness**: must be unique per calendar
+- **Recommendation**: Use UUID algorithm (RFC4122) to minimize collision risk
+- **Note**: The `id` field is different from `icalUID` - only one should be supplied at creation time
+
 ### Audio/TTS Pipeline
 Sophisticated multi-character voice synthesis in `src/lmnop_wakeup/audio/`:
 
