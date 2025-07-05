@@ -17,7 +17,6 @@ uv build
 **Required Services:**
 - PostgreSQL (for workflow checkpointing)
 - Redis (for caching, optional but recommended)
-- 1Password CLI (`opr`) for API key management
 
 **Key Python Dependencies:**
 - `pydub-ng` - Audio file manipulation and concatenation
@@ -43,40 +42,40 @@ uv run python -c "from lmnop_wakeup.env import get_final_out_path; print('Import
 **Testing:**
 ```bash
 # Run tests (must use opr for environment variables)
-opr uv run pytest tests
+uv run pytest tests/
 
 # Run specific test
-opr uv run pytest tests/test_weather_api.py
+uv run pytest tests/test_weather_api.py
 ```
 
 **Running the Application:**
 ```bash
 # Generate daily briefing script (primary use case)
-opr wakeup --briefing-date 2025-06-10 --current-location home
+op run --env-file=.env wakeup --briefing-date 2025-06-10 --current-location home
 
 # Resume an interrupted workflow
-opr wakeup --briefing-date 2025-06-10 --thread-id <thread-id>
+op run --env-file=.env wakeup --briefing-date 2025-06-10 --thread-id <thread-id>
 
 # Generate voiceover from existing script (obsolete - TTS now in main workflow)
-opr wakeup voiceover --briefing-date 2025-06-10
+op run --env-file=.env wakeup voiceover --briefing-date 2025-06-10
 
 # Load external data
-opr wakeup load-data
+op run --env-file=.env wakeup load-data
 
 # Run server mode
-opr wakeup server
+op run --env-file=.env wakeup server
 
 # Test weather integration
-opr wakeup weather
+op run --env-file=.env wakeup weather
 
 # View available characters
-opr wakeup characters
+op run --env-file=.env wakeup characters
 
 # Announce briefing on Music Assistant
-opr wakeup announce --briefing-date 2025-06-10
+op run --env-file=.env wakeup announce --briefing-date 2025-06-10
 ```
 
-**Important:** All `wakeup` commands MUST be run with `opr` (1Password CLI) to load required API keys from 1Password vault.
+**Important:** All `wakeup` commands MUST be run with `op run` (1Password CLI) to load required API keys from 1Password vault.
 
 **Output Directory Structure:**
 ```
@@ -164,12 +163,12 @@ src/pirate_weather_api_client/ # Generated OpenAPI client
 The project uses LangGraph for orchestrating complex AI-driven workflows. Key workflow is in `src/lmnop_wakeup/workflow.py`:
 
 - **State-driven execution**: Central `State` model accumulates data through workflow stages
-- **Parallel processing**: Concurrent location resolution and weather analysis using `Send` operations  
+- **Parallel processing**: Concurrent location resolution and weather analysis using `Send` operations
 - **Checkpointing**: PostgreSQL-backed persistence allows workflow resume
 - **Multi-tier caching**: Redis + SQLite caching for expensive operations
 
 **Main workflow stages:**
-1. `populate_raw_inputs` → `process_location` (parallel) → `fork_analysis` 
+1. `populate_raw_inputs` → `process_location` (parallel) → `fork_analysis`
 2. Parallel: `calculate_schedule` + `analyze_weather` + `predict_sunset_beauty`
 3. `prioritize_events` → `write_content_optimization` → `write_briefing_script` → `consolidate_dialogue`
 
@@ -187,7 +186,7 @@ All agents follow pattern: type-safe input/output, Langfuse prompt integration, 
 **Domain-driven bounded contexts:**
 
 - **Events**: `CalendarEvent`, `Schedule`, `CalendarsOfInterest` in `src/lmnop_wakeup/events/model.py`
-- **Weather**: `WeatherReport`, `WeatherAnalysis`, `RegionalWeatherReports` in `src/lmnop_wakeup/weather/model.py`  
+- **Weather**: `WeatherReport`, `WeatherAnalysis`, `RegionalWeatherReports` in `src/lmnop_wakeup/weather/model.py`
 - **Location**: Type hierarchy `Location` → `CoordinateLocation` → `ResolvedLocation` → `NamedLocation` in `src/lmnop_wakeup/location/model.py`
 - **Briefing**: `BriefingScript`, `Character` models in `src/lmnop_wakeup/brief/model.py`
 
@@ -206,7 +205,7 @@ Data flows through workflow as additive State updates using `Annotated` aggregat
 Sophisticated multi-character voice synthesis in `src/lmnop_wakeup/audio/`:
 
 - Character-based voice mapping with distinct personalities
-- Audio file management and concatenation  
+- Audio file management and concatenation
 - Rate-limited API integration
 - Master audio track generation
 - ID3 tagging for podcast metadata (title, artist, album, cover art)
@@ -225,7 +224,7 @@ Sophisticated multi-character voice synthesis in `src/lmnop_wakeup/audio/`:
 - `LOG_LEVEL` - Controls overall logging verbosity (TRACE, DEBUG, INFO, WARNING, ERROR)
 - `LANGRAPH_DEBUG` - Controls Langraph state dumping (true/false, default: false)
 
-### Caching Strategy  
+### Caching Strategy
 Multi-tier caching approach:
 - Redis for shared/persistent data (`aiocache` integration)
 - SQLite for workflow caching
@@ -260,7 +259,7 @@ When making changes, follow the domain boundaries and use existing agent pattern
 
 ### TTS Integration into Workflow Graph
 - TTS generation moved from separate CLI step into main workflow graph
-- Runs automatically after `consolidate_dialogue` node  
+- Runs automatically after `consolidate_dialogue` node
 - No manual confirmation needed in CLI
 - Audio files tracked in `State.tts: TTSState`
 - Checkpointing works for TTS operations
