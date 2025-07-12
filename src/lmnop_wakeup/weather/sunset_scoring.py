@@ -3,7 +3,7 @@ from typing import cast
 
 import pandas as pd
 import pvlib
-from pydantic import BaseModel, Field, field_validator
+from pydantic import AwareDatetime, BaseModel, Field, field_validator
 
 # Pydantic v2 Models for Sunset Analysis
 
@@ -186,14 +186,14 @@ class SunsetAnalysisResult(BaseModel):
   """Complete sunset analysis results for LLM agent consumption."""
 
   peak_score: float = Field(..., description="Highest sunset quality score in analysis window")
-  peak_time: str | None = Field(
-    ..., description="Time of peak conditions (HH:MM), None if no viable viewing time"
+  peak_time: AwareDatetime | None = Field(
+    ..., description="Time of peak conditions, None if no viable viewing time"
   )
   peak_sun_elevation: float = Field(..., description="Sun elevation angle at peak time")
   rating: str = Field(..., description="Qualitative rating (Exceptional, Very Good, etc.)")
-  sunset_time: str = Field(..., description="Actual sunset time (HH:MM)")
-  golden_hour_start: str = Field(..., description="Golden hour start time (HH:MM)")
-  golden_hour_end: str = Field(..., description="Golden hour end time (HH:MM)")
+  sunset_time: AwareDatetime = Field(..., description="Actual sunset time")
+  golden_hour_start: AwareDatetime = Field(..., description="Golden hour start time")
+  golden_hour_end: AwareDatetime = Field(..., description="Golden hour end time")
   hourly_analysis: list[SunsetHourlyAnalysis] = Field(..., description="Hour-by-hour analysis")
   conditions_summary: SunsetConditionsSummary | None = Field(
     ..., description="Weather summary at peak time, None if no viable viewing conditions"
@@ -470,7 +470,7 @@ def analyze_sunset_conditions(
 
     if weighted_score > peak_score:
       peak_score = weighted_score
-      peak_time = analysis_times[i].strftime("%H:%M")
+      peak_time = analysis_times[i]
       peak_conditions = hour_conditions
       peak_elevation = sun_elevation
 
@@ -508,9 +508,9 @@ def analyze_sunset_conditions(
     peak_time=peak_time,
     peak_sun_elevation=round(peak_elevation, 2) if peak_elevation is not None else 0.0,
     rating=rating,
-    sunset_time=sunset_time.strftime("%H:%M"),
-    golden_hour_start=start_time.strftime("%H:%M"),
-    golden_hour_end=end_time.strftime("%H:%M"),
+    sunset_time=sunset_time,
+    golden_hour_start=start_time,
+    golden_hour_end=end_time,
     hourly_analysis=hourly_analysis,
     conditions_summary=conditions_summary,
     location=location,
@@ -801,7 +801,7 @@ def test_sunset_analysis():
     print("Sunset Analysis Results (with air quality):")
     print(f"Peak Score: {result.peak_score}")
     print(f"Rating: {result.rating}")
-    print(f"Peak Time: {result.peak_time}")
+    print(f"Peak Time: {result.peak_time.strftime('%H:%M') if result.peak_time else 'None'}")
     print(f"Air Quality Score: {result.hourly_analysis[0].air_quality_score}")
     if result.conditions_summary:
       print(f"PM2.5: {result.conditions_summary.pm2_5} μg/m³")

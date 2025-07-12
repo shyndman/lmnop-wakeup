@@ -781,22 +781,14 @@ def _generate_sunset_notifications(state: State) -> Generator[CalendarEvent, Non
   if not state.sunset_analysis or state.sunset_analysis.peak_score < 50.0:
     return
 
-  # Parse sunset time (format: "HH:MM")
-  try:
-    # TODO(shyndman): Why in the world are these strings?
-    sunset_hour, sunset_minute = map(int, state.sunset_analysis.sunset_time.split(":"))
-    sunset_datetime = state.day_start_ts.replace(
-      hour=sunset_hour, minute=sunset_minute, second=0, microsecond=0
-    )
-  except (ValueError, AttributeError):
-    # Skip if we can't parse the sunset time
-    return
+  # Use sunset_time directly as it's now an AwareDatetime
+  sunset_datetime = state.sunset_analysis.sunset_time
 
   # Notification time: 15 minutes before sunset
   notification_time = sunset_datetime - timedelta(minutes=15)
 
   summary_data = {
-    "sunset_time": state.sunset_analysis.sunset_time,
+    "sunset_time": state.sunset_analysis.sunset_time.strftime("%H:%M"),
     "peak_score": state.sunset_analysis.peak_score,
     "rating": state.sunset_analysis.rating,
   }
